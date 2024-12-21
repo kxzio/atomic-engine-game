@@ -1,5 +1,5 @@
 #pragma once
-
+#include "resources/window_profiling/window.h"
 class menu
 {
 public:

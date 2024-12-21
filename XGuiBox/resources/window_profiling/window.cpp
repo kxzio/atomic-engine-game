@@ -299,9 +299,13 @@ void window_profiling::create_window()
     g_d3dpp.Windowed = TRUE;
     g_d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
     g_d3dpp.BackBufferFormat = D3DFMT_UNKNOWN;
-    g_d3dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE; // Включение VSync
-
+    g_d3dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
     pD3D->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hwnd, D3DCREATE_HARDWARE_VERTEXPROCESSING, &g_d3dpp, &g_pd3dDevice);
+
+    g_pd3dDevice->SetRenderState(D3DRS_LIGHTING,              FALSE);
+    g_pd3dDevice->SetRenderState(D3DRS_ZENABLE,               FALSE);
+    g_pd3dDevice->SetRenderState(D3DRS_ANTIALIASEDLINEENABLE, FALSE);
+
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -350,19 +354,7 @@ void window_profiling::create_window()
     ShowWindow(hwnd, SW_SHOWDEFAULT);
     UpdateWindow(hwnd);
 
-    LPD3DXEFFECT pFishEyeEffect = NULL;
-    LPD3DXBUFFER pErrorMsgs = NULL;
-    D3DXCreateEffectFromFileA(g_pd3dDevice, "FishEyeShader.fxo", NULL, NULL, 0, NULL, &pFishEyeEffect, &pErrorMsgs);
-
     static IDirect3DTexture9* Logotype; static IDirect3DTexture9* Noise; static IDirect3DTexture9* Tv; static IDirect3DTexture9* RGB;
-    if (!Logotype)
-        D3DXCreateTextureFromFileInMemory(g_pd3dDevice, &planet_menu, sizeof(planet_menu), &Logotype);
-    if (!Noise)
-        D3DXCreateTextureFromFileInMemory(g_pd3dDevice, &noise, sizeof(noise), &Noise);
-    if (!Tv)
-        D3DXCreateTextureFromFileInMemory(g_pd3dDevice, &tv, sizeof(tv), &Tv);
-    if (!RGB)
-        D3DXCreateTextureFromFileInMemory(g_pd3dDevice, &RGB_LINES, sizeof(RGB_LINES), &RGB);
 
     static bool loaded = false;
 
@@ -393,6 +385,13 @@ void window_profiling::create_window()
 
     if (!loaded)
     {
+        InitVideo(g_pd3dDevice);
+
+        D3DXCreateTextureFromFileInMemory(g_pd3dDevice, &planet_menu, sizeof(planet_menu), &Logotype);
+        D3DXCreateTextureFromFileInMemory(g_pd3dDevice, &noise, sizeof(noise), &Noise);
+        D3DXCreateTextureFromFileInMemory(g_pd3dDevice, &tv, sizeof(tv), &Tv);
+        D3DXCreateTextureFromFileInMemory(g_pd3dDevice, &RGB_LINES, sizeof(RGB_LINES), &RGB);
+
         for (int i = 0; i < ARRAYSIZE(countries_file_name); i++)
         {
             if (countries_file_name[i])
@@ -400,13 +399,6 @@ void window_profiling::create_window()
         }
         loaded = true;
     }
-
-    // Создаем текстуру для рендеринга
-    LPDIRECT3DTEXTURE9 pRenderTexture = NULL;
-    g_pd3dDevice->CreateTexture(this->window_size.x, this->window_size.y, 1, D3DUSAGE_RENDERTARGET, D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT, &pRenderTexture, NULL);
-
-    InitVideo(g_pd3dDevice); // Вызвать один раз при старте приложения
-
 
     MSG msg = {};
     while (msg.message != WM_QUIT) {
@@ -421,20 +413,12 @@ void window_profiling::create_window()
             continue; 
         }
 
-        LPDIRECT3DSURFACE9 pOldRenderTarget = NULL;
-        g_pd3dDevice->GetRenderTarget(0, &pOldRenderTarget); // Сохраняем текущий рендер-таргет
-
-        LPDIRECT3DSURFACE9 pSurface = NULL;
-        pRenderTexture->GetSurfaceLevel(0, &pSurface);       // Получаем поверхность текстуры
-        g_pd3dDevice->SetRenderTarget(0, pSurface);          // Устанавливаем текстуру как рендер-таргет
-        pSurface->Release();
-
         g_pd3dDevice->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 0);
         g_pd3dDevice->BeginScene();
 
         ImGui_ImplDX9_NewFrame();
         ImGui_ImplWin32_NewFrame();
-        UpdateVideoFrame(g_pd3dDevice); // Обновление кадра видео
+        //UpdateVideoFrame(g_pd3dDevice); // Обновление кадра видео
         ImGui::NewFrame();
 
 
@@ -484,15 +468,6 @@ void window_profiling::create_window()
         ImGui::EndFrame();
         ImGui::Render();
 
-        ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
-        g_pd3dDevice->EndScene();
-
-        // Восстанавливаем рендер-таргет и применяем эффект рыбьего глаза
-        g_pd3dDevice->SetRenderTarget(0, pOldRenderTarget);
-        pOldRenderTarget->Release();
-
-        g_pd3dDevice->BeginScene();
-        //ApplyFishEyeEffect(pFishEyeEffect, pRenderTexture, 900, 400, ImVec2(this->window_size.x / 1.5, this->window_size.y / 1.5)); // Применяем эффект
 
         ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
         g_pd3dDevice->EndScene();
@@ -502,8 +477,6 @@ void window_profiling::create_window()
     }
 
     // Освобождаем ресурсы
-    if (pRenderTexture) pRenderTexture->Release();
-    if (pFishEyeEffect) pFishEyeEffect->Release();
     if (g_videoTexture) g_videoTexture->Release();
     if (Tv) Tv->Release();
     if (Noise) Noise->Release();

@@ -7792,11 +7792,12 @@ void ImGui::BringWindowToDisplayFront(ImGuiWindow* window)
         }
 }
 
+static std::map<ImGuiID, float> pValue;
+
+
 float ImGui::LerpAnimate(const char* label, const char* second_label, bool if_, float Maximal_, float Speed_, int type) {
 
     auto ID = ImGui::GetID((std::stringstream{} << label << second_label).str().c_str());
-
-    static std::map<ImGuiID, float> pValue;
 
     auto ItPLibrary = pValue.find(ID);
 
@@ -7841,6 +7842,22 @@ float ImGui::LerpAnimate(const char* label, const char* second_label, bool if_, 
     }
 
     return ItPLibrary->second;
+
+}
+
+void ImGui::ChangeAnimateValue(const char* label, const char* second_label, float value)
+{
+    auto ID = ImGui::GetID((std::stringstream{} << label << second_label).str().c_str());
+
+    auto ItPLibrary = pValue.find(ID);
+
+    if (ItPLibrary == pValue.end())
+    {
+        pValue.insert({ ID, 0.f });
+        ItPLibrary = pValue.find(ID);
+    }
+
+    ItPLibrary->second = value;
 
 }
 

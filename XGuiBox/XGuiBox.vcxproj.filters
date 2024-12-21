@@ -54,6 +54,9 @@
     <ClCompile Include="resources\imgui_resource\imgui_freetype.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
+    <ClCompile Include="game_process\map_processing.cpp">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resources\imgui_resource\imconfig.h">
@@ -126,6 +129,9 @@
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="resources\nanosvgrast.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="game_process\map_processing.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>

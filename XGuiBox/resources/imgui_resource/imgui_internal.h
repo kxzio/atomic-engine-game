@@ -2958,6 +2958,7 @@ namespace ImGui
     IMGUI_API void          FocusTopMostWindowUnderOne(ImGuiWindow* under_this_window, ImGuiWindow* ignore_window, ImGuiViewport* filter_viewport, ImGuiFocusRequestFlags flags);
     IMGUI_API void          BringWindowToFocusFront(ImGuiWindow* window);
     float                   LerpAnimate(const char* label, const char* second_label, bool if_, float Maximal_, float Speed_, int type);
+    void                    ChangeAnimateValue(const char* label, const char* second_label, float value);
     IMGUI_API               std::string AnimatedChar(std::string string, float speed, char* current_char);
     IMGUI_API void          BringWindowToDisplayFront(ImGuiWindow* window);
     IMGUI_API void          BringWindowToDisplayBack(ImGuiWindow* window);
