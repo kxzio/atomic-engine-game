@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <string>
+#include <functional>
 #include <fstream>
 
 #include "menu.h"
@@ -936,7 +937,7 @@ void menu::render(window_profiling window)
                     ImGui::InputText("Server IP", client_ip, 128);
                     if (ImGui::Button("Join Server", ImVec2(380, 35)))
                     {
-                        game_scenes_params::global_game_scene_tab = 4;
+                        game_scenes_params::main_menu_tabs = 4;
                         server_client_space::server_client_menu_information::client_nickname = nickname;
                         std::thread(run_client, std::string(client_ip), 1234, std::string(nickname)).detach();
                     }
@@ -1128,7 +1129,7 @@ void menu::render(window_profiling window)
 
         case  game_scenes_params::global_game_tabs::game_process   :
         {
-            g_map.process_map(window, screen_x, screen_y);
+           g_map.process_map(window, screen_x, screen_y);
         }
         break;
 

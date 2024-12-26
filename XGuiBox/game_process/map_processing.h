@@ -15,13 +15,6 @@
 #define YOUR_HEADER_FILE_H
 #endif  //YOUR_HEADER_FILE_H
 
-class map_processing
-{
-public:
-	void process_map(window_profiling window, int screen_size_x, int screen_size_y);
-};
-inline map_processing g_map;
-
 struct Point {
     int x, y;
 
@@ -221,4 +214,16 @@ struct country_data
     bool hitbox_get = false;
     std::vector<Point> convex_hull = {};
     std::vector<ImVec2> convex_hull_screen_coords;
+
 };
+
+class map_processing
+{
+public:
+
+    void process_map(window_profiling window, int screen_size_x, int screen_size_y);
+
+    void render_map_and_process_hitboxes(window_profiling window, std::vector <country_data>* countries, float animated_map_scale, int* hovered_id, ImVec2 cursor_pos, ImVec2 map_pos);
+};
+inline map_processing g_map;
+
