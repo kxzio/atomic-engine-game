@@ -29,8 +29,8 @@ int main()
 	/* Font initialization ( Important to be before the "create window" function ) */
 	g_xgui			  .add_font("verdana", 15);
 	g_xgui            .add_font("cour", 16);
-	g_xgui			  .add_font("cour", 45);
-	g_xgui            .add_font("cour", 17);
+	g_xgui			  .add_font("framd", 45);
+	g_xgui            .add_font("framd", 17);
 
 	/* Main window is now appear on your screen with no (at this moment) interface */
 	new_window_profile.create_window();

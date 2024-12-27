@@ -225,7 +225,7 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
         //rendering citys and country image
         for (int i = 0; i < countries->size(); i++)
         {
-            auto data =countries->at(i);
+            auto data = countries->at(i);
             static float map_scale2 = 0.240010;
 
             auto posx = data.position.x * animated_map_scale - (data.size.x * animated_map_scale * map_scale2) / 2 + map_pos.x * animated_map_scale;
@@ -243,6 +243,9 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
             for (int city_id = 0; city_id < data.cities.size(); city_id++)
             {
                 int alpha_for_city_text = 255 - ((5.25 - animated_map_scale) * 100);
+
+                country_colors[i].Value.w = float(alpha_for_city_text / 255.f);
+
                 //ImGui::GetForegroundDrawList()->AddRect(ImVec2(posx + data.cities[city_id].city_pos.x * animated_map_scale - 2 * animated_map_scale, posy + data.cities[city_id].city_pos.y * animated_map_scale - 2 * animated_map_scale), ImVec2(posx + data.cities[city_id].city_pos.x * animated_map_scale + 2 * animated_map_scale, posy + data.cities[city_id].city_pos.y * animated_map_scale + 2 * animated_map_scale), ImColor(255, 255, 255, alpha_for_city_text));
                 ImGui::GetForegroundDrawList()->AddRectFilled(ImVec2(posx + data.cities[city_id].city_pos.x * animated_map_scale - 0.5 * animated_map_scale, posy + data.cities[city_id].city_pos.y * animated_map_scale - 0.5 * animated_map_scale), ImVec2(posx + data.cities[city_id].city_pos.x * animated_map_scale + 0.5 * animated_map_scale, posy + data.cities[city_id].city_pos.y * animated_map_scale + 0.5 * animated_map_scale), country_colors[i]);
 
@@ -262,13 +265,15 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
                 ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[3].font_addr, 17, ImVec2(posx + data.cities[city_id].city_pos.x * animated_map_scale - textsize_for_city.x / 2, posy + data.cities[city_id].city_pos.y * animated_map_scale - 25), ImColor(255, 255, 255, alpha_for_city_text), data.cities[city_id].city_name.c_str());
             }
 
+            country_colors[i].Value.w = 255.f;
+
+            ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[2].font_addr, fontsize, ImVec2(posx + sizex / 2 - textsize.x / 2, posy + sizey / 2 - textsize.y / 2), ImColor(255, 255, 255), data.name.c_str());
 
             if (*hovered_id != -1)
             {
                 if (*hovered_id == i)
                 {
                     country_colors[i] = ImColor(255, 50, 0);
-                    ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[2].font_addr, fontsize, ImVec2(posx + sizex / 2 - textsize.x / 2, posy + sizey / 2 - textsize.y / 2), ImColor(255, 255, 255), data.name.c_str());
 
                     auto pos = ImVec2(countries->at(i).position.x * animated_map_scale - (countries->at(i).size.x * animated_map_scale * map_scale2) / 2 + map_pos.x * animated_map_scale,
                         countries->at(i).position.y * animated_map_scale - (countries->at(i).size.y * animated_map_scale * map_scale2) / 2 + map_pos.y * animated_map_scale);
@@ -792,12 +797,16 @@ void map_processing::process_map(window_profiling window, int screen_size_x, int
 
     ImGui::GetForegroundDrawList()->AddText(ImVec2(20, 20), ImColor(255, 255, 255), std::to_string(moved_pos.x).c_str());
 
+
+    //map processing
+
     this->render_map_and_process_hitboxes(window, &countries, animated_map_scale, &hovered_country_id, ImVec2(cursor_pos.x, cursor_pos.y), final_map_pos);
     //first map
 
     ImVec2 final_pos_secondary = final_map_pos;
     if (final_map_pos.x < -225)
     {
+    
         final_pos_secondary.x += 1250;
     }
     else {
@@ -805,5 +814,115 @@ void map_processing::process_map(window_profiling window, int screen_size_x, int
     }
 
     this->render_map_and_process_hitboxes(window, &countries, animated_map_scale, &hovered_country_id, ImVec2(cursor_pos.x, cursor_pos.y), final_pos_secondary);
+
+    process_and_sync_game_cycle();
+
+}
+#include <iostream>
+#include <ctime>
+#include <sstream>
+
+std::string getCurrentTimeString() {
+    // Получение текущего времени
+    std::time_t now = std::time(nullptr);
+    // Создание структуры tm
+    std::tm localTime;
+    // Использование функции localtime_s для безопасного заполнения структуры tm
+    localtime_s(&localTime, &now);
+
+    // Форматирование времени в строку
+    std::ostringstream oss;
+    oss << (localTime.tm_year + 1900) << "-"
+        << (localTime.tm_mon + 1) << "-"
+        << localTime.tm_mday << " "
+        << localTime.tm_hour << ":"
+        << localTime.tm_min << ":"
+        << localTime.tm_sec;
+
+    return oss.str();
+}
+
+void process_events()
+{
+    static int game_length;
+
+    if (g_menu.selected_game_mode == 0)
+    {
+        game_length = 30;
+    }
+    if (g_menu.selected_game_mode == 1)
+    {
+        game_length = 45;
+    }
+
+    //events switching
+    if (g_map.global_tick > ((game_length / 5) * 60) * 0)       { g_map.game_events = g_map.game_events::PREPARATION_EVENT; }
+    if (g_map.global_tick > ((game_length / 5) * 60) * 1)       { g_map.game_events = g_map.game_events::DOCKYARD_RELEASE ; }
+    if (g_map.global_tick > ((game_length / 5) * 60) * 2)       { g_map.game_events = g_map.game_events::AIRCRAFR_RELEASE ; }
+    if (g_map.global_tick > ((game_length / 5) * 60) * 3)       { g_map.game_events = g_map.game_events::NUCLEAR_DANGER   ; }
+    if (g_map.global_tick > ((game_length / 5) * 60) * 4)       { g_map.game_events = g_map.game_events::ANIHILATION      ; }
+    if (g_map.global_tick > ((game_length / 5) * 60) * 5)       { g_map.game_events = g_map.game_events::GAME_END         ; }
+
+}
+void game_event_timer()
+{
+    while (true)
+    {
+        process_events();
+        std::this_thread::sleep_for(std::chrono::milliseconds(150)); //TODO : change it to 1 second in release version
+        g_map.global_tick++;
+    }
+}
+
+void map_processing::process_and_sync_game_cycle()
+{
+    if (!tick_started)
+    {
+        std::thread(game_event_timer).detach();
+        tick_started = true;
+    }
+
+    if (g_socket_control.player_role        ==      g_socket_control.player_role_enum::SERVER)
+    {
+
+        //server side 
+
+        //tick and event update
+        static int old_global_tick = 0;
+        static int old_game_event  = 0;
+
+        //sending global game tick to client
+        if (old_global_tick != global_tick)         { g_socket_control.server_send_message("GAME_CYCLE:TICK_UPDATE:"         + std::to_string(global_tick));        old_global_tick = global_tick;        }
+
+        //sending global game event to client
+        if (old_game_event  != g_map.game_events)   { g_socket_control.server_send_message("GAME_CYCLE:GLOBAL_EVENT_UPDATE:" + std::to_string(g_map.game_events));  old_game_event = g_map.game_events;   }
+
+
+        ImGui::GetForegroundDrawList()->AddText(ImVec2(100, 150), ImColor(255, 255, 255), std::to_string(global_tick).c_str());
+        ImGui::GetForegroundDrawList()->AddText(ImVec2(100, 180), ImColor(255, 255, 255), std::to_string(g_map.game_events).c_str());
+    }
+    else if (g_socket_control.player_role   ==      g_socket_control.player_role_enum::CLIENT)
+    {
+        //client side
+
+        std::string message = g_socket_control.game_cycle_messages;
+        if (g_socket_control.game_cycle_messages.find("GAME_CYCLE:TICK_UPDATE:") != std::string::npos)
+        {
+            //game tick update from server and making it up in global var
+            message           .erase(0, 23);
+            global_tick = std::stoi(message);
+        }
+        else if (g_socket_control.game_cycle_messages.find("GAME_CYCLE:GLOBAL_EVENT_UPDATE:") != std::string::npos)
+        {
+            //game event update from server and making it up in global var
+            message.erase(0, 31);
+            game_events = std::stoi(message);
+        }
+
+        ImGui::GetForegroundDrawList()->AddText(ImVec2(100, 150), ImColor(255, 255, 255), std::to_string(global_tick).c_str());
+        ImGui::GetForegroundDrawList()->AddText(ImVec2(100, 180), ImColor(255, 255, 255), std::to_string(g_map.game_events).c_str());
+
+
+    }
 
 }

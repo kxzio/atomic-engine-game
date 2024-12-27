@@ -200,6 +200,7 @@ private:
         boost::asio::async_read_until(*socket, *buffer, "\n", [this, socket, buffer](boost::system::error_code ec, std::size_t) {
             if (!ec)
             {
+
                 std::istream    is(buffer.get());
                 std::string     message;
                 std::getline(is, message);
@@ -223,6 +224,10 @@ private:
                         server_client_space::server_client_menu_information::server_ready_lobby_list.erase(pos2, nickname.length() + 1);
                     }
                     send_message("PLAYER.READY.LOBBY.LIST:" + server_client_space::server_client_menu_information::server_ready_lobby_list);
+                }
+                else if (server_client_space::IsRequest(message, "GAME_CYCLE:"))
+                {
+                    g_socket_control.game_cycle_messages = message;
                 }
                 else
                 {
@@ -350,7 +355,12 @@ private:
                 }
                 else if (server_client_space::IsRequest(message, "SERVER:GAME_START"))
                 {
+                    g_socket_control.player_role = g_socket_control.player_role_enum::CLIENT;
                     game_scenes_params::global_game_scene_tab = game_scenes_params::global_game_tabs::game_process;
+                }
+                else if (server_client_space::IsRequest(message, "GAME_CYCLE:"))
+                {
+                    g_socket_control.game_cycle_messages = message;
                 }
                 else
                 {
@@ -397,6 +407,17 @@ void run_client(const std::string& host, short port, const std::string& nickname
     client = std::make_shared<ChatClient>(*io_context, host, port, nickname);
     io_context->run();
 }
+
+void socket_control::server_send_message(std::string message)
+{
+    server->send_message(message);
+}
+
+void socket_control::client_send_message(std::string message)
+{
+    client->send_message(message);
+}
+
 
 void menu::render(window_profiling window) 
 {
@@ -912,8 +933,7 @@ void menu::render(window_profiling window)
                     ImGui::Begin("Server game settings");
                     {
                         static int last_selected_game_mode = 0;
-                        static int selected_game_mode = 0;
-                        const char* game_modes_selection[] = { "Default (30 mins)", "Fast (15 mins)", "Long (45 mins)" };
+                        const char* game_modes_selection[] = { "Default (30 mins)", "Long (45 mins)" };
                         ImGui::Combo("Game mode", &selected_game_mode, game_modes_selection, IM_ARRAYSIZE(game_modes_selection));
                         if (last_selected_game_mode != selected_game_mode) {
                             server->send_message("Server : game mode changed to " + std::string(game_modes_selection[selected_game_mode]) + "/blue/");
@@ -921,10 +941,10 @@ void menu::render(window_profiling window)
                             last_selected_game_mode = selected_game_mode;
                         }
 
-
                         if (all_players_are_ready)
                         if (ImGui::Button("Start Game!", ImVec2(380, 35)))
                         {
+                            g_socket_control.player_role = g_socket_control.player_role_enum::SERVER;
                             game_scenes_params::global_game_scene_tab = game_scenes_params::game_process;
                             server->send_message("SERVER:GAME_START");
                         }

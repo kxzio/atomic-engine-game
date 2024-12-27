@@ -221,9 +221,27 @@ class map_processing
 {
 public:
 
+    void process_and_sync_game_cycle();
+
     void process_map(window_profiling window, int screen_size_x, int screen_size_y);
 
     void render_map_and_process_hitboxes(window_profiling window, std::vector <country_data>* countries, float animated_map_scale, int* hovered_id, ImVec2 cursor_pos, ImVec2 map_pos);
+
+    bool tick_started;
+
+    int global_tick;
+
+    int game_events;
+
+    enum game_events 
+    {
+        PREPARATION_EVENT,
+        DOCKYARD_RELEASE,
+        AIRCRAFR_RELEASE,
+        NUCLEAR_DANGER,
+        ANIHILATION,
+        GAME_END
+    };
 };
 inline map_processing g_map;
 
