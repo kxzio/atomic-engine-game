@@ -196,6 +196,9 @@ struct city_vector_data
 {
     std::string city_name;
     ImVec2 city_pos;
+
+    bool selected;
+    bool hovered;
 };
 
 struct country_data
@@ -208,8 +211,6 @@ struct country_data
     ImVec2 hitbox_size;
 
     std::vector<city_vector_data> cities;
-    int hovered_city_id = -1;
-    int selected_city_id;
 
     bool hitbox_get = false;
     std::vector<Point> convex_hull = {};
@@ -221,12 +222,22 @@ class map_processing
 {
 public:
 
+    //tech vars
+    int screen_x, screen_y;
+
+    POINT  cursor_pos;
+
+    //selector
+    ImRect selector_zone;
+
+    //cycles
     void process_and_sync_game_cycle();
 
     void process_map(window_profiling window, int screen_size_x, int screen_size_y);
 
     void render_map_and_process_hitboxes(window_profiling window, std::vector <country_data>* countries, float animated_map_scale, int* hovered_id, ImVec2 cursor_pos, ImVec2 map_pos);
 
+    //tick and events
     bool tick_started;
 
     int global_tick;

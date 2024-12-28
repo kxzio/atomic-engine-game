@@ -1,5 +1,17 @@
 #include "map_processing.h"
 
+bool IsPointInImRect(const ImVec2& point, const ImRect& rect) {
+    ImVec2 min = rect.Min;
+    ImVec2 max = rect.Max;
+
+    // Корректируем мин и макс в случае отрицательных размеров
+    if (min.x > max.x) std::swap(min.x, max.x);
+    if (min.y > max.y) std::swap(min.y, max.y);
+
+    return (point.x >= min.x && point.x <= max.x && point.y >= min.y && point.y <= max.y);
+}
+
+
 void map_processing::render_map_and_process_hitboxes(window_profiling window, std::vector <country_data>* countries, float animated_map_scale, int* hovered_id, ImVec2 cursor_pos, ImVec2 map_pos)
 {
     ImColor country_colors[] =
@@ -236,7 +248,7 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
             auto sizex = secondposx - posx;
             auto sizey = secondposy - posy;
 
-            auto fontsize = 20 + animated_map_scale * 3;
+            auto fontsize = 17 + animated_map_scale * 3;
             auto textsize = g_xgui.fonts[2].font_addr->CalcTextSizeA(fontsize, FLT_MAX, -1.f, data.name.c_str());
 
 
@@ -263,11 +275,38 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
                 ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[3].font_addr, 17, ImVec2(text_pos.x - 1.5, text_pos.y + 1.5), ImColor(0, 0, 0, alpha_for_city_text), data.cities[city_id].city_name.c_str());
 
                 ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[3].font_addr, 17, ImVec2(posx + data.cities[city_id].city_pos.x * animated_map_scale - textsize_for_city.x / 2, posy + data.cities[city_id].city_pos.y * animated_map_scale - 25), ImColor(255, 255, 255, alpha_for_city_text), data.cities[city_id].city_name.c_str());
+
+
+                ImVec2 point_pos = ImVec2(posx + data.cities[city_id].city_pos.x * animated_map_scale - 1.5 * animated_map_scale, posy + data.cities[city_id].city_pos.y * animated_map_scale - 1.5 * animated_map_scale);
+                ImVec2 point_size = ImVec2(posx + data.cities[city_id].city_pos.x * animated_map_scale + 1.5 * animated_map_scale, posy + data.cities[city_id].city_pos.y * animated_map_scale + 1.5 * animated_map_scale);
+
+                if (IsPointInImRect(point_pos, selector_zone))
+                {
+                    countries->at(i).cities[city_id].hovered = true;
+                    ImGui::GetForegroundDrawList()->AddRect(point_pos, point_size, ImColor(79, 255, 69, 200));
+                }
+                else if (ImGui::IsMouseDown(0))
+                {
+                    countries->at(i).cities[city_id].hovered = false;
+                }
+                else if (data.cities[city_id].hovered || data.cities[city_id].selected)
+                {
+                    countries->at(i).cities[city_id].hovered  = false;
+                    countries->at(i).cities[city_id].selected = true;
+                    ImGui::GetForegroundDrawList()->AddRect(point_pos, point_size, ImColor(79, 255, 69, 200));
+                }
+
+                if (ImGui::IsMouseClicked(0))
+                {
+                    countries->at(i).cities[city_id].hovered  = false;
+                    countries->at(i).cities[city_id].selected = false;
+                }
+
             }
 
             country_colors[i].Value.w = 255.f;
 
-            ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[2].font_addr, fontsize, ImVec2(posx + sizex / 2 - textsize.x / 2, posy + sizey / 2 - textsize.y / 2), ImColor(255, 255, 255), data.name.c_str());
+            //ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[2].font_addr, fontsize, ImVec2(posx + sizex / 2 - textsize.x / 2, posy + sizey / 2 - textsize.y / 2), ImColor(255, 255, 255), data.name.c_str());
 
             if (*hovered_id != -1)
             {
@@ -304,14 +343,15 @@ void map_processing::process_map(window_profiling window, int screen_size_x, int
 {
     static ImVec2 final_map_pos;
     static ImVec2 moved_pos = ImVec2(-190, 241.5);
-    static POINT  cursor_pos;
 
     static float  map_scale = 1.5;
     static float  animated_map_scale;
-
-
+    
     GetCursorPos  (&cursor_pos);
     ScreenToClient(g_xgui.hwnd_of_process, &cursor_pos);
+
+    screen_x = screen_size_x;
+    screen_y = screen_size_y;
 
     //cursor processing
     static ImVec2 cursor_pos_screened_value;
@@ -818,30 +858,8 @@ void map_processing::process_map(window_profiling window, int screen_size_x, int
     process_and_sync_game_cycle();
 
 }
-#include <iostream>
-#include <ctime>
-#include <sstream>
 
-std::string getCurrentTimeString() {
-    // Получение текущего времени
-    std::time_t now = std::time(nullptr);
-    // Создание структуры tm
-    std::tm localTime;
-    // Использование функции localtime_s для безопасного заполнения структуры tm
-    localtime_s(&localTime, &now);
-
-    // Форматирование времени в строку
-    std::ostringstream oss;
-    oss << (localTime.tm_year + 1900) << "-"
-        << (localTime.tm_mon + 1) << "-"
-        << localTime.tm_mday << " "
-        << localTime.tm_hour << ":"
-        << localTime.tm_min << ":"
-        << localTime.tm_sec;
-
-    return oss.str();
-}
-
+//game tick and event processing
 void process_events()
 {
     static int game_length;
@@ -864,6 +882,7 @@ void process_events()
     if (g_map.global_tick > ((game_length / 5) * 60) * 5)       { g_map.game_events = g_map.game_events::GAME_END         ; }
 
 }
+
 void game_event_timer()
 {
     while (true)
@@ -874,6 +893,46 @@ void game_event_timer()
     }
 }
 
+std::string convert_tick_to_timer()
+{
+    static int game_length;
+
+    if (g_menu.selected_game_mode == 0)
+    {
+        game_length = 30;
+    }
+    if (g_menu.selected_game_mode == 1)
+    {
+        game_length = 45;
+    }
+
+    int seconds;
+    int minutes;
+
+    minutes = ((((game_length / 5) * (g_map.game_events + 1)) * 60) - g_map.global_tick) / 60;
+    minutes = std::clamp(minutes, 0, 5);
+    
+    seconds = ((((game_length / 5) * (g_map.game_events + 1)) * 60) - g_map.global_tick - (minutes * 60));
+    seconds = std::clamp(seconds, 0, 60);
+
+    std::string minutes_string = std::to_string(minutes);
+    if (minutes_string.length() < 2)
+    {
+        minutes_string.insert(minutes_string.begin(), '0');
+    }
+    std::string seconds_string = std::to_string(seconds);
+    if (seconds_string.length() < 2)
+    {
+        seconds_string.insert(seconds_string.begin(), '0');
+    }
+
+    std::string time = minutes_string + ":" + seconds_string;
+
+    return time;
+}
+
+
+//game processing
 void map_processing::process_and_sync_game_cycle()
 {
     if (!tick_started)
@@ -896,10 +955,6 @@ void map_processing::process_and_sync_game_cycle()
 
         //sending global game event to client
         if (old_game_event  != g_map.game_events)   { g_socket_control.server_send_message("GAME_CYCLE:GLOBAL_EVENT_UPDATE:" + std::to_string(g_map.game_events));  old_game_event = g_map.game_events;   }
-
-
-        ImGui::GetForegroundDrawList()->AddText(ImVec2(100, 150), ImColor(255, 255, 255), std::to_string(global_tick).c_str());
-        ImGui::GetForegroundDrawList()->AddText(ImVec2(100, 180), ImColor(255, 255, 255), std::to_string(g_map.game_events).c_str());
     }
     else if (g_socket_control.player_role   ==      g_socket_control.player_role_enum::CLIENT)
     {
@@ -918,11 +973,70 @@ void map_processing::process_and_sync_game_cycle()
             message.erase(0, 31);
             game_events = std::stoi(message);
         }
-
-        ImGui::GetForegroundDrawList()->AddText(ImVec2(100, 150), ImColor(255, 255, 255), std::to_string(global_tick).c_str());
-        ImGui::GetForegroundDrawList()->AddText(ImVec2(100, 180), ImColor(255, 255, 255), std::to_string(g_map.game_events).c_str());
-
-
+        
     }
 
+    bool is_server = g_socket_control.player_role == g_socket_control.player_role_enum::SERVER;
+
+    //timer visual
+    {
+        auto textsize = g_xgui.fonts[2].font_addr->CalcTextSizeA(17, FLT_MAX, -1.f, convert_tick_to_timer().c_str());
+        ImGui::GetForegroundDrawList()->AddRectFilled(ImVec2(screen_x / 2 - 30, 30 - 5), ImVec2(screen_x / 2 + 30, 30 + 23), ImColor(0, 0, 0, 90));
+        ImGui::GetForegroundDrawList()->AddRect(ImVec2(screen_x / 2 - 30, 30 - 5), ImVec2(screen_x / 2 + 30, 30 + 23), ImColor(79, 255, 69, 130));
+        ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[2].font_addr, 17.f, ImVec2(screen_x / 2 - textsize.x / 2, 30), ImColor(255, 255, 255), convert_tick_to_timer().c_str());
+    }
+
+    //timer visual
+    {
+        static const char* stage_names[] =
+        {
+            "Preparation time",
+            "Mobilisation",
+            "Mobilisation : 2",
+            "Nuclear Danger",
+            "Anihiliation",
+            "The End",
+        };
+
+        auto textsize = g_xgui.fonts[2].font_addr->CalcTextSizeA(17, FLT_MAX, -1.f, stage_names[game_events]);
+        ImGui::GetForegroundDrawList()->AddRectFilled(ImVec2(screen_x / 2 - textsize.x, 75 - textsize.y / 2), ImVec2(screen_x / 2 + textsize.x, 75 + textsize.y), ImColor(0, 0, 0, 90));
+        ImGui::GetForegroundDrawList()->AddRect(ImVec2(screen_x / 2 - textsize.x, 75 - textsize.y / 2), ImVec2(screen_x / 2 + textsize.x, 75 + textsize.y), ImColor(79, 255, 69, 130));
+        ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[2].font_addr, 17.f, ImVec2(screen_x / 2 - textsize.x / 2, 70), ImColor(255, 255, 255), stage_names[game_events]);
+    }
+
+    //playerlist
+    {
+        ImGui::GetForegroundDrawList()->AddRectFilled(ImVec2(screen_x - 210, 19), ImVec2(screen_x - 25, 25 + (25 * g_menu.player_names.size())), ImColor(0, 0, 0, 90));
+        ImGui::GetForegroundDrawList()->AddRect(ImVec2(screen_x - 210, 19), ImVec2(screen_x - 25, 25 + (25 * g_menu.player_names.size())), ImColor(79, 255, 69, 130));
+
+        for (int i = 0; i < g_menu.player_names.size(); i++)
+        {
+            ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[2].font_addr, 17.f, ImVec2(screen_x - 200, 25 + (25 * i)), ImColor(255, 255, 255), g_menu.player_names[i].c_str());
+        }
+    }
+
+    //selector
+    {
+        static int old_cursor_pos_x, old_cursor_pos_y;
+        if (ImGui::IsMouseDown(0))
+        {
+            if (old_cursor_pos_x == 0 && old_cursor_pos_y == 0)
+            {
+                old_cursor_pos_x = cursor_pos.x;
+                old_cursor_pos_y = cursor_pos.y;
+            }
+
+            if (old_cursor_pos_x != cursor_pos.x && old_cursor_pos_y != cursor_pos.y)
+            {
+                selector_zone = ImRect(ImVec2(old_cursor_pos_x, old_cursor_pos_y), ImVec2(cursor_pos.x, cursor_pos.y));
+                ImGui::GetForegroundDrawList()->AddRect(selector_zone.Min, selector_zone.Max, ImColor(79, 255, 69, 130));
+            }
+        }
+        else if (ImGui::IsMouseReleased(0))
+        {
+            selector_zone = ImRect(ImVec2(0, 0), ImVec2(0, 0));
+            old_cursor_pos_x = 0;
+            old_cursor_pos_y = 0;
+        }
+    }
 }

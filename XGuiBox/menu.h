@@ -9,6 +9,8 @@ public:
 	//server settings
 	int selected_game_mode;
 
+	std::vector <std::string> player_names;
+
 };
 inline menu g_menu;
 

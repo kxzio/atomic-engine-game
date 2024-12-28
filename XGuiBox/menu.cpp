@@ -783,6 +783,7 @@ void menu::render(window_profiling window)
                     {
                         visual_playerlist.push_back(temp);
                     }
+                    player_names = visual_playerlist;
 
                     ImGui::BeginListBox("Players", ImVec2(380, 64));
 
@@ -986,6 +987,8 @@ void menu::render(window_profiling window)
                     {
                         visual_playerlist.push_back(temp);
                     }
+
+                    player_names = visual_playerlist;
 
                     ImGui::BeginListBox("Players", ImVec2(380, 64));
 
