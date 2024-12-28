@@ -274,8 +274,8 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
                 ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[3].font_addr, 17, ImVec2(text_pos.x + 1.5, text_pos.y - 1.5), ImColor(0, 0, 0, alpha_for_city_text), data.cities[city_id].city_name.c_str());
                 ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[3].font_addr, 17, ImVec2(text_pos.x - 1.5, text_pos.y + 1.5), ImColor(0, 0, 0, alpha_for_city_text), data.cities[city_id].city_name.c_str());
 
-                ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[3].font_addr, 17, ImVec2(posx + data.cities[city_id].city_pos.x * animated_map_scale - textsize_for_city.x / 2, posy + data.cities[city_id].city_pos.y * animated_map_scale - 25), ImColor(255, 255, 255, alpha_for_city_text), data.cities[city_id].city_name.c_str());
-
+                if (!countries->at(i).cities[city_id].selected)
+                    ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[3].font_addr, 17, ImVec2(posx + data.cities[city_id].city_pos.x * animated_map_scale - textsize_for_city.x / 2, posy + data.cities[city_id].city_pos.y * animated_map_scale - 25), ImColor(country_colors[i].Value.x, country_colors[i].Value.y, country_colors[i].Value.z, alpha_for_city_text / 255.f), data.cities[city_id].city_name.c_str());
 
                 ImVec2 point_pos = ImVec2(posx + data.cities[city_id].city_pos.x * animated_map_scale - 1.5 * animated_map_scale, posy + data.cities[city_id].city_pos.y * animated_map_scale - 1.5 * animated_map_scale);
                 ImVec2 point_size = ImVec2(posx + data.cities[city_id].city_pos.x * animated_map_scale + 1.5 * animated_map_scale, posy + data.cities[city_id].city_pos.y * animated_map_scale + 1.5 * animated_map_scale);
@@ -294,6 +294,7 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
                     countries->at(i).cities[city_id].hovered  = false;
                     countries->at(i).cities[city_id].selected = true;
                     ImGui::GetForegroundDrawList()->AddRect(point_pos, point_size, ImColor(79, 255, 69, 200));
+                    ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[3].font_addr, 17, ImVec2(posx + data.cities[city_id].city_pos.x * animated_map_scale - textsize_for_city.x / 2, posy + data.cities[city_id].city_pos.y * animated_map_scale - 25), ImColor(79, 255, 69, alpha_for_city_text), data.cities[city_id].city_name.c_str());
                 }
 
                 if (ImGui::IsMouseClicked(0))
@@ -943,7 +944,6 @@ void map_processing::process_and_sync_game_cycle()
 
     if (g_socket_control.player_role        ==      g_socket_control.player_role_enum::SERVER)
     {
-
         //server side 
 
         //tick and event update
