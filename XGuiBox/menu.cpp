@@ -101,17 +101,52 @@ namespace server_client_space
             }
         }
 
+        std::string serialize_players(const std::vector<player>& players) 
+        {
+            std::ostringstream oss;
+            for (const auto& p : players) {
+                oss << p.id << "," << p.name << "," << p.control_region << "," << int(p.ready_to_play) << ";";
+            }
+            return oss.str();
+        }
+
+        //svo
+
+        std::vector<player> deserialize_players(const std::string& data) 
+        {
+            std::vector<player> players;
+            std::istringstream iss(data);
+            std::string token;
+
+            while (std::getline(iss, token, ';')) 
+            {
+                std::istringstream player_stream(token);
+                std::string id_str, name, control_region_str, ready_to_play;
+
+                if (std::getline(player_stream, id_str, ',') &&
+                    std::getline(player_stream, name, ',') &&
+                    std::getline(player_stream, control_region_str, ',') && 
+                    std::getline(player_stream, ready_to_play, ',')) {
+                    players.push_back(player{ name, std::stoi(id_str), std::stoi(control_region_str), bool(std::stoi(ready_to_play)) });
+                }
+            }
+            return players;
+        }
+
+        player find_player_by_nickname(std::string nickname)
+        {
+            for (int i = 0; i < g_menu.players.size(); i++)
+            {
+                if (g_menu.players[i].name == nickname)
+                {
+                    return g_menu.players[i];
+                }
+            }
+        }
+
         //server nickname and client nickname
         std::string                server_nickname;
         std::string                client_nickname;
-
-        //playerlists (client and server)
-        std::string                server_playerlist;
-        std::string                client_playerlist;
-
-        //playerlist (client and server)
-        std::string                server_ready_lobby_list;
-        std::string                client_ready_lobby_list;
 
         static bool                client_nickname_is_free;
     }
@@ -143,7 +178,9 @@ public:
     ChatServer(boost::asio::io_context& io_context, const std::string& ip, short port, const std::string& nickname)
         : acceptor_(io_context, tcp::endpoint(boost::asio::ip::make_address(ip), port)), nickname_(nickname)
     {
-        server_client_space::server_client_menu_information::server_playerlist += server_client_space::server_client_menu_information::server_nickname + +",";
+        g_menu.players.push_back(player{ nickname, int(g_menu.players.size()), 0 });
+        std::string serialized_data = "CLASS.PLAYERS:" + server_client_space::server_client_menu_information::serialize_players(g_menu.players);
+        send_message(serialized_data);
         do_accept();
     }
 
@@ -167,8 +204,13 @@ public:
         }
         clients_.clear();
         server_client_space::server_client_menu_information::chat_messages.clear();
-        server_client_space::server_client_menu_information::server_playerlist.clear();
-        server_client_space::server_client_menu_information::server_ready_lobby_list.clear();
+        g_menu.players.clear();
+    }
+
+    void send_and_update_player_class()
+    {
+        std::string serialized_data = "CLASS.PLAYERS:" + server_client_space::server_client_menu_information::serialize_players(g_menu.players);
+        send_message(serialized_data);
     }
 
 private:
@@ -205,25 +247,31 @@ private:
                 std::string     message;
                 std::getline(is, message);
 
-                if (server_client_space::IsRequest(message, "USER.JOIN:"))
+                if (server_client_space::IsRequest(message, "CLASS.PLAYERS:")) 
+                {
+                    std::string players_data = message.erase(0, 14);
+                    g_menu.players = server_client_space::server_client_menu_information::deserialize_players(players_data);
+                }
+                else if (server_client_space::IsRequest(message, "USER.JOIN:"))
                 {
                     std::string        nickname = message.erase(0, 10);
                     add_client(socket, nickname);
                 }
                 else if (server_client_space::IsRequest(message, "PLAYER.READY.LOBBY:"))
                 {
-                    std::string nickname = message.erase(0, 19);
-                    server_client_space::server_client_menu_information::server_ready_lobby_list += nickname + ",";
-                    send_message("PLAYER.READY.LOBBY.LIST:" + server_client_space::server_client_menu_information::server_ready_lobby_list);
+                    int id = std::stoi(message.erase(0, 19));
+                    g_menu.players[id].ready_to_play = true;
+
+                    std::string serialized_data = "CLASS.PLAYERS" + server_client_space::server_client_menu_information::serialize_players(g_menu.players);
+                    send_message(serialized_data);
                 }
                 else if (server_client_space::IsRequest(message, "PLAYER.NOTREADY.LOBBY:"))
                 {
-                    std::string nickname = message.erase(0, 22);
-                    auto pos2 = server_client_space::server_client_menu_information::server_ready_lobby_list.find(nickname + ",");
-                    if (pos2 != std::string::npos) {
-                        server_client_space::server_client_menu_information::server_ready_lobby_list.erase(pos2, nickname.length() + 1);
-                    }
-                    send_message("PLAYER.READY.LOBBY.LIST:" + server_client_space::server_client_menu_information::server_ready_lobby_list);
+                    int id = std::stoi(message.erase(0, 22));
+                    g_menu.players[id].ready_to_play = false;
+
+                    std::string serialized_data = "CLASS.PLAYERS" + server_client_space::server_client_menu_information::serialize_players(g_menu.players);
+                    send_message(serialized_data);
                 }
                 else if (server_client_space::IsRequest(message, "GAME_CYCLE:"))
                 {
@@ -244,7 +292,6 @@ private:
 
     void add_client(std::shared_ptr<tcp::socket> socket, std::string nickname)
     {
-
         // Обновляем никнейм клиента в списке
         for (auto& client : clients_) {
             if (client.socket == socket) {
@@ -252,10 +299,9 @@ private:
                 break;
             }
         }
-        // Добавляем никнейм в список игроков
-        server_client_space::server_client_menu_information::server_playerlist += nickname + ",";
-        send_message("PLAYERLIST:" + server_client_space::server_client_menu_information::server_playerlist);
-        send_message("PLAYER.READY.LOBBY.LIST:" + server_client_space::server_client_menu_information::server_ready_lobby_list);
+        g_menu.players.push_back(player{ nickname, int(g_menu.players.size()), 0 });
+        std::string serialized_data = "CLASS.PLAYERS:" + server_client_space::server_client_menu_information::serialize_players(g_menu.players);
+        send_message(serialized_data);
     }
 
     void handle_disconnect(std::shared_ptr<tcp::socket> socket)
@@ -268,18 +314,16 @@ private:
             std::string nickname = it->nickname;
             clients_.erase(it);
 
-            auto pos = server_client_space::server_client_menu_information::server_playerlist.find(nickname + ",");
-            if (pos != std::string::npos) {
-                server_client_space::server_client_menu_information::server_playerlist.erase(pos, nickname.length() + 1);
+            auto player_it = std::find_if(g_menu.players.begin(), g_menu.players.end(),
+                [&nickname](const player& p) { return p.name == nickname; });
+
+            if (player_it != g_menu.players.end()) {
+                g_menu.players.erase(player_it);
             }
 
-            auto pos2 = server_client_space::server_client_menu_information::server_ready_lobby_list.find(nickname + ",");
-            if (pos2 != std::string::npos) {
-                server_client_space::server_client_menu_information::server_ready_lobby_list.erase(pos2, nickname.length() + 1);
-            }
+            std::string serialized_data = "CLASS.PLAYERS:" + server_client_space::server_client_menu_information::serialize_players(g_menu.players);
+            send_message(serialized_data);
 
-            send_message("PLAYER.READY.LOBBY.LIST:" + server_client_space::server_client_menu_information::server_ready_lobby_list);
-            send_message("PLAYERLIST:" + server_client_space::server_client_menu_information::server_playerlist);
             server_client_space::server_client_menu_information::add_message(nickname + " has left the server /red/");
             send_message(nickname + " has left the server /red/");
         }
@@ -324,9 +368,14 @@ public:
     void disconnect()
     {
         socket_.close();
-        server_client_space::server_client_menu_information::client_playerlist.clear();
-        server_client_space::server_client_menu_information::client_ready_lobby_list.clear();
         server_client_space::server_client_menu_information::chat_messages.clear();
+        g_menu.players.clear();
+    }
+
+    void send_and_update_player_class()
+    {
+        std::string serialized_data = "CLASS.PLAYERS:" + server_client_space::server_client_menu_information::serialize_players(g_menu.players);
+        send_message(serialized_data);
     }
 
 private:
@@ -341,12 +390,9 @@ private:
                 std::string      message;
                 std::getline(is, message);
 
-                if (server_client_space::IsRequest(message, "PLAYERLIST:")) {
-                    server_client_space::server_client_menu_information::client_playerlist = message.erase(0, 11);
-                }
-                else if (server_client_space::IsRequest(message, "PLAYER.READY.LOBBY.LIST:"))
-                {
-                    server_client_space::server_client_menu_information::client_ready_lobby_list = message.erase(0, 24);
+                if (server_client_space::IsRequest(message, "CLASS.PLAYERS:")) {
+                    std::string players_data = message.erase(0, 14);
+                    g_menu.players = server_client_space::server_client_menu_information::deserialize_players(players_data);
                 }
                 else if (server_client_space::IsRequest(message, "SERVER:CLOSED_CONNECTION"))
                 {
@@ -618,80 +664,6 @@ void menu::render(window_profiling window)
     static int uniqueCounter = 0; 
 
     animationCompleted.resize(64, false);
-    
-    for (int i = 0; i < textCount; i++)
-    {
-        if (i < currentIndex)
-        {
-            ImGui::GetBackgroundDrawList()->AddText(g_xgui.fonts[1].font_addr, 16,
-                ImVec2(55, screen_y - 70 + 20 * (i + 1) - offset),
-                ImColor(79, 255, 69, 190),
-                text[i]
-            );
-        }
-        else if (i == currentIndex)
-        {
-            
-            std::string uniqueText = text[i] + std::string("#") + std::to_string(uniqueCounter);
-
-            static char last_char;
-            char current_char;
-            std::string currentText = ImGui::AnimatedChar(uniqueText, 1.8f, &current_char);
-
-            ImGui::GetBackgroundDrawList()->AddText(g_xgui.fonts[1].font_addr, 16,
-                ImVec2(55, screen_y - 70 + 20 * (i + 1) - offset),
-                ImColor(79, 255, 69, 190),
-                currentText.c_str()
-            );
-
-            ImVec2 cursorPos = ImVec2(55, screen_y - 70 + 20 * (i + 1) - offset);
-            ImVec2 textSize = g_xgui.fonts[1].font_addr->CalcTextSizeA(16, FLT_MAX, -1, currentText.c_str());
-
-            ImVec2 rectStart = ImVec2(cursorPos.x + textSize.x + 3, cursorPos.y + textSize.y);
-            ImVec2 rectEnd = ImVec2(rectStart.x + 5.0f, rectStart.y - textSize.y);
-            ImU32 rectColor = IM_COL32(79, 255, 69, 255);
-
-            if (static_cast<int>(ImGui::GetTime() * 7) % 2 == 0)
-            {
-                ImGui::GetBackgroundDrawList()->AddRectFilled(rectStart, rectEnd, rectColor);
-            }
-
-            if (currentText.length() >= std::strlen(text[i]))
-            {
-                animationCompleted[i] = true;
-                currentIndex++; 
-                offset += 20; 
-                pauseStartTime = ImGui::GetTime(); 
-            }
-        }
-        else
-        {
-            break;
-        }
-    }
-    if (currentIndex == textCount)
-    {
-        // Ждем окончания паузы
-        if (!(pauseStartTime >= 0 && ImGui::GetTime() - pauseStartTime < 10.0))
-        {
-            uniqueCounter++;
-
-            int random = 0;
-            do
-            {
-                random = getRandomNumber(0, 7);
-
-            } while (random == currentArrayIndex);
-            currentArrayIndex = random;
-
-            {
-                animationCompleted.clear();
-                currentIndex = 0;
-                offset = 0;
-                pauseStartTime = -1.0; 
-            }
-        }
-    }
 
 
     //input values
@@ -721,7 +693,7 @@ void menu::render(window_profiling window)
         {
             //main menu window setup
             ImGui::SetNextWindowPos(ImVec2(screen_x / 2 - 400 / 2, screen_y / 2 - 400 / 2));
-            ImGui::SetNextWindowSize(ImVec2(400, 400));
+            ImGui::SetNextWindowSize(ImVec2(400, 490));
 
             //menu
             static bool r = true;
@@ -763,60 +735,31 @@ void menu::render(window_profiling window)
                 {
                     ImGui::Text((std::string("Server is running on IP ") + server_ip).c_str());
 
-                    std::vector<std::string> visual_playerlist;
-                    std::string temp;
-
-                    for (int i = 0; i < server_client_space::server_client_menu_information::server_playerlist.size(); i++)
-                    {
-                        if (server_client_space::server_client_menu_information::server_playerlist[i] == ',')
-                        {
-                            visual_playerlist.push_back(temp);
-                            temp.clear();
-                        }
-                        else
-                        {
-                            temp += server_client_space::server_client_menu_information::server_playerlist[i];
-                        }
-                    }
-
-                    if (!temp.empty())
-                    {
-                        visual_playerlist.push_back(temp);
-                    }
-                    player_names = visual_playerlist;
-
                     ImGui::BeginListBox("Players", ImVec2(380, 64));
 
-                    auto visual_ready_playerlist = server_client_space::split_string(server_client_space::server_client_menu_information::server_ready_lobby_list, ',');
-
                     int ready_players = 0;
-                    for (int i = 0; i < visual_playerlist.size(); i++)
+                    for (int i = 0; i < players.size(); i++)
                     {
                         if (i == 0)
                             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(ImColor(0, 255, 40)));
                         // [ administrator ]
 
                         if (i != 0)
-                            ImGui::Text("%s", visual_playerlist[i].c_str());
+                            ImGui::Text("%s", players[i].name.c_str());
                         else
-                            ImGui::Text("%s", std::string(visual_playerlist[i] + " [ administrator ]").c_str());
+                            ImGui::Text("%s", std::string(players[i].name + " [ administrator ]").c_str());
 
                         int restored_y = ImGui::GetCursorPosY();
 
-                        if (true)
+                        if (players[i].ready_to_play) 
                         {
-                            for (int i2 = 0; i2 < visual_ready_playerlist.size(); i2++)
-                            {
-                                if (visual_ready_playerlist[i2] == visual_playerlist[i])
-                                {
-                                    ready_players++;
-                                    ImGui::SameLine();
-                                    ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 3);
-                                    ImGui::SetCursorPosX(360);
-                                    bool r = true;
-                                    ImGui::Checkmark(std::string(visual_playerlist[i] + std::string("checkmark")).c_str());
-                                }
-                            }
+                            ready_players++;
+                            ImGui::SameLine();
+                            ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 3);
+                            ImGui::SetCursorPosX(355);
+                            bool r = true;
+                            ImGui::Checkmark(std::string(players[i].name + std::string("checkmark")).c_str());
+
                             ImGui::SetCursorPosY(restored_y);
                         }
 
@@ -824,7 +767,7 @@ void menu::render(window_profiling window)
                             ImGui::PopStyleColor();
                     }
 
-                    if (ready_players == visual_playerlist.size())
+                    if (ready_players == players.size())
                     {
                         all_players_are_ready = true;
                     }
@@ -899,27 +842,53 @@ void menu::render(window_profiling window)
 
                     ImGui::Separator();
 
+                    ImGui::Text("Select region");
+
+                    static int last_selected_region = 0;
+                    static int selected_region = 0;
+                    const char* region_selection[] =
+                    { "North-America", "EU", "North-Europe", "Australia", "Russia", "China", "Central Asia", "East EU", "East Europe", "IndoChina", "Indostan", "Latin-USA", "North-Africa", "East-Asia", "South-America", "Mid-Africa", "South-Africa", "Turkey", "Transcaucasia" };
+
+                    ImGui::Combo("Region", &selected_region, region_selection, IM_ARRAYSIZE(region_selection));
+                    if (last_selected_region != selected_region)
+                    {
+                        last_selected_region = selected_region;
+                        players[server_client_space::server_client_menu_information::
+                                find_player_by_nickname
+                                (server_client_space::server_client_menu_information::server_nickname).id].control_region = selected_region;
+                        server->send_and_update_player_class();
+
+                    }
+
+                    ImGui::NewLine();
+
+                    ImGui::Separator();
+
                     ImGui::NewLine();
                     static bool last_ready_for_game;
                     ImGui::Checkbox(" READY", &ready_for_game);
                     if (last_ready_for_game != ready_for_game)
                     {
                         if (ready_for_game)
-                            server_client_space::server_client_menu_information::server_ready_lobby_list += server_client_space::server_client_menu_information::server_nickname + ",";
+                        {
+                            players[server_client_space::server_client_menu_information::
+                                find_player_by_nickname
+                                (server_client_space::server_client_menu_information::server_nickname).id].ready_to_play = true;
+                            server->send_and_update_player_class();
+                        }
 
                         if (!ready_for_game)
                         {
-                            auto pos = server_client_space::server_client_menu_information::server_ready_lobby_list.find(server_client_space::server_client_menu_information::server_nickname + ",");
-                            if (pos != std::string::npos) {
-                                server_client_space::server_client_menu_information::server_ready_lobby_list.erase(pos, server_client_space::server_client_menu_information::server_nickname.length() + 1);
-                            }
+                            players[server_client_space::server_client_menu_information::
+                                find_player_by_nickname
+                                (server_client_space::server_client_menu_information::server_nickname).id].ready_to_play = false;
+                            server->send_and_update_player_class();
                         }
-                        server->send_message("PLAYER.READY.LOBBY.LIST:" + server_client_space::server_client_menu_information::server_ready_lobby_list);
 
                         last_ready_for_game = ready_for_game;
                     }
                     ImGui::SameLine();
-                    ImGui::SetCursorPosX(319);
+                    ImGui::SetCursorPosX(313);
                     if (ImGui::Button("Disconnect"))
                     {
                         server->send_message("SERVER:CLOSED_CONNECTION");
@@ -929,7 +898,7 @@ void menu::render(window_profiling window)
                     }
 
                     ImGui::SetNextWindowPos(ImVec2((screen_x / 2 - 400 / 2) - 500, screen_y / 2 - 400 / 2));
-                    ImGui::SetNextWindowSize(ImVec2(400, 400));
+                    ImGui::SetNextWindowSize(ImVec2(400, 106));
 
                     ImGui::Begin("Server game settings");
                     {
@@ -952,6 +921,34 @@ void menu::render(window_profiling window)
                     }
                     ImGui::End();
 
+
+                    ImGui::SetNextWindowPos(ImVec2((screen_x / 2 + 800) - 500, screen_y / 2 - 400 / 2));
+                    ImGui::SetNextWindowSize(ImVec2(400, 150));
+
+                    ImGui::Begin("Playerlist");
+                    {
+                        ImGui::BeginListBox("Countries", ImVec2(380, 107));
+                        {
+                            for (int i = 0; i < players.size(); i++)
+                            {
+                                ImGui::Text("%s", players[i].name.c_str());
+                                
+                                ImGui::SameLine();
+
+                                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(ImColor(255, 255, 255, 100)));
+
+                                ImGui::SetCursorPosX(100);
+                                ImGui::Text("%s", region_selection[players[i].control_region]);
+
+                                ImGui::PopStyleColor();
+
+                            }
+
+                        }
+                        ImGui::EndListBox();
+                    }
+                    ImGui::End();
+
                     break;
                 }
                 case  CLIENT_JOIN: {
@@ -964,62 +961,33 @@ void menu::render(window_profiling window)
                     }
                     break;
                 }
-                case  CLIENT_MENU: {
+                case  CLIENT_MENU: 
+                {
                     ImGui::Text("Connected to the server!");
-
-                    std::vector<std::string> visual_playerlist;
-                    std::string temp;
-
-                    for (int i = 0; i < server_client_space::server_client_menu_information::client_playerlist.size(); i++)
-                    {
-                        if (server_client_space::server_client_menu_information::client_playerlist[i] == ',')
-                        {
-                            visual_playerlist.push_back(temp);
-                            temp.clear();
-                        }
-                        else
-                        {
-                            temp += server_client_space::server_client_menu_information::client_playerlist[i];
-                        }
-                    }
-
-                    if (!temp.empty())
-                    {
-                        visual_playerlist.push_back(temp);
-                    }
-
-                    player_names = visual_playerlist;
 
                     ImGui::BeginListBox("Players", ImVec2(380, 64));
 
-                    auto visual_ready_playerlist = server_client_space::split_string(server_client_space::server_client_menu_information::client_ready_lobby_list, ',');
-
-                    for (int i = 0; i < visual_playerlist.size(); i++)
+                    for (int i = 0; i < players.size(); i++)
                     {
                         if (i == 0)
                             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(ImColor(0, 255, 40)));
                         // [ administrator ]
 
                         if (i != 0)
-                            ImGui::Text("%s", visual_playerlist[i].c_str());
+                            ImGui::Text("%s", players[i].name.c_str());
                         else
-                            ImGui::Text("%s", std::string(visual_playerlist[i] + " [ administrator ]").c_str());
+                            ImGui::Text("%s", std::string(players[i].name + " [ administrator ]").c_str());
 
                         int restored_y = ImGui::GetCursorPosY();
 
-                        if (true)
+                        if (players[i].ready_to_play)
                         {
-                            for (int i2 = 0; i2 < visual_ready_playerlist.size(); i2++)
-                            {
-                                if (visual_ready_playerlist[i2] == visual_playerlist[i])
-                                {
-                                    ImGui::SameLine();
-                                    ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 3);
-                                    ImGui::SetCursorPosX(360);
-                                    bool r = true;
-                                    ImGui::Checkmark(std::string(visual_playerlist[i] + std::string("checkmark")).c_str());
-                                }
-                            }
+                            ImGui::SameLine();
+                            ImGui::SetCursorPosY(ImGui::GetCursorPosY() - 3);
+                            ImGui::SetCursorPosX(355);
+                            bool r = true;
+                            ImGui::Checkmark(std::string(players[i].name + std::string("checkmark")).c_str());
+
                             ImGui::SetCursorPosY(restored_y);
                         }
 
@@ -1086,6 +1054,26 @@ void menu::render(window_profiling window)
                         memset(message, 0, sizeof(message));
                     }
 
+                    ImGui::NewLine();
+
+                    ImGui::Separator();
+
+                    ImGui::Text("Select region");
+
+                    static int last_selected_region = 0;
+                    static int selected_region = 0;
+                    const char* region_selection[] =
+                    { "North-America", "EU", "North-Europe", "Australia", "Russia", "China", "Central Asia", "East EU", "East Europe", "IndoChina", "Indostan", "Latin-USA", "North-Africa", "East-Asia", "South-America", "Mid-Africa", "South-Africa", "Turkey", "Transcaucasia" };
+
+                    ImGui::Combo("Region", &selected_region, region_selection, IM_ARRAYSIZE(region_selection));
+                    if (last_selected_region != selected_region)
+                    {
+                        last_selected_region = selected_region;
+                        players[server_client_space::server_client_menu_information::
+                            find_player_by_nickname
+                            (server_client_space::server_client_menu_information::client_nickname).id].control_region = selected_region;
+                        client->send_and_update_player_class();
+                    }
 
                     ImGui::NewLine();
 
@@ -1096,23 +1084,29 @@ void menu::render(window_profiling window)
                     ImGui::Checkbox(" READY", &ready_for_game);
                     if (last_ready_for_game != ready_for_game)
                     {
-                        if (last_ready_for_game != ready_for_game)
+                        if (true)
                         {
                             if (ready_for_game)
-                                client->send_message("PLAYER.READY.LOBBY:" + server_client_space::server_client_menu_information::client_nickname);
+                            {
+                                players[server_client_space::server_client_menu_information::
+                                    find_player_by_nickname
+                                    (server_client_space::server_client_menu_information::client_nickname).id].ready_to_play = true;
+                                client->send_and_update_player_class();
+                            }
 
                             if (!ready_for_game)
                             {
-                                client->send_message("PLAYER.NOTREADY.LOBBY:" + server_client_space::server_client_menu_information::client_nickname);
+                                players[server_client_space::server_client_menu_information::
+                                    find_player_by_nickname
+                                    (server_client_space::server_client_menu_information::client_nickname).id].ready_to_play = false;
+                                client->send_and_update_player_class();
                             }
 
                             last_ready_for_game = ready_for_game;
                         }
-
-                        last_ready_for_game = ready_for_game;
                     }
                     ImGui::SameLine();
-                    ImGui::SetCursorPosX(319);
+                    ImGui::SetCursorPosX(313);
                     if (ImGui::Button("Disconnect"))
                     {
                         if (client != nullptr)
@@ -1126,6 +1120,33 @@ void menu::render(window_profiling window)
                         game_scenes_params::main_menu_tabs = 0;
 
                     }
+
+                    ImGui::SetNextWindowPos(ImVec2((screen_x / 2 + 800) - 500, screen_y / 2 - 400 / 2));
+                    ImGui::SetNextWindowSize(ImVec2(400, 150));
+
+                    ImGui::Begin("Playerlist");
+                    {
+                        ImGui::BeginListBox("Countries", ImVec2(380, 107));
+                        {
+                            for (int i = 0; i < players.size(); i++)
+                            {
+                                ImGui::Text("%s", players[i].name.c_str());
+
+                                ImGui::SameLine();
+
+                                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(ImColor(255, 255, 255, 100)));
+
+                                ImGui::SetCursorPosX(100);
+                                ImGui::Text("%s", region_selection[players[i].control_region]);
+
+                                ImGui::PopStyleColor();
+
+                            }
+
+                        }
+                        ImGui::EndListBox();
+                    }
+                    ImGui::End();
 
                     break;
 
@@ -1146,13 +1167,32 @@ void menu::render(window_profiling window)
 
         case  game_scenes_params::global_game_tabs::country_select :
         {
+            //main menu window setup
+            ImGui::SetNextWindowPos(ImVec2(screen_x / 2 
+                
+                - 400 / 2, screen_y / 2 - 400 / 2));
+            ImGui::SetNextWindowSize(ImVec2(400, 400));
 
+            //menu
+            static bool r = true;
+            ImGui::Begin("Select region", &r, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoResize);
+            {
+
+            }
+            ImGui::End();
         }
         break;
 
         case  game_scenes_params::global_game_tabs::game_process   :
         {
-           g_map.process_map(window, screen_x, screen_y);
+            if (g_socket_control.player_role == g_socket_control.player_role_enum::CLIENT)
+            {
+                g_map.process_map(window, screen_x, screen_y, server_client_space::server_client_menu_information::find_player_by_nickname(server_client_space::server_client_menu_information::client_nickname).id);
+            }
+            if (g_socket_control.player_role == g_socket_control.player_role_enum::SERVER)
+            {
+                g_map.process_map(window, screen_x, screen_y, server_client_space::server_client_menu_information::find_player_by_nickname(server_client_space::server_client_menu_information::server_nickname).id);
+            }
         }
         break;
 

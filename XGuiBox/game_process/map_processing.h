@@ -210,6 +210,8 @@ struct country_data
     ImVec2 size;
     ImVec2 hitbox_size;
 
+    ImColor color;
+
     std::vector<city_vector_data> cities;
 
     bool hitbox_get = false;
@@ -233,9 +235,9 @@ public:
     //cycles
     void process_and_sync_game_cycle();
 
-    void process_map(window_profiling window, int screen_size_x, int screen_size_y);
+    void process_map(window_profiling window, int screen_size_x, int screen_size_y, int player_id);
 
-    void render_map_and_process_hitboxes(window_profiling window, std::vector <country_data>* countries, float animated_map_scale, int* hovered_id, ImVec2 cursor_pos, ImVec2 map_pos);
+    void render_map_and_process_hitboxes(window_profiling window, std::vector <country_data>* countries, float animated_map_scale, int* hovered_id, ImVec2 cursor_pos, ImVec2 map_pos, int player_id);
 
     //tick and events
     bool tick_started;

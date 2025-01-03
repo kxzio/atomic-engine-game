@@ -48,6 +48,11 @@ public:
 
 	void make_it_fullscreen();
 
+	void load_textures();
+
+	void unload_textures();
+
+	void handle_device_lost();
 
 	enum countries_name
 	{
@@ -72,7 +77,18 @@ public:
 		Zakavkazie
 	};
 
+
+
 	IDirect3DTexture9* countries[20];
+
+	IDirect3DTexture9* Logotype;
+
+	IDirect3DTexture9* Noise;
+
+	IDirect3DTexture9* Tv; 
+
+	IDirect3DTexture9* RGB;
+
 
 private:
 

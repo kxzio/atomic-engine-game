@@ -1,6 +1,19 @@
 #pragma once
 #include "resources/window_profiling/window.h"
 
+class player
+{
+public:
+
+	std::string name;
+
+	int id;
+
+    int control_region;
+
+	bool ready_to_play = false;
+};
+
 class menu
 {
 public:
@@ -10,6 +23,8 @@ public:
 	int selected_game_mode;
 
 	std::vector <std::string> player_names;
+
+	std::vector < player > players;
 
 };
 inline menu g_menu;
@@ -33,3 +48,4 @@ public:
 	std::string game_cycle_messages;
 };
 inline socket_control g_socket_control;
+

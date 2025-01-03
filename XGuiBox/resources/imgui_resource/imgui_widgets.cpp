@@ -8344,8 +8344,7 @@ bool ImGui::BeginListBox(const char* label, const ImVec2& size_arg)
 
     BeginChild(id, frame_bb.GetSize(), ImGuiChildFlags_FrameStyle);
 
-
-    ImVec2 label_pos = ImVec2(frame_bb.Max.x - frame_bb.Max.x / 15, frame_bb.Min.y - style.FramePadding.y * 2);
+    ImVec2 label_pos = ImVec2(frame_bb.Max.x - frame_bb.Max.x / 18 - label_size.x / 2, frame_bb.Min.y - style.FramePadding.y * 2);
     window->DrawList->AddRectFilled(label_pos - ImVec2(4, 2), label_pos + ImVec2(label_size) + ImVec2(4, 0), ImColor(0, 0, 0));
     window->DrawList->AddText(label_pos, ImColor(255, 255, 255, 150), label);
     return true;
