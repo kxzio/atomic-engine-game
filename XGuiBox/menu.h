@@ -1,6 +1,29 @@
 #pragma once
 #include "resources/window_profiling/window.h"
 
+class building
+{
+public:
+	int building_type;
+
+	int progress_of_building;
+
+	int endurance;
+
+	ImVec2 pos;
+	bool size_converted_to_map;
+};
+class econimics
+{
+public:
+
+	float capital = 25000000;
+
+	float capital_inflow = 15000;
+
+	float capital_inflow_ratio = 100.f;
+};
+
 class player
 {
 public:
@@ -12,6 +35,10 @@ public:
     int control_region;
 
 	bool ready_to_play = false;
+
+	econimics economics;
+
+	std::vector < building > region_buildings;
 };
 
 class menu

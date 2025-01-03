@@ -233,7 +233,7 @@ public:
     ImRect selector_zone;
 
     //cycles
-    void process_and_sync_game_cycle();
+    void process_and_sync_game_cycle(std::vector <country_data>* countries, int player_id, float animated_map_scale, int hovered_country_id);
 
     void process_map(window_profiling window, int screen_size_x, int screen_size_y, int player_id);
 

@@ -477,13 +477,14 @@ void menu::render(window_profiling window)
     ImGui::GetStyle().Colors[ImGuiCol_TitleBgActive]    = ImColor(0, 0, 0);
     ImGui::GetStyle().Colors[ImGuiCol_TitleBgCollapsed] = ImColor(0, 0, 0);
     ImGui::GetStyle().Colors[ImGuiCol_Button]           = ImColor(0, 0, 0);
-    ImGui::GetStyle().Colors[ImGuiCol_ButtonActive]     = ImColor(0, 0, 0);
-    ImGui::GetStyle().Colors[ImGuiCol_ButtonHovered]    = ImColor(0, 0, 0);
+    ImGui::GetStyle().Colors[ImGuiCol_ButtonActive]     = ImColor(35, 35, 35);
+    ImGui::GetStyle().Colors[ImGuiCol_ButtonHovered]    = ImColor(15, 15, 15);
     ImGui::GetStyle().Colors[ImGuiCol_FrameBg]          = ImColor(0, 0, 0);
     ImGui::GetStyle().Colors[ImGuiCol_FrameBgHovered]   = ImColor(0, 0, 0);
     ImGui::GetStyle().Colors[ImGuiCol_FrameBgActive]    = ImColor(0, 0, 0);
     ImGui::GetStyle().Colors[ImGuiCol_Border]           = ImColor(79, 255, 69, 130);
     ImGui::GetStyle().Colors[ImGuiCol_Separator]        = ImColor(79, 255, 69, 130);
+    ImGui::GetStyle().Colors[ImGuiCol_ChildBg]          = ImColor(5, 5, 5, 255);
     ImGui::GetStyle().Colors[ImGuiCol_CheckMark]        = ImColor(79, 255, 69, 130);
     ImGui::GetStyle().Colors[ImGuiCol_ScrollbarGrab]    = ImColor(79, 255, 69, 130);
 

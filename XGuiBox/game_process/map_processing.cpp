@@ -1,5 +1,7 @@
 #include "map_processing.h"
 
+static float map_scale2 = 0.240010;
+
 bool IsPointInImRect(const ImVec2& point, const ImRect& rect) {
     ImVec2 min = rect.Min;
     ImVec2 max = rect.Max;
@@ -239,7 +241,6 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
         for (int i = 0; i < countries->size(); i++)
         {
             auto data = countries->at(i);
-            static float map_scale2 = 0.240010;
 
             auto posx = data.position.x * animated_map_scale - (data.size.x * animated_map_scale * map_scale2) / 2 + map_pos.x * animated_map_scale;
             auto posy = data.position.y * animated_map_scale - (data.size.y * animated_map_scale * map_scale2) / 2 + map_pos.y * animated_map_scale;
@@ -252,7 +253,7 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
             auto fontsize = 17 + animated_map_scale * 3;
             auto textsize = g_xgui.fonts[2].font_addr->CalcTextSizeA(fontsize, FLT_MAX, -1.f, data.name.c_str());
 
-
+            //cities
             for (int city_id = 0; city_id < data.cities.size(); city_id++)
             {
                 int alpha_for_city_text = 255 - ((5.25 - animated_map_scale) * 100);
@@ -298,7 +299,7 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
                 }
 
             }
-
+   
             data.color.Value.w = 255.f;
 
             //ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[2].font_addr, fontsize, ImVec2(posx + sizex / 2 - textsize.x / 2, posy + sizey / 2 - textsize.y / 2), ImColor(255, 255, 255), data.name.c_str());
@@ -311,9 +312,6 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
 
                     auto pos = ImVec2(countries->at(i).position.x * animated_map_scale - (countries->at(i).size.x * animated_map_scale * map_scale2) / 2 + map_pos.x * animated_map_scale,
                         countries->at(i).position.y * animated_map_scale - (countries->at(i).size.y * animated_map_scale * map_scale2) / 2 + map_pos.y * animated_map_scale);
-
-                    ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[0].font_addr, 15, ImVec2(30, 70), ImColor(255, 255, 255), std::to_string(ImVec2(cursor_pos.x - pos.x, cursor_pos.y - pos.y).x / animated_map_scale).c_str());
-                    ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[0].font_addr, 15, ImVec2(30, 100), ImColor(255, 255, 255), std::to_string(ImVec2(cursor_pos.x - pos.x, cursor_pos.y - pos.y).y / animated_map_scale).c_str());
                 }
 
             }
@@ -332,6 +330,33 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
             );
 
         }
+        
+        //buildings
+        for (int i = 0; i < g_menu.players.size(); i++)
+        {
+            for (int buildings_id = 0; buildings_id < g_menu.players[i].region_buildings.size(); buildings_id++)
+            {
+                auto pos = ImVec2(countries->at(g_menu.players[i].control_region).position.x * animated_map_scale - (countries->at(g_menu.players[i].control_region).size.x * animated_map_scale * map_scale2) / 2 + map_pos.x * animated_map_scale,
+                    countries->at(g_menu.players[i].control_region).position.y * animated_map_scale - (countries->at(g_menu.players[i].control_region).size.y * animated_map_scale * map_scale2) / 2 + map_pos.y * animated_map_scale);
+
+                ImVec2 mapped_pos = ImVec2((g_menu.players[i].region_buildings[buildings_id].pos.x - pos.x) / animated_map_scale, (g_menu.players[i].region_buildings[buildings_id].pos.y - pos.y) / animated_map_scale);
+
+                if (g_menu.players[i].region_buildings[buildings_id].size_converted_to_map == false)
+                {
+                    g_menu.players[i].region_buildings[buildings_id].pos = mapped_pos;
+                    g_menu.players[i].region_buildings[buildings_id].size_converted_to_map = true;
+                }
+
+                ImVec2 final_pos = ImVec2(pos.x + g_menu.players[i].region_buildings[buildings_id].pos.x * animated_map_scale, pos.y + g_menu.players[i].region_buildings[buildings_id].pos.y * animated_map_scale);
+
+                ImGui::GetForegroundDrawList()->AddCircle(final_pos, 15 * animated_map_scale, ImColor(255, 0, 0, 250));
+                ImGui::GetForegroundDrawList()->AddText(final_pos, ImColor(255, 0, 0, 250), std::to_string(mapped_pos.x).c_str());
+                ImGui::GetForegroundDrawList()->AddText(final_pos, ImColor(255, 0, 0, 250), std::to_string(mapped_pos.y).c_str());
+
+
+            }
+        }
+
     }
 }
 void map_processing::process_map(window_profiling window, int screen_size_x, int screen_size_y, int player_id)
@@ -830,8 +855,6 @@ void map_processing::process_map(window_profiling window, int screen_size_x, int
         final_map_pos.x = final_map_pos.x + 1250;
     }
 
-    ImGui::GetForegroundDrawList()->AddText(ImVec2(20, 20), ImColor(255, 255, 255), std::to_string(moved_pos.x).c_str());
-
 
     //map processing
 
@@ -850,7 +873,7 @@ void map_processing::process_map(window_profiling window, int screen_size_x, int
 
    this->render_map_and_process_hitboxes(window, &countries, animated_map_scale, &hovered_country_id, ImVec2(cursor_pos.x, cursor_pos.y), final_pos_secondary, player_id);
 
-    process_and_sync_game_cycle();
+    process_and_sync_game_cycle(&countries, player_id, animated_map_scale, hovered_country_id);
 
 }
 
@@ -883,7 +906,7 @@ void game_event_timer()
     while (true)
     {
         process_events();
-        std::this_thread::sleep_for(std::chrono::milliseconds(150)); //TODO : change it to 1 second in release version
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000)); //TODO : change it to 1 second in release version
         g_map.global_tick++;
     }
 }
@@ -927,8 +950,32 @@ std::string convert_tick_to_timer()
 }
 
 
+char* format_currency(long long amount) {
+    static char buffer[50];
+    char temp[50];
+    sprintf_s(temp,sizeof(temp), "%lld", amount);
+
+    int len = strlen(temp);
+    int dot_pos = len % 3;
+    if (dot_pos == 0) dot_pos = 3;
+
+    int j = 0;
+    for (int i = 0; i < len; i++) {
+        if (i != 0 && (i % 3 == dot_pos % 3)) {
+            buffer[j++] = '.';
+        }
+        buffer[j++] = temp[i];
+    }
+    buffer[j] = '\0';
+
+    return buffer;
+}
+
+
+
+
 //game processing
-void map_processing::process_and_sync_game_cycle()
+void map_processing::process_and_sync_game_cycle(std::vector <country_data>* countries, int player_id, float animated_map_scale, int hovered_country_id)
 {
     if (!tick_started)
     {
@@ -970,6 +1017,23 @@ void map_processing::process_and_sync_game_cycle()
         
     }
 
+    //ecomics cycle
+    static int old_global_tick_for_economy;
+    static float capital_goal_for_animation = g_menu.players[player_id].economics.capital;
+    if (global_tick % 5 == 0 && old_global_tick_for_economy != global_tick)
+    {
+        old_global_tick_for_economy = global_tick;
+        capital_goal_for_animation += g_menu.players[player_id].economics.capital_inflow * (g_menu.players[player_id].economics.capital_inflow_ratio / 100);
+    }
+
+    float progress = (capital_goal_for_animation - g_menu.players[player_id].economics.capital) / 10;
+
+
+    if (progress > 1)
+        g_menu.players[player_id].economics.capital += progress;
+    else
+        g_menu.players[player_id].economics.capital = capital_goal_for_animation;
+
     bool is_server = g_socket_control.player_role == g_socket_control.player_role_enum::SERVER;
 
     //timer visual
@@ -1008,6 +1072,130 @@ void map_processing::process_and_sync_game_cycle()
             ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[2].font_addr, 17.f, ImVec2(screen_x - 200, 25 + (25 * i)), ImColor(255, 255, 255), g_menu.players[i].name.c_str());
         }
     }
+
+    static int last_playerlist_pos_y = 50 + (25 * g_menu.players.size());
+
+    //building ui
+    {
+        static int opened_tab_right_ui;
+        ImGui::SetNextWindowPos(ImVec2(screen_x - 220, last_playerlist_pos_y));
+        ImGui::SetNextWindowSize(ImVec2(screen_x - 25, last_playerlist_pos_y + 500));
+        ImGui::Begin("Building Window", nullptr, 
+        ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove 
+        | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoNavInputs | ImGuiWindowFlags_NoDecoration);
+        {
+            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.5f);
+            {
+                    {
+                        ImGui::PushFont(g_xgui.fonts[2].font_addr);
+                        {
+                            ImGui::ButtonEx(std::string(format_currency(int(g_menu.players[player_id].economics.capital)) + std::string("$")).c_str(), ImVec2(160, 40), ImGuiButtonFlags_NoInput);
+                        }
+                        ImGui::PopFont();
+
+                        ImGui::PushFont(g_xgui.fonts[3].font_addr);
+                        {
+                            ImGui::NewLine();
+
+                            if (ImGui::Button("Building mode", ImVec2(160, 55)))
+                            {
+                                if (opened_tab_right_ui == 1)
+                                    opened_tab_right_ui = 0;
+                                else
+                                opened_tab_right_ui = 1;
+                            }
+                            ImGui::NewLine();
+
+                            if (ImGui::Button("Diplomacy", ImVec2(160, 55)))
+                            {
+                                if (opened_tab_right_ui == 2)
+                                    opened_tab_right_ui = 0;
+                                else
+                                    opened_tab_right_ui = 2;
+                            }
+                            ImGui::NewLine();
+
+                            if (ImGui::Button("Economics", ImVec2(160, 55)))
+                            {
+                                if (opened_tab_right_ui == 3)
+                                    opened_tab_right_ui = 0;
+                                else
+                                    opened_tab_right_ui = 3;
+                            }
+                            ImGui::NewLine();
+                        }
+                }
+                ImGui::PopFont();
+            }
+            ImGui::PopStyleVar();
+        }
+
+        ImGui::End();
+
+        if (ImGui::IsKeyPressed(ImGuiKey_Escape))
+        {
+            opened_tab_right_ui = 0;
+        }
+
+        enum buildings
+        {
+            AIRCRAFT_FACTORY = 1 , SHIPYARD, MISSILE_DEFENSE,
+            FIELD_AIR_STRIP   ,           MISSILE_SILO,
+            PERMANENT_AIRFIELD,
+        };
+
+        static int should_build_building_id;
+
+        switch (opened_tab_right_ui)
+        {
+            case 1 :
+            {
+                ImGui::SetNextWindowPos(ImVec2(screen_x / 2 - 400, screen_y - 270));
+                ImGui::SetNextWindowSize(ImVec2(800, 400));
+                ImGui::Begin("Building", nullptr,
+                    ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
+                    | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoNavInputs | ImGuiWindowFlags_NoDecoration);
+                {
+                    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.5f);
+                    {
+                        ImGui::PushFont(g_xgui.fonts[3].font_addr);
+                        {
+                            if (ImGui::Button("AIR", ImVec2(250, 25)))                               {}                                                          ImGui::SameLine(); if (ImGui::Button("WATER", ImVec2(250, 25)))                   {}                                                          ImGui::SameLine(); if (ImGui::Button("MISSILE", ImVec2(250, 25)))                          {}
+                            if (ImGui::Button("Aircraft Factory [ 25.000.000 ]", ImVec2(250, 50)))   { should_build_building_id = buildings::AIRCRAFT_FACTORY; } ImGui::SameLine(); if (ImGui::Button("Shipyard [ 20.000.000 ]", ImVec2(250, 50))) { should_build_building_id = buildings::SHIPYARD; }         ImGui::SameLine(); if (ImGui::Button("Missile Defense [ 9.000.000 ]", ImVec2(250, 50)))    { should_build_building_id = buildings::MISSILE_DEFENSE; }
+                            if (ImGui::Button("Field Airstrip [ 10.000.000 ]", ImVec2(250, 50)))     { should_build_building_id = buildings::FIELD_AIR_STRIP; }  ImGui::SameLine(); if (ImGui::Button(" ", ImVec2(250, 50)))                       {}                                                          ImGui::SameLine(); if (ImGui::Button("Missile Silo [ 13.000.000 ]", ImVec2(250, 50)))      { should_build_building_id = buildings::MISSILE_SILO; }
+                            if (ImGui::Button("Permanent Airfield [ 20.000.000 ]", ImVec2(250, 50))) { should_build_building_id = buildings::PERMANENT_AIRFIELD;}ImGui::SameLine(); if (ImGui::Button("   ", ImVec2(250, 50)))                     {}                                                          ImGui::SameLine(); if (ImGui::Button("  ", ImVec2(250, 50)))                               {}
+                        }
+                        ImGui::PopFont();
+                    }
+                    ImGui::PopStyleVar();
+                }
+                ImGui::End();
+            }
+            break;
+
+        }
+
+        if (should_build_building_id != 0)
+        {
+            opened_tab_right_ui = 0;
+
+            if (hovered_country_id == g_menu.players[player_id].control_region)
+            {
+                ImGui::GetForegroundDrawList()->AddCircle(ImVec2(cursor_pos.x, cursor_pos.y), 15 * animated_map_scale, ImColor(255, 0, 0, 250));
+
+                if (ImGui::IsMouseDown(0))
+                {
+                    should_build_building_id = 0;
+                    building new_build;
+                    new_build.building_type = should_build_building_id;
+                    new_build.pos = ImVec2(cursor_pos.x, cursor_pos.y);
+                    g_menu.players[player_id].region_buildings.push_back(new_build);
+                }
+            }
+        }
+    }
+
+
 
     //selector
     {
