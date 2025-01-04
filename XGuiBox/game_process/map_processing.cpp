@@ -345,6 +345,13 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
                 {
                     g_menu.players[i].region_buildings[buildings_id].pos = mapped_pos;
                     g_menu.players[i].region_buildings[buildings_id].size_converted_to_map = true;
+
+                    if (g_socket_control.player_role == g_socket_control.player_role_enum::SERVER)
+                    {
+                        g_socket_control.server_send_player_class(player_id);
+                    }
+                    else
+                        g_socket_control.client_send_player_class(player_id);
                 }
 
                 ImVec2 final_pos = ImVec2(pos.x + g_menu.players[i].region_buildings[buildings_id].pos.x * animated_map_scale, pos.y + g_menu.players[i].region_buildings[buildings_id].pos.y * animated_map_scale);
@@ -352,7 +359,6 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
                 ImGui::GetForegroundDrawList()->AddCircle(final_pos, 15 * animated_map_scale, ImColor(255, 0, 0, 250));
                 ImGui::GetForegroundDrawList()->AddText(final_pos, ImColor(255, 0, 0, 250), std::to_string(mapped_pos.x).c_str());
                 ImGui::GetForegroundDrawList()->AddText(final_pos, ImColor(255, 0, 0, 250), std::to_string(mapped_pos.y).c_str());
-
 
             }
         }

@@ -101,36 +101,196 @@ namespace server_client_space
             }
         }
 
-        std::string serialize_players(const std::vector<player>& players) 
+        std::string serialize_vector_players(const std::vector<player>& players)
         {
             std::ostringstream oss;
-            for (const auto& p : players) {
-                oss << p.id << "," << p.name << "," << p.control_region << "," << int(p.ready_to_play) << ";";
+            for (const auto& p : players)
+            {
+                // Сериализация основных данных игрока
+                oss << p.id << "," << p.name << "," << p.control_region << "," << int(p.ready_to_play) << ",";
+
+                // Сериализация экономических данных
+                oss << p.economics.capital << "," << p.economics.capital_inflow << "," << p.economics.capital_inflow_ratio << ",";
+
+                // Сериализация зданий
+                oss << p.region_buildings.size() << ","; // Количество зданий
+                for (const auto& b : p.region_buildings)
+                {
+                    oss << b.building_type << "," << b.progress_of_building << "," << b.endurance << ","
+                        << b.pos.x << "," << b.pos.y << "," << int(b.size_converted_to_map) << ",";
+                }
+
+                oss << ";"; // Разделитель между игроками
             }
             return oss.str();
         }
 
-        //svo
-
-        std::vector<player> deserialize_players(const std::string& data) 
+        std::vector<player> deserialize_vector_players(const std::string& data)
         {
             std::vector<player> players;
             std::istringstream iss(data);
-            std::string token;
+            std::string player_token;
 
-            while (std::getline(iss, token, ';')) 
+            while (std::getline(iss, player_token, ';'))
             {
-                std::istringstream player_stream(token);
-                std::string id_str, name, control_region_str, ready_to_play;
+                std::istringstream player_stream(player_token);
+                player p;
 
-                if (std::getline(player_stream, id_str, ',') &&
-                    std::getline(player_stream, name, ',') &&
-                    std::getline(player_stream, control_region_str, ',') && 
-                    std::getline(player_stream, ready_to_play, ',')) {
-                    players.push_back(player{ name, std::stoi(id_str), std::stoi(control_region_str), bool(std::stoi(ready_to_play)) });
+                std::string id_str, name, control_region_str, ready_to_play_str;
+                std::getline(player_stream, id_str, ',');
+                std::getline(player_stream, name, ',');
+                std::getline(player_stream, control_region_str, ',');
+                std::getline(player_stream, ready_to_play_str, ',');
+
+                p.id = std::stoi(id_str);
+                p.name = name;
+                p.control_region = std::stoi(control_region_str);
+                p.ready_to_play = std::stoi(ready_to_play_str);
+
+                // Десериализация экономических данных
+                std::string capital_str, capital_inflow_str, capital_inflow_ratio_str;
+                std::getline(player_stream, capital_str, ',');
+                std::getline(player_stream, capital_inflow_str, ',');
+                std::getline(player_stream, capital_inflow_ratio_str, ',');
+                p.economics.capital = std::stof(capital_str);
+                p.economics.capital_inflow = std::stof(capital_inflow_str);
+                p.economics.capital_inflow_ratio = std::stof(capital_inflow_ratio_str);
+
+                // Десериализация зданий
+                std::string buildings_count_str;
+                std::getline(player_stream, buildings_count_str, ',');
+                int buildings_count = std::stoi(buildings_count_str);
+                for (int i = 0; i < buildings_count; ++i)
+                {
+                    building b;
+                    std::string building_type_str, progress_of_building_str, endurance_str, pos_x_str, pos_y_str, size_converted_to_map_str;
+
+                    std::getline(player_stream, building_type_str, ',');
+                    std::getline(player_stream, progress_of_building_str, ',');
+                    std::getline(player_stream, endurance_str, ',');
+                    std::getline(player_stream, pos_x_str, ',');
+                    std::getline(player_stream, pos_y_str, ',');
+                    std::getline(player_stream, size_converted_to_map_str, ',');
+
+                    b.building_type = std::stoi(building_type_str);
+                    b.progress_of_building = std::stoi(progress_of_building_str);
+                    b.endurance = std::stoi(endurance_str);
+                    b.pos = ImVec2(std::stof(pos_x_str), std::stof(pos_y_str));
+                    b.size_converted_to_map = std::stoi(size_converted_to_map_str);
+
+                    p.region_buildings.push_back(b);
                 }
+
+                players.push_back(p);
             }
             return players;
+        }
+
+        std::string serialize_players(const std::vector<player>& players, int player_id)
+        {
+            for (const auto& p : players)
+            {
+                if (p.id == player_id)
+                {
+                    std::ostringstream oss;
+
+                    // Сериализация основных данных игрока
+                    oss << p.id << "," << p.name << "," << p.control_region << "," << int(p.ready_to_play) << ",";
+
+                    // Сериализация экономических данных
+                    oss << p.economics.capital << "," << p.economics.capital_inflow << "," << p.economics.capital_inflow_ratio << ",";
+
+                    // Сериализация зданий
+                    oss << p.region_buildings.size() << ","; // Количество зданий
+                    for (const auto& b : p.region_buildings)
+                    {
+                        oss << b.building_type << "," << b.progress_of_building << "," << b.endurance << ","
+                            << b.pos.x << "," << b.pos.y << "," << int(b.size_converted_to_map) << ",";
+                    }
+
+                    return oss.str();
+                }
+            }
+
+        }
+
+        bool deserialize_players(std::vector<player>& players, const std::string& player_data)
+        {
+            std::istringstream player_stream(player_data);
+
+            // Десериализация данных игрока
+            player new_player;
+            std::string id_str, name, control_region_str, ready_to_play_str;
+
+            if (!(std::getline(player_stream, id_str, ',') &&
+                std::getline(player_stream, name, ',') &&
+                std::getline(player_stream, control_region_str, ',') &&
+                std::getline(player_stream, ready_to_play_str, ',')))
+            {
+                return false; // Невозможно разобрать данные
+            }
+
+            new_player.id = std::stoi(id_str);
+            new_player.name = name;
+            new_player.control_region = std::stoi(control_region_str);
+            new_player.ready_to_play = std::stoi(ready_to_play_str);
+
+            // Десериализация экономических данных
+            std::string capital_str, capital_inflow_str, capital_inflow_ratio_str;
+            if (!(std::getline(player_stream, capital_str, ',') &&
+                std::getline(player_stream, capital_inflow_str, ',') &&
+                std::getline(player_stream, capital_inflow_ratio_str, ',')))
+            {
+                return false; // Невозможно разобрать экономические данные
+            }
+
+            new_player.economics.capital = std::stof(capital_str);
+            new_player.economics.capital_inflow = std::stof(capital_inflow_str);
+            new_player.economics.capital_inflow_ratio = std::stof(capital_inflow_ratio_str);
+
+            // Десериализация зданий
+            std::string buildings_count_str;
+            if (!std::getline(player_stream, buildings_count_str, ','))
+                return false; // Невозможно разобрать количество зданий
+
+            int buildings_count = std::stoi(buildings_count_str);
+            for (int i = 0; i < buildings_count; ++i)
+            {
+                building b;
+                std::string building_type_str, progress_of_building_str, endurance_str, pos_x_str, pos_y_str, size_converted_to_map_str;
+
+                if (!(std::getline(player_stream, building_type_str, ',') &&
+                    std::getline(player_stream, progress_of_building_str, ',') &&
+                    std::getline(player_stream, endurance_str, ',') &&
+                    std::getline(player_stream, pos_x_str, ',') &&
+                    std::getline(player_stream, pos_y_str, ',') &&
+                    std::getline(player_stream, size_converted_to_map_str, ',')))
+                {
+                    return false; // Невозможно разобрать данные здания
+                }
+
+                b.building_type = std::stoi(building_type_str);
+                b.progress_of_building = std::stoi(progress_of_building_str);
+                b.endurance = std::stoi(endurance_str);
+                b.pos = ImVec2(std::stof(pos_x_str), std::stof(pos_y_str));
+                b.size_converted_to_map = std::stoi(size_converted_to_map_str);
+
+                new_player.region_buildings.push_back(b);
+            }
+
+            // Поиск игрока с таким ID в существующем векторе
+            for (auto& existing_player : players)
+            {
+                if (existing_player.id == new_player.id)
+                {
+                    existing_player = new_player; // Обновление игрока
+                    return true;
+                }
+            }
+
+            // Если игрок с таким ID не найден, добавляем нового
+            players.push_back(new_player);
+            return true;
         }
 
         player find_player_by_nickname(std::string nickname)
@@ -179,7 +339,7 @@ public:
         : acceptor_(io_context, tcp::endpoint(boost::asio::ip::make_address(ip), port)), nickname_(nickname)
     {
         g_menu.players.push_back(player{ nickname, int(g_menu.players.size()), 0 });
-        std::string serialized_data = "CLASS.PLAYERS:" + server_client_space::server_client_menu_information::serialize_players(g_menu.players);
+        std::string serialized_data = "CLASS.PLAYERS_VECTOR:" + server_client_space::server_client_menu_information::serialize_vector_players(g_menu.players);
         send_message(serialized_data);
         do_accept();
     }
@@ -207,9 +367,9 @@ public:
         g_menu.players.clear();
     }
 
-    void send_and_update_player_class()
+    void send_and_update_player_class(int id)
     {
-        std::string serialized_data = "CLASS.PLAYERS:" + server_client_space::server_client_menu_information::serialize_players(g_menu.players);
+        std::string serialized_data = "CLASS.PLAYERS:" + server_client_space::server_client_menu_information::serialize_players(g_menu.players, id );
         send_message(serialized_data);
     }
 
@@ -250,7 +410,12 @@ private:
                 if (server_client_space::IsRequest(message, "CLASS.PLAYERS:")) 
                 {
                     std::string players_data = message.erase(0, 14);
-                    g_menu.players = server_client_space::server_client_menu_information::deserialize_players(players_data);
+                    server_client_space::server_client_menu_information::deserialize_players(g_menu.players, players_data);
+                }
+                else if (server_client_space::IsRequest(message, "CLASS.PLAYERS_VECTOR:"))
+                {
+                    std::string players_data = message.erase(0, 21);
+                    g_menu.players = server_client_space::server_client_menu_information::deserialize_vector_players(players_data);
                 }
                 else if (server_client_space::IsRequest(message, "USER.JOIN:"))
                 {
@@ -262,7 +427,7 @@ private:
                     int id = std::stoi(message.erase(0, 19));
                     g_menu.players[id].ready_to_play = true;
 
-                    std::string serialized_data = "CLASS.PLAYERS" + server_client_space::server_client_menu_information::serialize_players(g_menu.players);
+                    std::string serialized_data = "CLASS.PLAYERS" + server_client_space::server_client_menu_information::serialize_players(g_menu.players, id);
                     send_message(serialized_data);
                 }
                 else if (server_client_space::IsRequest(message, "PLAYER.NOTREADY.LOBBY:"))
@@ -270,7 +435,7 @@ private:
                     int id = std::stoi(message.erase(0, 22));
                     g_menu.players[id].ready_to_play = false;
 
-                    std::string serialized_data = "CLASS.PLAYERS" + server_client_space::server_client_menu_information::serialize_players(g_menu.players);
+                    std::string serialized_data = "CLASS.PLAYERS" + server_client_space::server_client_menu_information::serialize_players(g_menu.players, id);
                     send_message(serialized_data);
                 }
                 else if (server_client_space::IsRequest(message, "GAME_CYCLE:"))
@@ -300,7 +465,7 @@ private:
             }
         }
         g_menu.players.push_back(player{ nickname, int(g_menu.players.size()), 0 });
-        std::string serialized_data = "CLASS.PLAYERS:" + server_client_space::server_client_menu_information::serialize_players(g_menu.players);
+        std::string serialized_data = "CLASS.PLAYERS_VECTOR:" + server_client_space::server_client_menu_information::serialize_vector_players(g_menu.players);
         send_message(serialized_data);
     }
 
@@ -321,7 +486,7 @@ private:
                 g_menu.players.erase(player_it);
             }
 
-            std::string serialized_data = "CLASS.PLAYERS:" + server_client_space::server_client_menu_information::serialize_players(g_menu.players);
+            std::string serialized_data = "CLASS.PLAYERS_VECTOR:" + server_client_space::server_client_menu_information::serialize_vector_players(g_menu.players);
             send_message(serialized_data);
 
             server_client_space::server_client_menu_information::add_message(nickname + " has left the server /red/");
@@ -372,9 +537,9 @@ public:
         g_menu.players.clear();
     }
 
-    void send_and_update_player_class()
+    void send_and_update_player_class(int id)
     {
-        std::string serialized_data = "CLASS.PLAYERS:" + server_client_space::server_client_menu_information::serialize_players(g_menu.players);
+        std::string serialized_data = "CLASS.PLAYERS:" + server_client_space::server_client_menu_information::serialize_players(g_menu.players, id);
         send_message(serialized_data);
     }
 
@@ -392,7 +557,12 @@ private:
 
                 if (server_client_space::IsRequest(message, "CLASS.PLAYERS:")) {
                     std::string players_data = message.erase(0, 14);
-                    g_menu.players = server_client_space::server_client_menu_information::deserialize_players(players_data);
+                    server_client_space::server_client_menu_information::deserialize_players(g_menu.players, players_data);
+                }
+                else if (server_client_space::IsRequest(message, "CLASS.PLAYERS_VECTOR:"))
+                {
+                    std::string players_data = message.erase(0, 21);
+                    g_menu.players = server_client_space::server_client_menu_information::deserialize_vector_players(players_data);
                 }
                 else if (server_client_space::IsRequest(message, "SERVER:CLOSED_CONNECTION"))
                 {
@@ -464,6 +634,16 @@ void socket_control::client_send_message(std::string message)
     client->send_message(message);
 }
 
+void socket_control::client_send_player_class(int id)
+{
+    std::string serialized_data = "CLASS.PLAYERS:" + server_client_space::server_client_menu_information::serialize_players(g_menu.players, id);
+    client->send_message(serialized_data);
+}
+void socket_control::server_send_player_class(int id)
+{
+    std::string serialized_data = "CLASS.PLAYERS:" + server_client_space::server_client_menu_information::serialize_players(g_menu.players, id);
+    server->send_message(serialized_data);
+}
 
 void menu::render(window_profiling window) 
 {
@@ -854,10 +1034,12 @@ void menu::render(window_profiling window)
                     if (last_selected_region != selected_region)
                     {
                         last_selected_region = selected_region;
+
                         players[server_client_space::server_client_menu_information::
                                 find_player_by_nickname
                                 (server_client_space::server_client_menu_information::server_nickname).id].control_region = selected_region;
-                        server->send_and_update_player_class();
+
+                        server->send_and_update_player_class(server_client_space::server_client_menu_information::find_player_by_nickname(server_client_space::server_client_menu_information::server_nickname).id);
 
                     }
 
@@ -875,7 +1057,9 @@ void menu::render(window_profiling window)
                             players[server_client_space::server_client_menu_information::
                                 find_player_by_nickname
                                 (server_client_space::server_client_menu_information::server_nickname).id].ready_to_play = true;
-                            server->send_and_update_player_class();
+
+                            server->send_and_update_player_class(server_client_space::server_client_menu_information::find_player_by_nickname(server_client_space::server_client_menu_information::server_nickname).id);
+
                         }
 
                         if (!ready_for_game)
@@ -883,7 +1067,9 @@ void menu::render(window_profiling window)
                             players[server_client_space::server_client_menu_information::
                                 find_player_by_nickname
                                 (server_client_space::server_client_menu_information::server_nickname).id].ready_to_play = false;
-                            server->send_and_update_player_class();
+
+                            server->send_and_update_player_class(server_client_space::server_client_menu_information::find_player_by_nickname(server_client_space::server_client_menu_information::server_nickname).id);
+
                         }
 
                         last_ready_for_game = ready_for_game;
@@ -1073,7 +1259,9 @@ void menu::render(window_profiling window)
                         players[server_client_space::server_client_menu_information::
                             find_player_by_nickname
                             (server_client_space::server_client_menu_information::client_nickname).id].control_region = selected_region;
-                        client->send_and_update_player_class();
+                        
+                        client->send_and_update_player_class(server_client_space::server_client_menu_information::find_player_by_nickname(server_client_space::server_client_menu_information::client_nickname).id);
+
                     }
 
                     ImGui::NewLine();
@@ -1092,7 +1280,9 @@ void menu::render(window_profiling window)
                                 players[server_client_space::server_client_menu_information::
                                     find_player_by_nickname
                                     (server_client_space::server_client_menu_information::client_nickname).id].ready_to_play = true;
-                                client->send_and_update_player_class();
+                                
+                                client->send_and_update_player_class(server_client_space::server_client_menu_information::find_player_by_nickname(server_client_space::server_client_menu_information::client_nickname).id);
+
                             }
 
                             if (!ready_for_game)
@@ -1100,7 +1290,9 @@ void menu::render(window_profiling window)
                                 players[server_client_space::server_client_menu_information::
                                     find_player_by_nickname
                                     (server_client_space::server_client_menu_information::client_nickname).id].ready_to_play = false;
-                                client->send_and_update_player_class();
+                                
+                                client->send_and_update_player_class(server_client_space::server_client_menu_information::find_player_by_nickname(server_client_space::server_client_menu_information::client_nickname).id);
+
                             }
 
                             last_ready_for_game = ready_for_game;

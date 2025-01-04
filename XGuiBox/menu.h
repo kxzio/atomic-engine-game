@@ -72,6 +72,10 @@ public:
 
 	void client_send_message(std::string message);
 
+	void client_send_player_class(int id);
+
+	void server_send_player_class(int id);
+
 	std::string game_cycle_messages;
 };
 inline socket_control g_socket_control;
