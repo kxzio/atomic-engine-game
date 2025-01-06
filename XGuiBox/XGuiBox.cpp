@@ -17,6 +17,8 @@
 
 int main()
 {
+	_CrtSetReportMode(_CRT_ASSERT, 0);
+
 	/* Window title and creating main class, that creates window */
 	window_profiling new_window_profile ("XGUI Presentation");
 

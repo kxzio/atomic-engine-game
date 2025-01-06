@@ -192,37 +192,73 @@ struct ConvexMathOperations
 };
 inline ConvexMathOperations g_convex_math;
 
-struct city_vector_data
+struct map_objects
 {
-    std::string city_name;
-    ImVec2 city_pos;
+    std::string name;
 
-    bool selected;
-    bool hovered;
+    ImVec2 pos;
+
+    bool selected = false;
+
+    bool hovered = false;
+};
+
+class building : public map_objects
+{
+public:
+
+    int building_type;
+
+    int progress_of_building;
+
+    int endurance;
+
+    bool size_converted_to_map;
+};
+
+struct city : public map_objects
+{
+    city() = default;
+
+    int population;
+    city(std::string iname, ImVec2 ipos, int ipopulation = 0)
+    {
+        name = iname;
+        pos = ipos;
+        population = ipopulation;
+    }
 };
 
 struct country_data
 {
+    //name and texture of country
     std::string name;
     IDirect3DTexture9* texture;
 
+    //poses and sizes
     ImVec2 position;
     ImVec2 size;
     ImVec2 hitbox_size;
 
     ImColor color;
 
-    std::vector<city_vector_data> cities;
+    //objects
+    std::vector < city >     cities;
+    std::vector < building > buildings;
 
+    //hitboxes
     bool hitbox_get = false;
-    std::vector<Point> convex_hull = {};
+    std::vector<Point>  convex_hull = {};
     std::vector<ImVec2> convex_hull_screen_coords;
+
 
 };
 
 class map_processing
 {
 public:
+
+    std::vector < country_data > countries;
 
     //tech vars
     int screen_x, screen_y;

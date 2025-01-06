@@ -72,7 +72,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <IncludePath>C:\Users\sasha\OneDrive\Documents\ffmpeg lib\ffmpeg-4.3.1-win64-dev\include;C:\Users\sasha\Downloads\DirectXTex-oct2024\DirectXTex-oct2024\WICTextureLoader;C:\Users\sasha\Downloads\DirectXTex-oct2024\DirectXTex-oct2024\DirectXTex;C:\Users\sasha\OneDrive\Documents\directx11_sdk\Include;C:\Users\sasha\OneDrive\Documents\sdk\sdk\Include;C:\Users\sasha\source\repos\XGuiBox\XGuiBox\resources\freetype\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Users\sasha\source\repos\XGuiBox\XGuiBox\resources\freetype\release dll\win64;$(LibraryPath)</LibraryPath>
+    <LibraryPath>C:\Users\sasha\OneDrive\Documents\ffmpeg lib\ffmpeg-4.3.1-win64-dev\lib;C:\Users\sasha\OneDrive\Documents\directx11_sdk\Lib 64;C:\Users\sasha\OneDrive\Documents\sdk\sdk\Lib\x64;C:\Users\sasha\source\repos\XGuiBox\XGuiBox\resources\freetype\release dll\win64;$(LibraryPath)</LibraryPath>
     <ExecutablePath>C:\Users\sasha\OneDrive\Documents\ffmpeg lib\ffmpeg-4.3.1-win64-dev\include;C:\Users\sasha\OneDrive\Documents\directx11_sdk\Include;C:\Users\sasha\OneDrive\Documents\sdk\sdk\Include;C:\Users\sasha\source\repos\XGuiBox\XGuiBox\resources\freetype\release dll\win64;$(ExecutablePath)</ExecutablePath>
     <ExternalIncludePath>C:\Users\sasha\OneDrive\Documents\ffmpeg lib\ffmpeg-4.3.1-win64-dev\lib;C:\Users\sasha\Downloads\DirectXTex-oct2024\DirectXTex-oct2024\WICTextureLoader;C:\Users\sasha\Downloads\DirectXTex-oct2024\DirectXTex-oct2024\DirectXTex;C:\Users\sasha\OneDrive\Documents\directx11_sdk\Lib 64;C:\Users\sasha\OneDrive\Documents\sdk\sdk\Lib\x64;$(ExternalIncludePath)</ExternalIncludePath>
   </PropertyGroup>
@@ -114,15 +114,21 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_ITERATOR_DEBUG_LEVEL=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
-      <AdditionalIncludeDirectories>C:\Users\sasha\OneDrive\Documents\boost\boost_1_86_0;C:\Users\sasha\source\repos\XGuiBox\XGuiBox\resources\freetype\release dll\win64;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\sasha\OneDrive\Documents\FMOD API\FMOD Studio API Windows\api\core\inc;C:\Users\sasha\OneDrive\Documents\ffmpeg lib\ffmpeg-4.3.1-win64-dev\include;C:\Users\sasha\OneDrive\Documents\boost\boost_1_86_0;C:\Users\sasha\source\repos\XGuiBox\XGuiBox\resources\freetype\release dll\win64;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>C:\Users\sasha\OneDrive\Documents\FMOD API\FMOD Studio API Windows\api\core\lib\x64;C:\Users\sasha\OneDrive\Documents\ffmpeg lib\ffmpeg-4.3.1-win64-dev\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>avformat.lib
+;avdevice.lib;avfilter.lib;avcodec.lib;
+avutil.lib
+;swscale.lib;postproc.lib;swresample.lib;ws2_32.lib;
+bcrypt.lib;fmod_vc.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">

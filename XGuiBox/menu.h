@@ -1,18 +1,12 @@
 #pragma once
 #include "resources/window_profiling/window.h"
-
-class building
+enum buildings
 {
-public:
-	int building_type;
-
-	int progress_of_building;
-
-	int endurance;
-
-	ImVec2 pos;
-	bool size_converted_to_map;
+	AIRCRAFT_FACTORY = 1, SHIPYARD, MISSILE_DEFENSE,
+	FIELD_AIR_STRIP, MISSILE_SILO,
+	PERMANENT_AIRFIELD, RADAR
 };
+
 class econimics
 {
 public:
@@ -37,8 +31,6 @@ public:
 	bool ready_to_play = false;
 
 	econimics economics;
-
-	std::vector < building > region_buildings;
 };
 
 class menu
@@ -56,6 +48,7 @@ public:
 };
 inline menu g_menu;
 
+
 class socket_control
 {
 public:
@@ -72,9 +65,16 @@ public:
 
 	void client_send_message(std::string message);
 
+	//updating
 	void client_send_player_class(int id);
-
 	void server_send_player_class(int id);
+
+	void client_send_city(int city_id, int country_id);
+    void server_send_city(int city_id, int country_id);
+
+	void client_send_building(int building_id, int country_id);
+	void server_send_building(int building_id, int country_id);
+
 
 	std::string game_cycle_messages;
 };

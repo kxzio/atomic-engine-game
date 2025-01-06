@@ -26,8 +26,7 @@
 #include "resources/imgui_resource/imgui.h"
 #include "resources/window_profiling/window.h"
 #include "resources/imgui_resource/imgui_internal.h"
-
-#include "../XGuiBox/game_process/map_processing.h"
+#include "game_process/map_processing.h"
 #include "../XGuiBox/xguibox/xgui.h"
 
 #include <fmod.hpp>
@@ -112,14 +111,6 @@ namespace server_client_space
                 // Сериализация экономических данных
                 oss << p.economics.capital << "," << p.economics.capital_inflow << "," << p.economics.capital_inflow_ratio << ",";
 
-                // Сериализация зданий
-                oss << p.region_buildings.size() << ","; // Количество зданий
-                for (const auto& b : p.region_buildings)
-                {
-                    oss << b.building_type << "," << b.progress_of_building << "," << b.endurance << ","
-                        << b.pos.x << "," << b.pos.y << "," << int(b.size_converted_to_map) << ",";
-                }
-
                 oss << ";"; // Разделитель между игроками
             }
             return oss.str();
@@ -156,31 +147,6 @@ namespace server_client_space
                 p.economics.capital_inflow = std::stof(capital_inflow_str);
                 p.economics.capital_inflow_ratio = std::stof(capital_inflow_ratio_str);
 
-                // Десериализация зданий
-                std::string buildings_count_str;
-                std::getline(player_stream, buildings_count_str, ',');
-                int buildings_count = std::stoi(buildings_count_str);
-                for (int i = 0; i < buildings_count; ++i)
-                {
-                    building b;
-                    std::string building_type_str, progress_of_building_str, endurance_str, pos_x_str, pos_y_str, size_converted_to_map_str;
-
-                    std::getline(player_stream, building_type_str, ',');
-                    std::getline(player_stream, progress_of_building_str, ',');
-                    std::getline(player_stream, endurance_str, ',');
-                    std::getline(player_stream, pos_x_str, ',');
-                    std::getline(player_stream, pos_y_str, ',');
-                    std::getline(player_stream, size_converted_to_map_str, ',');
-
-                    b.building_type = std::stoi(building_type_str);
-                    b.progress_of_building = std::stoi(progress_of_building_str);
-                    b.endurance = std::stoi(endurance_str);
-                    b.pos = ImVec2(std::stof(pos_x_str), std::stof(pos_y_str));
-                    b.size_converted_to_map = std::stoi(size_converted_to_map_str);
-
-                    p.region_buildings.push_back(b);
-                }
-
                 players.push_back(p);
             }
             return players;
@@ -201,12 +167,6 @@ namespace server_client_space
                     oss << p.economics.capital << "," << p.economics.capital_inflow << "," << p.economics.capital_inflow_ratio << ",";
 
                     // Сериализация зданий
-                    oss << p.region_buildings.size() << ","; // Количество зданий
-                    for (const auto& b : p.region_buildings)
-                    {
-                        oss << b.building_type << "," << b.progress_of_building << "," << b.endurance << ","
-                            << b.pos.x << "," << b.pos.y << "," << int(b.size_converted_to_map) << ",";
-                    }
 
                     return oss.str();
                 }
@@ -248,36 +208,6 @@ namespace server_client_space
             new_player.economics.capital_inflow = std::stof(capital_inflow_str);
             new_player.economics.capital_inflow_ratio = std::stof(capital_inflow_ratio_str);
 
-            // Десериализация зданий
-            std::string buildings_count_str;
-            if (!std::getline(player_stream, buildings_count_str, ','))
-                return false; // Невозможно разобрать количество зданий
-
-            int buildings_count = std::stoi(buildings_count_str);
-            for (int i = 0; i < buildings_count; ++i)
-            {
-                building b;
-                std::string building_type_str, progress_of_building_str, endurance_str, pos_x_str, pos_y_str, size_converted_to_map_str;
-
-                if (!(std::getline(player_stream, building_type_str, ',') &&
-                    std::getline(player_stream, progress_of_building_str, ',') &&
-                    std::getline(player_stream, endurance_str, ',') &&
-                    std::getline(player_stream, pos_x_str, ',') &&
-                    std::getline(player_stream, pos_y_str, ',') &&
-                    std::getline(player_stream, size_converted_to_map_str, ',')))
-                {
-                    return false; // Невозможно разобрать данные здания
-                }
-
-                b.building_type = std::stoi(building_type_str);
-                b.progress_of_building = std::stoi(progress_of_building_str);
-                b.endurance = std::stoi(endurance_str);
-                b.pos = ImVec2(std::stof(pos_x_str), std::stof(pos_y_str));
-                b.size_converted_to_map = std::stoi(size_converted_to_map_str);
-
-                new_player.region_buildings.push_back(b);
-            }
-
             // Поиск игрока с таким ID в существующем векторе
             for (auto& existing_player : players)
             {
@@ -292,6 +222,125 @@ namespace server_client_space
             players.push_back(new_player);
             return true;
         }
+
+        std::string serialize_city(int city_id, int country_id)
+        {
+            std::ostringstream oss;
+
+            // Сериализация данных города с добавлением ID страны
+            oss << country_id << "," << g_map.countries[country_id].cities[city_id].name << "," << g_map.countries[country_id].cities[city_id].pos.x << "," << g_map.countries[country_id].cities[city_id].pos.y << "," << g_map.countries[country_id].cities[city_id].population;
+
+            return oss.str();
+        }
+
+        std::string serialize_building(int building_id, int country_id)
+        {
+            std::ostringstream oss;
+
+
+            // Сериализация данных здания с добавлением ID страны
+            oss << country_id << "," << g_map.countries[country_id].buildings[building_id].name << "," << g_map.countries[country_id].buildings[building_id].pos.x << "," << g_map.countries[country_id].buildings[building_id].pos.y << "," << g_map.countries[country_id].buildings[building_id].building_type
+                << "," << g_map.countries[country_id].buildings[building_id].progress_of_building << "," << g_map.countries[country_id].buildings[building_id].endurance << "," << g_map.countries[country_id].buildings[building_id].size_converted_to_map;
+
+            return oss.str();
+        }
+
+        bool deserialize_city(std::vector<country_data>& countries, const std::string& city_data)
+        {
+            std::istringstream city_stream(city_data);
+
+            // Десериализация данных города
+            city new_city;
+            std::string country_id_str, name, x_str, y_str, population_str;
+
+            if (!(std::getline(city_stream, country_id_str, ',') &&
+                std::getline(city_stream, name, ',') &&
+                std::getline(city_stream, x_str, ',') &&
+                std::getline(city_stream, y_str, ',') &&
+                std::getline(city_stream, population_str, ',')))
+            {
+                return false; // Невозможно разобрать данные
+            }
+
+            int country_id = std::stoi(country_id_str);
+            new_city.name = name;
+            new_city.pos.x = std::stof(x_str);
+            new_city.pos.y = std::stof(y_str);
+            new_city.population = std::stoi(population_str);
+
+            // Проверка, существует ли страна с таким ID
+            if (country_id < 0 || country_id >= countries.size())
+            {
+                return false; // Страна с таким ID не существует
+            }
+
+            // Поиск города с таким именем в векторе cities страны
+            auto& cities = countries[country_id].cities;
+            for (auto& existing_city : cities)
+            {
+                if (existing_city.name == new_city.name)
+                {
+                    existing_city = new_city; // Обновление города
+                    return true;
+                }
+            }
+
+            // Если города с таким именем не найдено, добавляем новый
+            cities.push_back(new_city);
+            return true;
+        }
+
+        bool deserialize_building(std::vector<country_data>& countries, const std::string& building_data)
+        {
+            std::istringstream building_stream(building_data);
+
+            // Десериализация данных здания
+            building new_building;
+            std::string country_id_str, name, x_str, y_str, building_type_str, progress_str, endurance_str, size_converted_str;
+
+            if (!(std::getline(building_stream, country_id_str, ',') &&
+                std::getline(building_stream, name, ',') &&
+                std::getline(building_stream, x_str, ',') &&
+                std::getline(building_stream, y_str, ',') &&
+                std::getline(building_stream, building_type_str, ',') &&
+                std::getline(building_stream, progress_str, ',') &&
+                std::getline(building_stream, endurance_str, ',') &&
+                std::getline(building_stream, size_converted_str, ',')))
+            {
+                return false; // Невозможно разобрать данные
+            }
+
+            int country_id = std::stoi(country_id_str);
+            new_building.name = name;
+            new_building.pos.x = std::stof(x_str);
+            new_building.pos.y = std::stof(y_str);
+            new_building.building_type = std::stoi(building_type_str);
+            new_building.progress_of_building = std::stoi(progress_str);
+            new_building.endurance = std::stoi(endurance_str);
+            new_building.size_converted_to_map = std::stoi(size_converted_str);
+
+            // Проверка, существует ли страна с таким ID
+            if (country_id < 0 || country_id >= countries.size())
+            {
+                return false; // Страна с таким ID не существует
+            }
+
+            // Поиск здания с таким именем и позицией в векторе buildings страны
+            auto& buildings = countries[country_id].buildings;
+            for (auto& existing_building : buildings)
+            {
+                if (existing_building.name == new_building.name && existing_building.pos.x == new_building.pos.x)
+                {
+                    existing_building = new_building; // Обновление здания
+                    return true;
+                }
+            }
+
+            // Если здание с таким именем и позицией не найдено, добавляем новое
+            buildings.push_back(new_building);
+            return true;
+        }
+
 
         player find_player_by_nickname(std::string nickname)
         {
@@ -411,6 +460,16 @@ private:
                 {
                     std::string players_data = message.erase(0, 14);
                     server_client_space::server_client_menu_information::deserialize_players(g_menu.players, players_data);
+                }
+                else if (server_client_space::IsRequest(message, "CLASS.MAP.UPDATE_CITY:"))
+                {
+                    std::string players_data = message.erase(0, 22);
+                    server_client_space::server_client_menu_information::deserialize_city(g_map.countries, players_data);
+                }
+                else if (server_client_space::IsRequest(message, "CLASS.MAP.UPDATE_BUILDING:"))
+                {
+                    std::string players_data = message.erase(0, 26);
+                    server_client_space::server_client_menu_information::deserialize_building(g_map.countries, players_data);
                 }
                 else if (server_client_space::IsRequest(message, "CLASS.PLAYERS_VECTOR:"))
                 {
@@ -559,6 +618,16 @@ private:
                     std::string players_data = message.erase(0, 14);
                     server_client_space::server_client_menu_information::deserialize_players(g_menu.players, players_data);
                 }
+                else if (server_client_space::IsRequest(message, "CLASS.MAP.UPDATE_CITY:"))
+                {
+                    std::string players_data = message.erase(0, 22);
+                    server_client_space::server_client_menu_information::deserialize_city(g_map.countries, players_data);
+                }
+                else if (server_client_space::IsRequest(message, "CLASS.MAP.UPDATE_BUILDING:"))
+                {
+                    std::string players_data = message.erase(0, 26);
+                    server_client_space::server_client_menu_information::deserialize_building(g_map.countries, players_data);
+                }
                 else if (server_client_space::IsRequest(message, "CLASS.PLAYERS_VECTOR:"))
                 {
                     std::string players_data = message.erase(0, 21);
@@ -639,9 +708,32 @@ void socket_control::client_send_player_class(int id)
     std::string serialized_data = "CLASS.PLAYERS:" + server_client_space::server_client_menu_information::serialize_players(g_menu.players, id);
     client->send_message(serialized_data);
 }
+
 void socket_control::server_send_player_class(int id)
 {
     std::string serialized_data = "CLASS.PLAYERS:" + server_client_space::server_client_menu_information::serialize_players(g_menu.players, id);
+    server->send_message(serialized_data);
+}
+
+void socket_control::client_send_city(int city_id, int country_id)
+{
+    std::string serialized_data = "CLASS.MAP.UPDATE_CITY:" + server_client_space::server_client_menu_information::serialize_city(city_id, country_id);
+    client->send_message(serialized_data);
+}
+void socket_control::server_send_city(int city_id, int country_id)
+{
+    std::string serialized_data = "CLASS.MAP.UPDATE_CITY:" + server_client_space::server_client_menu_information::serialize_city(city_id, country_id);
+    server->send_message(serialized_data);
+}
+
+void socket_control::client_send_building(int building_id, int country_id)
+{
+    std::string serialized_data = "CLASS.MAP.UPDATE_BUILDING:" + server_client_space::server_client_menu_information::serialize_building(building_id, country_id);
+    client->send_message(serialized_data);
+}
+void socket_control::server_send_building(int building_id, int country_id)
+{
+    std::string serialized_data = "CLASS.MAP.UPDATE_BUILDING:" + server_client_space::server_client_menu_information::serialize_building(building_id, country_id);
     server->send_message(serialized_data);
 }
 

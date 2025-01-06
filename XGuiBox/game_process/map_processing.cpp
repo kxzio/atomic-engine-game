@@ -13,6 +13,40 @@ bool IsPointInImRect(const ImVec2& point, const ImRect& rect) {
     return (point.x >= min.x && point.x <= max.x && point.y >= min.y && point.y <= max.y);
 }
 
+void process_object_selections(int current_country, int player_id, std::vector <country_data>* countries, map_objects* object, float animated_map_scale, ImVec2 map_pos)
+{
+    auto data = countries->at(current_country);
+
+    auto posx = data.position.x * animated_map_scale - (data.size.x * animated_map_scale * map_scale2) / 2 + map_pos.x * animated_map_scale;
+    auto posy = data.position.y * animated_map_scale - (data.size.y * animated_map_scale * map_scale2) / 2 + map_pos.y * animated_map_scale;
+
+    ImVec2 point_pos = ImVec2(posx + object->pos.x * animated_map_scale - 1.5 * animated_map_scale, posy + object->pos.y * animated_map_scale - 1.5 * animated_map_scale);
+    ImVec2 point_size = ImVec2(posx + object->pos.x * animated_map_scale + 1.5 * animated_map_scale, posy + object->pos.y * animated_map_scale + 1.5 * animated_map_scale);
+
+    if (current_country == g_menu.players[player_id].control_region)
+    {
+        if (IsPointInImRect(point_pos, g_map.selector_zone))
+        {
+            object->hovered = true;
+            ImGui::GetForegroundDrawList()->AddRect(point_pos, point_size, ImColor(79, 255, 69, 200));
+        }
+        else if (ImGui::IsMouseDown(0))
+        {
+            object->hovered = false;
+        }
+        else if (object->hovered || object->selected)
+        {
+            object->hovered = false;
+            object->selected = true;
+            ImGui::GetForegroundDrawList()->AddRect(point_pos, point_size, ImColor(79, 255, 69, 200));
+        }
+    }
+    if (ImGui::IsMouseClicked(0))
+    {
+        object->hovered = false;
+        object->selected = false;
+    }
+}
 void map_processing::render_map_and_process_hitboxes(window_profiling window, std::vector <country_data>* countries, float animated_map_scale, int* hovered_id, ImVec2 cursor_pos, ImVec2 map_pos, int player_id)
 {
     /*
@@ -261,43 +295,21 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
                 data.color.Value.w = float(alpha_for_city_text / 255.f);
 
                 //ImGui::GetForegroundDrawList()->AddRect(ImVec2(posx + data.cities[city_id].city_pos.x * animated_map_scale - 2 * animated_map_scale, posy + data.cities[city_id].city_pos.y * animated_map_scale - 2 * animated_map_scale), ImVec2(posx + data.cities[city_id].city_pos.x * animated_map_scale + 2 * animated_map_scale, posy + data.cities[city_id].city_pos.y * animated_map_scale + 2 * animated_map_scale), ImColor(255, 255, 255, alpha_for_city_text));
-                ImGui::GetForegroundDrawList()->AddRectFilled(ImVec2(posx + data.cities[city_id].city_pos.x * animated_map_scale - 0.5 * animated_map_scale, posy + data.cities[city_id].city_pos.y * animated_map_scale - 0.5 * animated_map_scale), ImVec2(posx + data.cities[city_id].city_pos.x * animated_map_scale + 0.5 * animated_map_scale, posy + data.cities[city_id].city_pos.y * animated_map_scale + 0.5 * animated_map_scale), data.color);
+                ImGui::GetForegroundDrawList()->AddRectFilled(ImVec2(posx + data.cities[city_id].pos.x * animated_map_scale - 0.5 * animated_map_scale, posy + data.cities[city_id].pos.y * animated_map_scale - 0.5 * animated_map_scale), ImVec2(posx + data.cities[city_id].pos.x * animated_map_scale + 0.5 * animated_map_scale, posy + data.cities[city_id].pos.y * animated_map_scale + 0.5 * animated_map_scale), data.color);
 
-                auto textsize_for_city = g_xgui.fonts[3].font_addr->CalcTextSizeA(17, FLT_MAX, -1.f, data.cities[city_id].city_name.c_str());
+                auto textsize_for_city = g_xgui.fonts[3].font_addr->CalcTextSizeA(17, FLT_MAX, -1.f, data.cities[city_id].name.c_str());
 
-                ImVec2 text_pos = ImVec2(posx + data.cities[city_id].city_pos.x * animated_map_scale - textsize_for_city.x / 2, posy + data.cities[city_id].city_pos.y * animated_map_scale - 25);
+                ImVec2 text_pos = ImVec2(posx + data.cities[city_id].pos.x * animated_map_scale - textsize_for_city.x / 2, posy + data.cities[city_id].pos.y * animated_map_scale - 25);
 
                 if (!countries->at(i).cities[city_id].selected)
-                    ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[3].font_addr, 17, ImVec2(posx + data.cities[city_id].city_pos.x * animated_map_scale - textsize_for_city.x / 2, posy + data.cities[city_id].city_pos.y * animated_map_scale - 25), ImColor(data.color.Value.x, data.color.Value.y, data.color.Value.z, alpha_for_city_text / 255.f), data.cities[city_id].city_name.c_str());
+                    ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[3].font_addr, 17, ImVec2(posx + data.cities[city_id].pos.x * animated_map_scale - textsize_for_city.x / 2, posy + data.cities[city_id].pos.y * animated_map_scale - 25), ImColor(data.color.Value.x, data.color.Value.y, data.color.Value.z, alpha_for_city_text / 255.f), data.cities[city_id].name.c_str());
 
-                ImVec2 point_pos = ImVec2(posx + data.cities[city_id].city_pos.x * animated_map_scale - 1.5 * animated_map_scale, posy + data.cities[city_id].city_pos.y * animated_map_scale - 1.5 * animated_map_scale);
-                ImVec2 point_size = ImVec2(posx + data.cities[city_id].city_pos.x * animated_map_scale + 1.5 * animated_map_scale, posy + data.cities[city_id].city_pos.y * animated_map_scale + 1.5 * animated_map_scale);
-
-                if (i == g_menu.players[player_id].control_region)
+                process_object_selections(i, player_id, countries, &countries->at(i).cities[city_id], animated_map_scale, map_pos);
+        
+                if (countries->at(i).cities[city_id].selected)
                 {
-                    if (IsPointInImRect(point_pos, selector_zone))
-                    {
-                        countries->at(i).cities[city_id].hovered = true;
-                        ImGui::GetForegroundDrawList()->AddRect(point_pos, point_size, ImColor(79, 255, 69, 200));
-                    }
-                    else if (ImGui::IsMouseDown(0))
-                    {
-                        countries->at(i).cities[city_id].hovered = false;
-                    }
-                    else if (data.cities[city_id].hovered || data.cities[city_id].selected)
-                    {
-                        countries->at(i).cities[city_id].hovered = false;
-                        countries->at(i).cities[city_id].selected = true;
-                        ImGui::GetForegroundDrawList()->AddRect(point_pos, point_size, ImColor(79, 255, 69, 200));
-                        ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[3].font_addr, 17, ImVec2(posx + data.cities[city_id].city_pos.x * animated_map_scale - textsize_for_city.x / 2, posy + data.cities[city_id].city_pos.y * animated_map_scale - 25), ImColor(79, 255, 69, alpha_for_city_text), data.cities[city_id].city_name.c_str());
-                    }
+                    ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[3].font_addr, 17, ImVec2(posx + data.cities[city_id].pos.x * animated_map_scale - textsize_for_city.x / 2, posy + data.cities[city_id].pos.y * animated_map_scale - 25), ImColor(79, 255, 69, alpha_for_city_text), data.cities[city_id].name.c_str());
                 }
-                if (ImGui::IsMouseClicked(0))
-                {
-                    countries->at(i).cities[city_id].hovered  = false;
-                    countries->at(i).cities[city_id].selected = false;
-                }
-
             }
    
             data.color.Value.w = 255.f;
@@ -332,33 +344,38 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
         }
         
         //buildings
-        for (int i = 0; i < g_menu.players.size(); i++)
-        {
-            for (int buildings_id = 0; buildings_id < g_menu.players[i].region_buildings.size(); buildings_id++)
+        for (int i = 0; i < countries->size(); i++)
+        {  
+
+            for (int buildings_id = 0; buildings_id < countries->at(i).buildings.size(); buildings_id++)
             {
-                auto pos = ImVec2(countries->at(g_menu.players[i].control_region).position.x * animated_map_scale - (countries->at(g_menu.players[i].control_region).size.x * animated_map_scale * map_scale2) / 2 + map_pos.x * animated_map_scale,
-                    countries->at(g_menu.players[i].control_region).position.y * animated_map_scale - (countries->at(g_menu.players[i].control_region).size.y * animated_map_scale * map_scale2) / 2 + map_pos.y * animated_map_scale);
-
-                ImVec2 mapped_pos = ImVec2((g_menu.players[i].region_buildings[buildings_id].pos.x - pos.x) / animated_map_scale, (g_menu.players[i].region_buildings[buildings_id].pos.y - pos.y) / animated_map_scale);
-
-                if (g_menu.players[i].region_buildings[buildings_id].size_converted_to_map == false)
+                if (!countries->at(i).buildings.at(buildings_id).name.empty())
                 {
-                    g_menu.players[i].region_buildings[buildings_id].pos = mapped_pos;
-                    g_menu.players[i].region_buildings[buildings_id].size_converted_to_map = true;
+                    auto pos = ImVec2(countries->at(i).position.x * animated_map_scale - (countries->at(i).size.x * animated_map_scale * map_scale2) / 2 + map_pos.x * animated_map_scale,
+                        countries->at(i).position.y * animated_map_scale - (countries->at(i).size.y * animated_map_scale * map_scale2) / 2 + map_pos.y * animated_map_scale);
 
-                    if (g_socket_control.player_role == g_socket_control.player_role_enum::SERVER)
+                    ImVec2 mapped_pos = ImVec2((countries->at(i).buildings[buildings_id].pos.x - pos.x) / animated_map_scale, (countries->at(i).buildings[buildings_id].pos.y - pos.y) / animated_map_scale);
+
+                    if (countries->at(i).buildings[buildings_id].size_converted_to_map == false)
                     {
-                        g_socket_control.server_send_player_class(player_id);
+                        countries->at(i).buildings[buildings_id].pos = mapped_pos;
+                        countries->at(i).buildings[buildings_id].size_converted_to_map = true;
+
+                        if (g_socket_control.player_role == g_socket_control.player_role_enum::SERVER)
+                        {
+                            g_socket_control.server_send_building(buildings_id, i);
+                        }
+                        else
+                            g_socket_control.client_send_building(buildings_id, i);
                     }
-                    else
-                        g_socket_control.client_send_player_class(player_id);
+
+                    ImVec2 final_pos = ImVec2(pos.x + countries->at(i).buildings[buildings_id].pos.x * animated_map_scale, pos.y + countries->at(i).buildings[buildings_id].pos.y * animated_map_scale);
+
+                    ImGui::GetForegroundDrawList()->AddCircle(final_pos, 5 * animated_map_scale, ImColor(255, 255, 255, 250));
+
+                    process_object_selections(i, player_id, countries, &countries->at(i).buildings[buildings_id], animated_map_scale, map_pos);
+                    //ImGui::GetForegroundDrawList()->AddText(ImVec2(final_pos.x, final_pos.y - 15 * animated_map_scale), ImColor(255, 255, 255), building_name.c_str());
                 }
-
-                ImVec2 final_pos = ImVec2(pos.x + g_menu.players[i].region_buildings[buildings_id].pos.x * animated_map_scale, pos.y + g_menu.players[i].region_buildings[buildings_id].pos.y * animated_map_scale);
-
-                ImGui::GetForegroundDrawList()->AddCircle(final_pos, 15 * animated_map_scale, ImColor(255, 0, 0, 250));
-                ImGui::GetForegroundDrawList()->AddText(final_pos, ImColor(255, 0, 0, 250), std::to_string(mapped_pos.x).c_str());
-                ImGui::GetForegroundDrawList()->AddText(final_pos, ImColor(255, 0, 0, 250), std::to_string(mapped_pos.y).c_str());
 
             }
         }
@@ -500,7 +517,7 @@ void map_processing::process_map(window_profiling window, int screen_size_x, int
 
     //city data
     static const ImVec2 offset = ImVec2(500, 1);
-    static std::vector < city_vector_data > city_data[19];
+    static std::vector< city > city_data[19];
 
     city_data[window.countries_name::USA] =
     {
@@ -818,12 +835,13 @@ void map_processing::process_map(window_profiling window, int screen_size_x, int
         { "Rockhampton", ImVec2(128.383972, 45.955814) },
         { "Griffth", ImVec2(111.272858, 89.733620) },
         { "Auckland", ImVec2(213.210007, 99.786263) },
-        { "Christchurch", ImVec2(199.432220, 132.452957) },
+        { "Christchurch", ImVec2(199.432220, 132.452957) }
     };
 
-    static std::vector < country_data > countries =
+    if (countries.empty())
+    countries =
     {
-        { "North-America",  window.countries[window.countries_name::USA],                   ImVec2(-48.6336 + offset.x, 53.9273 + offset.y)   ,  ImVec2(1683, 2111), ImVec2(0.195, 0.123),       ImColor(71, 115, 65),   city_data[window.countries_name::USA]               },
+        { "North-America",  window.countries[window.countries_name::USA],                   ImVec2(-48.6336 + offset.x, 53.9273 + offset.y)   ,  ImVec2(1683, 2111), ImVec2(0.195, 0.123),       ImColor(71, 115, 65),   city_data[window.countries_name::USA],              },
         { "EU",             window.countries[window.countries_name::EC],                    ImVec2(241.1947 + offset.x, 22.4489 + offset.y)   ,  ImVec2(1320, 1969), ImVec2(0.18, 0.23),         ImColor(71, 115, 65),   city_data[window.countries_name::EC]                },
         { "North-Europe",   window.countries[window.countries_name::Northeurope],           ImVec2(377.7431 + offset.x, 0.8408 + offset.y)   ,   ImVec2(620, 1131),  ImVec2(0.1818, 0.1306),     ImColor(71, 115, 65),   city_data[window.countries_name::Northeurope]       },
         { "Australia",      window.countries[window.countries_name::Austrilia],             ImVec2(849.2101 + offset.x, 488.0281 + offset.y)   , ImVec2(1028, 805),  ImVec2(0.1206, 0.188),      ImColor(71, 115, 65),   city_data[window.countries_name::Austrilia]         },
@@ -841,7 +859,7 @@ void map_processing::process_map(window_profiling window, int screen_size_x, int
         { "Mid-Africa",     window.countries[window.countries_name::MidWellWellWell],       ImVec2(438.9074 + offset.x, 340.2161 + offset.y)   , ImVec2(623, 291),   ImVec2(0.146, 0.1374),      ImColor(71, 115, 65),   city_data[window.countries_name::MidWellWellWell]   },
         { "South-Africa",   window.countries[window.countries_name::South_WellWellWell],    ImVec2(443.0285 + offset.x, 439.819 + offset.y)   ,  ImVec2(563, 849),   ImVec2(0.1316, 0.1986),     ImColor(71, 115, 65),   city_data[window.countries_name::South_WellWellWell]},
         { "Turkey",         window.countries[window.countries_name::Turk],                  ImVec2(463.8263 + offset.x, 226.1221 + offset.y)   , ImVec2(335, 243),   ImVec2(0.1596, 0.2266),     ImColor(71, 115, 65),   city_data[window.countries_name::Turk]              },
-        { "",  window.countries[window.countries_name::Zakavkazie],                         ImVec2(491.7546 + offset.x, 202.2194 + offset.y)   , ImVec2(154, 101),   ImVec2(0.1432, 0.1956),     ImColor(71, 115, 65),   city_data[window.countries_name::Zakavkazie]        }
+        { "",               window.countries[window.countries_name::Zakavkazie],            ImVec2(491.7546 + offset.x, 202.2194 + offset.y)   , ImVec2(154, 101),   ImVec2(0.1432, 0.1956),     ImColor(71, 115, 65),   city_data[window.countries_name::Zakavkazie]        }
     };
 
     int hovered_country_id = -1;
@@ -912,7 +930,7 @@ void game_event_timer()
     while (true)
     {
         process_events();
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000)); //TODO : change it to 1 second in release version
+        std::this_thread::sleep_for(std::chrono::milliseconds(70)); //TODO : change it to 1 second in release version
         g_map.global_tick++;
     }
 }
@@ -976,8 +994,6 @@ char* format_currency(long long amount) {
 
     return buffer;
 }
-
-
 
 
 //game processing
@@ -1143,65 +1159,88 @@ void map_processing::process_and_sync_game_cycle(std::vector <country_data>* cou
             opened_tab_right_ui = 0;
         }
 
-        enum buildings
-        {
-            AIRCRAFT_FACTORY = 1 , SHIPYARD, MISSILE_DEFENSE,
-            FIELD_AIR_STRIP   ,           MISSILE_SILO,
-            PERMANENT_AIRFIELD,
-        };
-
-        static int should_build_building_id;
+        static int should_build_building_id = 0;
 
         switch (opened_tab_right_ui)
         {
-            case 1 :
+        case 1:
+        {
+            ImGui::SetNextWindowPos(ImVec2(screen_x / 2 - 400, screen_y - 270));
+            ImGui::SetNextWindowSize(ImVec2(800, 400));
+            ImGui::Begin("Building", nullptr,
+                ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
+                | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoNavInputs | ImGuiWindowFlags_NoDecoration);
             {
-                ImGui::SetNextWindowPos(ImVec2(screen_x / 2 - 400, screen_y - 270));
-                ImGui::SetNextWindowSize(ImVec2(800, 400));
-                ImGui::Begin("Building", nullptr,
-                    ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
-                    | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoNavInputs | ImGuiWindowFlags_NoDecoration);
+                ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.5f);
                 {
-                    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.5f);
+                    ImGui::PushFont(g_xgui.fonts[3].font_addr);
                     {
-                        ImGui::PushFont(g_xgui.fonts[3].font_addr);
-                        {
-                            if (ImGui::Button("AIR", ImVec2(250, 25)))                               {}                                                          ImGui::SameLine(); if (ImGui::Button("WATER", ImVec2(250, 25)))                   {}                                                          ImGui::SameLine(); if (ImGui::Button("MISSILE", ImVec2(250, 25)))                          {}
-                            if (ImGui::Button("Aircraft Factory [ 25.000.000 ]", ImVec2(250, 50)))   { should_build_building_id = buildings::AIRCRAFT_FACTORY; } ImGui::SameLine(); if (ImGui::Button("Shipyard [ 20.000.000 ]", ImVec2(250, 50))) { should_build_building_id = buildings::SHIPYARD; }         ImGui::SameLine(); if (ImGui::Button("Missile Defense [ 9.000.000 ]", ImVec2(250, 50)))    { should_build_building_id = buildings::MISSILE_DEFENSE; }
-                            if (ImGui::Button("Field Airstrip [ 10.000.000 ]", ImVec2(250, 50)))     { should_build_building_id = buildings::FIELD_AIR_STRIP; }  ImGui::SameLine(); if (ImGui::Button(" ", ImVec2(250, 50)))                       {}                                                          ImGui::SameLine(); if (ImGui::Button("Missile Silo [ 13.000.000 ]", ImVec2(250, 50)))      { should_build_building_id = buildings::MISSILE_SILO; }
-                            if (ImGui::Button("Permanent Airfield [ 20.000.000 ]", ImVec2(250, 50))) { should_build_building_id = buildings::PERMANENT_AIRFIELD;}ImGui::SameLine(); if (ImGui::Button("   ", ImVec2(250, 50)))                     {}                                                          ImGui::SameLine(); if (ImGui::Button("  ", ImVec2(250, 50)))                               {}
-                        }
-                        ImGui::PopFont();
+                        if (ImGui::Button("AIR", ImVec2(250, 25))) {}                                                          ImGui::SameLine(); if (ImGui::Button("WATER", ImVec2(250, 25))) {}                                                          ImGui::SameLine(); if (ImGui::Button("MISSILE", ImVec2(250, 25))) {}
+                        if (ImGui::Button("Aircraft Factory [ 25.000.000 ]", ImVec2(250, 50))) { should_build_building_id = buildings::AIRCRAFT_FACTORY; } ImGui::SameLine(); if (ImGui::Button("Shipyard [ 20.000.000 ]", ImVec2(250, 50))) { should_build_building_id = buildings::SHIPYARD; }         ImGui::SameLine(); if (ImGui::Button("Missile Defense [ 9.000.000 ]", ImVec2(250, 50))) { should_build_building_id = buildings::MISSILE_DEFENSE; }
+                        if (ImGui::Button("Field Airstrip [ 10.000.000 ]", ImVec2(250, 50))) { should_build_building_id = buildings::FIELD_AIR_STRIP; }  ImGui::SameLine(); if (ImGui::Button(" ", ImVec2(250, 50))) {}                                                          ImGui::SameLine(); if (ImGui::Button("Missile Silo [ 13.000.000 ]", ImVec2(250, 50))) { should_build_building_id = buildings::MISSILE_SILO; }
+                        if (ImGui::Button("Permanent Airfield [ 20.000.000 ]", ImVec2(250, 50))) { should_build_building_id = buildings::PERMANENT_AIRFIELD; }ImGui::SameLine(); if (ImGui::Button("   ", ImVec2(250, 50))) {}                                                          ImGui::SameLine(); if (ImGui::Button("Radar [ 7 000 000 ]", ImVec2(250, 50))) { should_build_building_id = buildings::RADAR; }
                     }
-                    ImGui::PopStyleVar();
+                    ImGui::PopFont();
                 }
-                ImGui::End();
+                ImGui::PopStyleVar();
             }
-            break;
+            ImGui::End();
+        }
+        break;
 
         }
 
         if (should_build_building_id != 0)
         {
-            opened_tab_right_ui = 0;
+            static int price;
+            static int animaton_for_no_money_text;
 
-            if (hovered_country_id == g_menu.players[player_id].control_region)
+            switch (should_build_building_id)
             {
-                ImGui::GetForegroundDrawList()->AddCircle(ImVec2(cursor_pos.x, cursor_pos.y), 15 * animated_map_scale, ImColor(255, 0, 0, 250));
+                case AIRCRAFT_FACTORY:      { price = 25000000; } break;
+                case FIELD_AIR_STRIP:       { price = 10000000; } break;
+                case PERMANENT_AIRFIELD:    { price = 20000000; } break;
+                case SHIPYARD:              { price = 20000000; } break;
+                case MISSILE_DEFENSE:       { price = 9000000;  } break;
+                case MISSILE_SILO:          { price = 13000000; } break;
+                case RADAR:                 { price = 7000000;  } break;
+            }
 
-                if (ImGui::IsMouseDown(0))
+            if (true)
+            {
+
+                if (hovered_country_id == g_menu.players[player_id].control_region)
                 {
-                    should_build_building_id = 0;
-                    building new_build;
-                    new_build.building_type = should_build_building_id;
-                    new_build.pos = ImVec2(cursor_pos.x, cursor_pos.y);
-                    g_menu.players[player_id].region_buildings.push_back(new_build);
+                    ImGui::GetForegroundDrawList()->AddCircle(ImVec2(cursor_pos.x, cursor_pos.y), 5 * animated_map_scale, ImColor(255, 0, 0, 250));
+
+                    if (ImGui::IsMouseDown(0))
+                    {
+                        if (g_menu.players[player_id].economics.capital >= price)
+                        {
+                            opened_tab_right_ui = 0;
+                            capital_goal_for_animation = g_menu.players[player_id].economics.capital - price;
+                            should_build_building_id = 0;
+                            building new_build;
+                            new_build.building_type = should_build_building_id;
+                            new_build.pos = ImVec2(cursor_pos.x, cursor_pos.y);
+                            new_build.name = "Building";
+                            new_build.progress_of_building = 0;
+                            new_build.endurance = 0;
+                            new_build.hovered = false;
+                            new_build.selected = false;
+                            countries->at(g_menu.players[player_id].control_region).buildings.push_back(new_build);
+                        }
+                        else
+                        {
+                            opened_tab_right_ui = 0;
+                            should_build_building_id = 0;
+                        }
+                    }
                 }
             }
+
         }
     }
-
-
 
     //selector
     {
