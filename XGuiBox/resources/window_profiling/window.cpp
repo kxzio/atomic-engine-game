@@ -504,6 +504,20 @@ void window_profiling::create_window()
         std::uniform_int_distribution<int> distrib(0, 300);
         int random_y = distrib(gen);
 
+        ImGui::GetBackgroundDrawList()->AddRectFilled(ImVec2(0, 0), ImVec2(this->window_size.x, this->window_size.y), ImColor(0, 0, 0));
+
+        /*
+        ImGui::GetBackgroundDrawList()->AddImage(
+            (ImTextureID)g_videoTexture,
+            ImVec2(0, 0),
+            ImVec2(this->window_size.x, this->window_size.y),
+            ImVec2(0, 0), ImVec2(1, 1), ImColor(255, 255, 255, 40)
+        );
+        */
+
+        // Рендеринг меню
+        g_menu.render(*this);
+
         
         // Ваш рендеринг с эффектом
         ImGui::GetForegroundDrawList()->AddImage(
@@ -527,19 +541,6 @@ void window_profiling::create_window()
         );
         
 
-        ImGui::GetBackgroundDrawList()->AddRectFilled(ImVec2(0, 0), ImVec2(this->window_size.x, this->window_size.y), ImColor(0, 0, 0));
-
-        /*
-        ImGui::GetBackgroundDrawList()->AddImage(
-            (ImTextureID)g_videoTexture,
-            ImVec2(0, 0),
-            ImVec2(this->window_size.x, this->window_size.y),
-            ImVec2(0, 0), ImVec2(1, 1), ImColor(255, 255, 255, 40)
-        );
-        */
-
-        // Рендеринг меню
-        g_menu.render(*this);
 
         ImGui::EndFrame();
         ImGui::Render();

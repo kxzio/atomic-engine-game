@@ -23,28 +23,53 @@ void process_object_selections(int current_country, int player_id, std::vector <
     ImVec2 point_pos = ImVec2(posx + object->pos.x * animated_map_scale - 1.5 * animated_map_scale, posy + object->pos.y * animated_map_scale - 1.5 * animated_map_scale);
     ImVec2 point_size = ImVec2(posx + object->pos.x * animated_map_scale + 1.5 * animated_map_scale, posy + object->pos.y * animated_map_scale + 1.5 * animated_map_scale);
 
+    bool single_select = false;
     if (current_country == g_menu.players[player_id].control_region)
     {
-        if (IsPointInImRect(point_pos, g_map.selector_zone))
+        if (g_map.selector_zone.GetSize().x == 0)
         {
-            object->hovered = true;
-            ImGui::GetForegroundDrawList()->AddRect(point_pos, point_size, ImColor(79, 255, 69, 200));
+            if (IsPointInImRect(point_pos, ImRect(ImVec2(g_map.cursor_pos.x - 5 * animated_map_scale, g_map.cursor_pos.y - 5 * animated_map_scale), ImVec2(g_map.cursor_pos.x + 5 * animated_map_scale, g_map.cursor_pos.y + 5 * animated_map_scale))))
+            {
+                object->hovered = true;
+                ImGui::GetForegroundDrawList()->AddRect(ImVec2(point_pos.x - 3 * animated_map_scale, point_pos.y - 3 * animated_map_scale), ImVec2(point_size.x + 3 * animated_map_scale, point_size.y + 3 * animated_map_scale), ImColor(79, 255, 69, 200));
+
+                if (ImGui::IsMouseReleased(0))
+                {
+                    single_select = true;
+                    object->selected = true;
+                    ImGui::GetForegroundDrawList()->AddRect(point_pos, point_size, ImColor(79, 255, 69, 200));
+                }
+
+            }
+            else object->hovered = false;
         }
-        else if (ImGui::IsMouseDown(0))
+        else
         {
-            object->hovered = false;
-        }
-        else if (object->hovered || object->selected)
-        {
-            object->hovered = false;
-            object->selected = true;
-            ImGui::GetForegroundDrawList()->AddRect(point_pos, point_size, ImColor(79, 255, 69, 200));
+            if (IsPointInImRect(point_pos, g_map.selector_zone))
+            {
+                object->hovered = true;
+                ImGui::GetForegroundDrawList()->AddRect(ImVec2(point_pos.x - 3 * animated_map_scale, point_pos.y - 3 * animated_map_scale), ImVec2(point_size.x + 3 * animated_map_scale, point_size.y + 3 * animated_map_scale), ImColor(79, 255, 69, 200));
+            }
+            else if (ImGui::IsMouseDown(0))
+            {
+                object->hovered = false;
+            }
+            else if (object->hovered || object->selected)
+            {
+                object->hovered = false;
+                object->selected = true;
+            }
         }
     }
-    if (ImGui::IsMouseClicked(0))
+    if (ImGui::IsMouseClicked(0) && !single_select)
     {
         object->hovered = false;
         object->selected = false;
+    }
+
+    if (object->selected)
+    {
+        ImGui::GetForegroundDrawList()->AddRect(point_pos, point_size, ImColor(79, 255, 69, 200));
     }
 }
 void map_processing::render_map_and_process_hitboxes(window_profiling window, std::vector <country_data>* countries, float animated_map_scale, int* hovered_id, ImVec2 cursor_pos, ImVec2 map_pos, int player_id)
@@ -253,21 +278,19 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
                 */
             }
 
-            int last_pointed_country = 0;
+            posx = data.position.x * animated_map_scale - (data.size.x * animated_map_scale * map_scale2) / 2 + map_pos.x * animated_map_scale;
+            posy = data.position.y * animated_map_scale - (data.size.y * animated_map_scale * map_scale2) / 2 + map_pos.y * animated_map_scale;
+            secondposx = data.position.x * animated_map_scale + (data.size.x * animated_map_scale * map_scale2) / 2 + map_pos.x * animated_map_scale;
+            secondposy = data.position.y * animated_map_scale + (data.size.y * animated_map_scale * map_scale2) / 2 + map_pos.y * animated_map_scale;
+            sizex = secondposx - posx;
+            sizey = secondposy - posy;
+
+
             if (g_convex_math.IsPointInsidePolygon2(Point(cursor_pos.x, cursor_pos.y), converted_to_screen_convex))
             {
-                posx = data.position.x * animated_map_scale - (data.size.x * animated_map_scale * map_scale2) / 2 + map_pos.x * animated_map_scale;
-                posy = data.position.y * animated_map_scale - (data.size.y * animated_map_scale * map_scale2) / 2 + map_pos.y * animated_map_scale;
-                secondposx = data.position.x * animated_map_scale + (data.size.x * animated_map_scale * map_scale2) / 2 + map_pos.x * animated_map_scale;
-                secondposy = data.position.y * animated_map_scale + (data.size.y * animated_map_scale * map_scale2) / 2 + map_pos.y * animated_map_scale;
-
-                sizex = secondposx - posx;
-                sizey = secondposy - posy;
-
                 *hovered_id = i;
 
             }
-
 
         }
 
@@ -320,7 +343,7 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
             {
                 if (*hovered_id == i)
                 {
-                    data.color = ImColor(255, 50, 0);
+                    data.color = ImColor(71 + 60, 115 + 60, 65 + 60);
 
                     auto pos = ImVec2(countries->at(i).position.x * animated_map_scale - (countries->at(i).size.x * animated_map_scale * map_scale2) / 2 + map_pos.x * animated_map_scale,
                         countries->at(i).position.y * animated_map_scale - (countries->at(i).size.y * animated_map_scale * map_scale2) / 2 + map_pos.y * animated_map_scale);
@@ -373,8 +396,12 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
 
                     ImGui::GetForegroundDrawList()->AddCircle(final_pos, 5 * animated_map_scale, ImColor(255, 255, 255, 250));
 
+                    auto textsize = g_xgui.fonts[2].font_addr->CalcTextSizeA(17, FLT_MAX, -1.f, countries->at(i).buildings[buildings_id].name.c_str());
+                    ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[2].font_addr, 17.f, ImVec2(final_pos.x - textsize.x / 2, final_pos.y - 12 * animated_map_scale), ImColor(255, 255, 255), countries->at(i).buildings[buildings_id].name.c_str());
+
+
                     process_object_selections(i, player_id, countries, &countries->at(i).buildings[buildings_id], animated_map_scale, map_pos);
-                    //ImGui::GetForegroundDrawList()->AddText(ImVec2(final_pos.x, final_pos.y - 15 * animated_map_scale), ImColor(255, 255, 255), building_name.c_str());
+
                 }
 
             }
@@ -1215,20 +1242,41 @@ void map_processing::process_and_sync_game_cycle(std::vector <country_data>* cou
 
                     if (ImGui::IsMouseDown(0))
                     {
-                        if (g_menu.players[player_id].economics.capital >= price)
+                        ImVec4 pixel_color;
+                        g_convex_math.GetScreenPixelWithGDI(cursor_pos.x, cursor_pos.y, pixel_color);
+
+                        bool color_check;
+                        if (should_build_building_id == SHIPYARD)
+                            color_check = pixel_color.y < 0.09;
+                        else
+                            color_check = pixel_color.x > 0.03 && pixel_color.y > 0.09 && pixel_color.z > 0.03;
+
+                        if (g_menu.players[player_id].economics.capital >= price && color_check && cursor_pos.x > 100 && cursor_pos.y > 100 && cursor_pos.x < screen_x - 100 && cursor_pos.y < screen_y - 100)
                         {
                             opened_tab_right_ui = 0;
                             capital_goal_for_animation = g_menu.players[player_id].economics.capital - price;
-                            should_build_building_id = 0;
                             building new_build;
                             new_build.building_type = should_build_building_id;
                             new_build.pos = ImVec2(cursor_pos.x, cursor_pos.y);
-                            new_build.name = "Building";
                             new_build.progress_of_building = 0;
                             new_build.endurance = 0;
                             new_build.hovered = false;
                             new_build.selected = false;
+
+                            switch (new_build.building_type)
+                            {
+                                case AIRCRAFT_FACTORY:      { new_build.name = "Aircraft factory"; } break;
+                                case FIELD_AIR_STRIP:       { new_build.name = "Field Airstrip"; } break;
+                                case PERMANENT_AIRFIELD:    { new_build.name = "Permanent Airfield"; } break;
+                                case SHIPYARD:              { new_build.name = "Shipyard"; } break;
+                                case MISSILE_DEFENSE:       { new_build.name = "Missile Defense"; } break;
+                                case MISSILE_SILO:          { new_build.name = "Missile Silo"; } break;
+                                case RADAR:                 { new_build.name = "Radar"; } break;
+                            }
+
                             countries->at(g_menu.players[player_id].control_region).buildings.push_back(new_build);
+
+                            should_build_building_id = 0;
                         }
                         else
                         {

@@ -150,6 +150,25 @@ struct ConvexMathOperations
         return filled_pixels;
     }
 
+    bool GetScreenPixelWithGDI(int x, int y, ImVec4& outColor) 
+    {
+        HDC hdcScreen = GetDC(nullptr); // Дескриптор экрана
+        if (!hdcScreen) return false;
+
+        COLORREF color = GetPixel(hdcScreen, x, y); // Читаем пиксель
+        ReleaseDC(nullptr, hdcScreen);             // Освобождаем дескриптор
+
+        if (color == CLR_INVALID) return false;
+
+        // Конвертация COLORREF в RGBA
+        BYTE r = GetRValue(color);
+        BYTE g = GetGValue(color);
+        BYTE b = GetBValue(color);
+        outColor = ImColor(r / 255.0f, g / 255.0f, b / 255.0f, 1.0f);
+
+        return true;
+    }
+
     std::vector<Point> GetConvexHullWithMorePoints(std::vector<Point>& points, float interpolation_factor) {
 
         std::vector<Point> hull = GetConvexHull(points);

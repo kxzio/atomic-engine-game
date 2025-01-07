@@ -11,7 +11,7 @@ class econimics
 {
 public:
 
-	float capital = 25000000;
+	float capital = 250000000;
 
 	float capital_inflow = 15000;
 
