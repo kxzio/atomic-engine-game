@@ -34,7 +34,7 @@
 #include <cmath>
 #include <limits>
 
-#include <d3d9.h>
+#include <d3d11.h>
 
 #pragma comment(lib, "fmod_vc.lib")
 
@@ -955,7 +955,8 @@ void menu::render(window_profiling window)
         SERVER_MENU,
         CLIENT_JOIN,
         CLIENT_MENU,
-        ERROR_MENU
+        ERROR_MENU,
+        SETTINGS_MENU
     };
 
 
@@ -990,6 +991,9 @@ void menu::render(window_profiling window)
                     }
                     if (ImGui::Button("Join Server", ImVec2(380, 35))) {
                         game_scenes_params::main_menu_tabs = 3;
+                    }
+                    if (ImGui::Button("Settings", ImVec2(380, 35))) {
+                        game_scenes_params::main_menu_tabs = SETTINGS_MENU;
                     }
                     break;
                 }
@@ -1442,7 +1446,53 @@ void menu::render(window_profiling window)
                     {
                         game_scenes_params::main_menu_tabs = 0;
                     }
+                    break;
                 }
+                case SETTINGS_MENU:
+                {
+                    static int selected_mode_of_resolution;
+                    static int last_selected_mode_of_resolution = 0;
+                    const char* game_modes_selection[] = { "Auto (Screen Size)", "1280x720 (HD Ready)", "1366x768 (HD)", "1920x1080 (Full HD)", "2560x1440 (QHD)", "3840x2160 (4K)" };
+                    ImGui::Combo("Resolution", &selected_mode_of_resolution, game_modes_selection, IM_ARRAYSIZE(game_modes_selection));
+                    if (selected_mode_of_resolution != last_selected_mode_of_resolution)
+                    {
+                        last_selected_mode_of_resolution = selected_mode_of_resolution;
+                        std::vector<std::pair<int, int>> resolutions = {  
+                            {1280, 720},
+                            {1366, 768},
+                            {1920, 1080},
+                            {2560, 1440},
+                            {3840, 2160},
+                        };
+
+                        static int width, height;
+
+                        if (selected_mode_of_resolution == 0)
+                        {
+                            HDC hDCScreen = GetDC(NULL);
+
+                            int width = GetDeviceCaps(hDCScreen, HORZRES);
+                            int height = GetDeviceCaps(hDCScreen, VERTRES);
+
+                            ReleaseDC(NULL, hDCScreen);
+                        }
+                        else
+                        {
+                            width  = resolutions[selected_mode_of_resolution - 1].first;
+                            height = resolutions[selected_mode_of_resolution - 1].second;
+                        }
+
+ 
+                    }
+
+                    if (ImGui::Button("Back"))
+                        game_scenes_params::main_menu_tabs = 0;
+
+                    break;
+                }
+
+
+                                
             }
             ImGui::PopStyleVar();
             ImGui::End();

@@ -9,6 +9,7 @@
 #include <limits>
 #include <iostream> 
 #include <algorithm> 
+#include <fstream>
 
 #define WIN32_LEAN_AND_MEAN
 #ifndef YOUR_HEADER_FILE_H 
@@ -47,109 +48,7 @@ struct ConvexMathOperations
         if (val == 0) return 0;  // Точки коллинеарны
         return (val > 0) ? 1 : 2;  // 1 - по часовой стрелке, 2 - против
     }
-
-    std::vector<Point> GetConvexHull(std::vector<Point>& points) {
-        int n = points.size();
-        if (n < 3) return points;
-
-        std::vector<Point> hull;
-
-        int leftmost = 0;
-        for (int i = 1; i < n; i++) {
-            if (points[i].x < points[leftmost].x) {
-                leftmost = i;
-            }
-        }
-
-        int p = leftmost, q;
-        do {
-            hull.push_back(points[p]);
-
-
-            q = (p + 1) % n;
-            for (int i = 0; i < n; i++) {
-                if (orientation(points[p], points[i], points[q]) == 2) {
-                    q = i;
-                }
-            }
-
-            p = q;
-
-        } while (p != leftmost);
-
-        return hull;
-    }
-
-    std::vector<Point> InterpolateConvexHullPoints(const std::vector<Point>& hull, float interpolation_factor) {
-        std::vector<Point> interpolated_points;
-        int n = hull.size();
-        if (n < 2) return hull;
-
-        for (int i = 0; i < n; i++) {
-            Point p1 = hull[i];
-            Point p2 = hull[(i + 1) % n];
-
-            interpolated_points.push_back(p1);
-
-            for (float t = interpolation_factor; t < 1.0f; t += interpolation_factor) {
-                float x = p1.x + t * (p2.x - p1.x);
-                float y = p1.y + t * (p2.y - p1.y);
-                interpolated_points.push_back(Point(x, y));
-            }
-        }
-
-        return interpolated_points;
-    }
-
-    const unsigned char* GetTexturePixels(IDirect3DTexture9* texture, IDirect3DDevice9* device, int& width, int& height) {
-        IDirect3DDevice9* pDevice = device;
-        IDirect3DTexture9* pTexture = texture;
-
-        D3DSURFACE_DESC desc;
-        pTexture->GetLevelDesc(0, &desc);
-        width = desc.Width;
-        height = desc.Height;
-
-        D3DLOCKED_RECT lockedRect;
-        pTexture->LockRect(0, &lockedRect, nullptr, D3DLOCK_READONLY);
-
-        unsigned char* pixels = new unsigned char[lockedRect.Pitch * height];
-
-        memcpy(pixels, lockedRect.pBits, lockedRect.Pitch * height);
-
-        pTexture->UnlockRect(0);
-
-        return pixels;
-    }
-
-    std::vector<Point> GetFilledPixels(const unsigned char* texture_pixels, int width, int height, int* step2) {
-        std::vector<Point> filled_pixels;
-        const int min_points = 2500;
-
-        int step = ((1) > (static_cast<int>(sqrt((width * height) / static_cast<float>(min_points))))) ? (1) : (static_cast<int>(sqrt((width * height) / static_cast<float>(min_points))));
-
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-
-                if (x % step != 0 || y % step != 0)
-                    continue;
-
-                int idx = (y * width + x) * 4;
-                unsigned char r = texture_pixels[idx + 0];
-                unsigned char g = texture_pixels[idx + 1];
-                unsigned char b = texture_pixels[idx + 2];
-                unsigned char a = texture_pixels[idx + 3];
-
-                if (a == 255) {
-                    filled_pixels.push_back(Point(x, y));
-                }
-            }
-        }
-
-        *step2 = step;
-        return filled_pixels;
-    }
-
+    
     bool GetScreenPixelWithGDI(int x, int y, ImVec4& outColor) 
     {
         HDC hdcScreen = GetDC(nullptr); // Дескриптор экрана
@@ -167,13 +66,6 @@ struct ConvexMathOperations
         outColor = ImColor(r / 255.0f, g / 255.0f, b / 255.0f, 1.0f);
 
         return true;
-    }
-
-    std::vector<Point> GetConvexHullWithMorePoints(std::vector<Point>& points, float interpolation_factor) {
-
-        std::vector<Point> hull = GetConvexHull(points);
-
-        return InterpolateConvexHullPoints(hull, interpolation_factor);
     }
 
     bool IsPointInsidePolygon2(const Point& p, const std::vector<Point>& polygon) {
@@ -252,7 +144,7 @@ struct country_data
 {
     //name and texture of country
     std::string name;
-    IDirect3DTexture9* texture;
+    ID3D11ShaderResourceView* texture;
 
     //poses and sizes
     ImVec2 position;

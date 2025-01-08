@@ -1,3 +1,5 @@
+#define STB_IMAGE_IMPLEMENTATION
+
 #include "window.h"
 #include <sstream>
 #include "../../misc/instruments.h"
@@ -11,9 +13,11 @@
 #include "../Turk.h"
 #include "../tv.h"
 #include <algorithm>
+#include <objbase.h> 
 
-#include <d3d9.h>
-#include <d3dx9.h>
+#include <d3d11.h>
+#include <d3dcompiler.h>
+#include "../imgui_resource/stb_image.h"
 
 extern "C" 
 {
@@ -26,8 +30,7 @@ extern "C"
 #include <ctime>
 #include <random>
 
-#pragma comment(lib, "d3d9.lib")
-#pragma comment(lib, "d3dx9.lib")
+#pragma comment(lib, "d3d11.lib")
 
 #pragma comment(lib, "C:\\Users\\sasha\\OneDrive\\Documents\\ffmpeg lib\\ffmpeg-4.3.1-win64-dev\\lib\\avcodec.lib")
 #pragma comment(lib, "C:\\Users\\sasha\\OneDrive\\Documents\\ffmpeg lib\\ffmpeg-4.3.1-win64-dev\\lib\\avformat.lib")
@@ -39,8 +42,14 @@ extern "C"
 
 #include "../nanosvg.h"
 #include "../nanosvgrast.h"
+#include <shellapi.h>
 
-IDirect3DTexture9* g_videoTexture = nullptr;
+#define D3D11_ERROR_DEFERRED_CONTEXT_MAP_WITHOUT_INITIAL_DISCARD 0
+#define D3D10_ERROR_TOO_MANY_UNIQUE_STATE_OBJECTS 0
+#define D3D10_ERROR_FILE_NOT_FOUND 0
+
+ID3D11ShaderResourceView* g_videoTextureSRV = nullptr;
+ID3D11Texture2D* g_videoTexture = nullptr;
 AVFormatContext* g_formatContext = nullptr;
 AVCodecContext* g_codecContext = nullptr;
 AVFrame* g_frame = nullptr;
@@ -59,19 +68,17 @@ void PauseRendering(bool pause) {
 const char* g_videoPath = "123.mp4"; // Укажите путь к видео
 int g_videoStreamIndex = -1;
 
-
-void UpdateVideoFrame(IDirect3DDevice9* device) {
+void UpdateVideoFrame(ID3D11Device* device, ID3D11DeviceContext* context) 
+{
     // Проверяем, что g_formatContext был инициализирован
     if (g_formatContext == nullptr) {
         std::cerr << "AVFormatContext is not initialized!" << std::endl;
         return;
     }
 
-
     // Чтение кадра из видео потока
     int ret = av_read_frame(g_formatContext, g_packet);
     if (ret < 0) {
-
         // Если достигнут конец видео, перематываем на начало
         if (ret == AVERROR_EOF) {
             av_seek_frame(g_formatContext, g_videoStreamIndex, 0, AVSEEK_FLAG_BACKWARD); // Перематываем на начало
@@ -96,28 +103,26 @@ void UpdateVideoFrame(IDirect3DDevice9* device) {
                 // Преобразуем YUV в RGBA
                 sws_scale(g_swsContext, g_frame->data, g_frame->linesize, 0, g_codecContext->height, dest, destLinesize);
 
-                // Модификация данных: Удаляем зеленый канал (или заменяем его на другой цвет)
+                // Модификация данных: Удаляем зеленый канал
                 for (int y = 0; y < g_codecContext->height; ++y) {
                     for (int x = 0; x < g_codecContext->width; ++x) {
                         uint8_t* pixel = dest[0] + y * destLinesize[0] + x * 4;
 
-                        // Удаление зеленого канала
-                        pixel[0] = 0; // Убираем зеленый канал, оставляя только красный и синий
-                        //pixel[2] = 0; // Убираем зеленый канал, оставляя только красный и синий
+                        // Убираем зеленый канал
+                        pixel[1] = 0; // Зеленый канал
                     }
                 }
 
-                // Копируем данные в текстуру
-                D3DLOCKED_RECT lockedRect;
-                g_videoTexture->LockRect(0, &lockedRect, nullptr, 0);
-
-                // Копируем данные из буфера в текстуру
-                uint8_t* textureData = (uint8_t*)lockedRect.pBits;
-                for (int y = 0; y < g_codecContext->height; ++y) {
-                    memcpy(textureData + y * lockedRect.Pitch, dest[0] + y * destLinesize[0], g_codecContext->width * 4);
+                // Обновляем текстуру в DirectX 11
+                D3D11_MAPPED_SUBRESOURCE mappedResource;
+                HRESULT hr = context->Map(g_videoTexture, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+                if (SUCCEEDED(hr)) {
+                    uint8_t* textureData = static_cast<uint8_t*>(mappedResource.pData);
+                    for (int y = 0; y < g_codecContext->height; ++y) {
+                        memcpy(textureData + y * mappedResource.RowPitch, dest[0] + y * destLinesize[0], g_codecContext->width * 4);
+                    }
+                    context->Unmap(g_videoTexture, 0);
                 }
-
-                g_videoTexture->UnlockRect(0);
 
                 // Освобождаем память для временного кадра
                 av_freep(&dest[0]);
@@ -129,7 +134,7 @@ void UpdateVideoFrame(IDirect3DDevice9* device) {
     av_packet_unref(g_packet);
 }
 
-void InitVideo(IDirect3DDevice9* device) {
+void InitVideo(ID3D11Device* device, ID3D11DeviceContext* context) {
     // Инициализация FFmpeg
     g_formatContext = avformat_alloc_context();
     if (avformat_open_input(&g_formatContext, g_videoPath, nullptr, nullptr) != 0) {
@@ -164,16 +169,35 @@ void InitVideo(IDirect3DDevice9* device) {
     }
 
     // Создание текстуры
-    device->CreateTexture(
-        g_codecContext->width,
-        g_codecContext->height,
-        1,
-        0,
-        D3DFMT_A8R8G8B8,
-        D3DPOOL_MANAGED,
-        &g_videoTexture,
-        nullptr
-    );
+    D3D11_TEXTURE2D_DESC textureDesc = {};
+    textureDesc.Width = g_codecContext->width;
+    textureDesc.Height = g_codecContext->height;
+    textureDesc.MipLevels = 1;
+    textureDesc.ArraySize = 1;
+    textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // Соответствует D3DFMT_A8R8G8B8
+    textureDesc.SampleDesc.Count = 1;
+    textureDesc.Usage = D3D11_USAGE_DYNAMIC; // Позволяет обновлять текстуру с CPU
+    textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE; // Использование в шейдерах
+    textureDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE; // Доступ для записи
+
+    HRESULT hr = device->CreateTexture2D(&textureDesc, nullptr, &g_videoTexture);
+    if (FAILED(hr)) {
+        std::cerr << "Не удалось создать текстуру!" << std::endl;
+        return;
+    }
+
+    // Создание Shader Resource View для текстуры
+    D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+    srvDesc.Format = textureDesc.Format;
+    srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Texture2D.MostDetailedMip = 0;
+    srvDesc.Texture2D.MipLevels = 1;
+
+    hr = device->CreateShaderResourceView(g_videoTexture, &srvDesc, &g_videoTextureSRV);
+    if (FAILED(hr)) {
+        std::cerr << "Не удалось создать Shader Resource View для текстуры!" << std::endl;
+        return;
+    }
 
     // Создание кадров и пакетов
     g_frame = av_frame_alloc();
@@ -185,6 +209,110 @@ void InitVideo(IDirect3DDevice9* device) {
         g_codecContext->width, g_codecContext->height, AV_PIX_FMT_RGBA,
         SWS_BILINEAR, nullptr, nullptr, nullptr
     );
+}
+
+bool LoadTextureFromFile(ID3D11Device* device, const char* filename, ID3D11ShaderResourceView** textureSRV) {
+    // Загружаем изображение через stb_image
+    int width, height, channels;
+    unsigned char* data = stbi_load(filename, &width, &height, &channels, STBI_rgb_alpha); // Загружаем изображение с альфа-каналом
+    if (!data) {
+        std::cerr << "Failed to load texture: " << filename << std::endl;
+        return false;
+    }
+
+    // Создаем структуру для описания текстуры
+    D3D11_TEXTURE2D_DESC textureDesc = {};
+    textureDesc.Width = width;
+    textureDesc.Height = height;
+    textureDesc.MipLevels = 1;
+    textureDesc.ArraySize = 1;
+    textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // Используем формат с альфа-каналом
+    textureDesc.SampleDesc.Count = 1;
+    textureDesc.Usage = D3D11_USAGE_DEFAULT;
+    textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+    textureDesc.CPUAccessFlags = 0;
+
+    // Заполняем данные для текстуры
+    D3D11_SUBRESOURCE_DATA initData = {};
+    initData.pSysMem = data;
+    initData.SysMemPitch = width * 4; // 4 байта на пиксель (RGBA)
+    initData.SysMemSlicePitch = width * height * 4;
+
+    // Создаем текстуру
+    ID3D11Texture2D* texture = nullptr;
+    HRESULT hr = device->CreateTexture2D(&textureDesc, &initData, &texture);
+    if (FAILED(hr)) {
+        std::cerr << "Failed to create texture from data!" << std::endl;
+        stbi_image_free(data);
+        return false;
+    }
+
+    // Создаем Shader Resource View для текстуры
+    hr = device->CreateShaderResourceView(texture, nullptr, textureSRV);
+    if (FAILED(hr)) {
+        std::cerr << "Failed to create Shader Resource View!" << std::endl;
+        texture->Release();
+        stbi_image_free(data);
+        return false;
+    }
+
+    // Освобождаем память, занятую изображением
+    texture->Release();
+    stbi_image_free(data);
+
+    return true;
+}
+
+bool LoadTextureFromMemory(ID3D11Device* device, const void* data, size_t size, ID3D11ShaderResourceView** textureSRV) {
+    // Загружаем изображение из памяти через stb_image
+    int width, height, channels;
+    unsigned char* imageData = stbi_load_from_memory(reinterpret_cast<const unsigned char*>(data), static_cast<int>(size), &width, &height, &channels, STBI_rgb_alpha);
+    if (!imageData) {
+        std::cerr << "Failed to load texture from memory!" << std::endl;
+        return false;
+    }
+
+    // Создаем структуру для описания текстуры
+    D3D11_TEXTURE2D_DESC textureDesc = {};
+    textureDesc.Width = width;
+    textureDesc.Height = height;
+    textureDesc.MipLevels = 1;
+    textureDesc.ArraySize = 1;
+    textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // Используем формат с альфа-каналом
+    textureDesc.SampleDesc.Count = 1;
+    textureDesc.Usage = D3D11_USAGE_DEFAULT;
+    textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+    textureDesc.CPUAccessFlags = 0;
+
+    // Заполняем данные для текстуры
+    D3D11_SUBRESOURCE_DATA initData = {};
+    initData.pSysMem = imageData;
+    initData.SysMemPitch = width * 4; // 4 байта на пиксель (RGBA)
+    initData.SysMemSlicePitch = width * height * 4;
+
+    // Создаем текстуру
+    ID3D11Texture2D* texture = nullptr;
+    HRESULT hr = device->CreateTexture2D(&textureDesc, &initData, &texture);
+    if (FAILED(hr)) {
+        std::cerr << "Failed to create texture from data!" << std::endl;
+        stbi_image_free(imageData);
+        return false;
+    }
+
+    // Создаем Shader Resource View для текстуры
+    hr = device->CreateShaderResourceView(texture, nullptr, textureSRV);
+    if (FAILED(hr)) {
+        std::cerr << "Failed to create Shader Resource View!" << std::endl;
+        texture->Release();
+        stbi_image_free(imageData);
+        return false;
+    }
+
+    // Освобождаем память, занятую изображением
+    texture->Release();
+    stbi_image_free(imageData);
+
+    return true;
 }
 
 const char* countries_file_name[] =
@@ -210,6 +338,27 @@ const char* countries_file_name[] =
      "Worldmap\\Zakavkazie.png"
 };
 
+// Обновленный код для загрузки текстур
+void window_profiling::load_textures(ID3D11Device* device, ID3D11DeviceContext* context) {
+    // Инициализация видео
+    InitVideo(device, context);
+
+    // Загрузка текстур из памяти
+    LoadTextureFromMemory(g_pd3dDevice, &planet_menu, sizeof(planet_menu), &Logotype);
+    LoadTextureFromMemory(g_pd3dDevice, &noise, sizeof(noise), &Noise);
+    LoadTextureFromMemory(g_pd3dDevice, &tv, sizeof(tv), &Tv);
+    LoadTextureFromMemory(g_pd3dDevice, &RGB_LINES, sizeof(RGB_LINES), &RGB);
+
+
+    // Загрузка текстур стран
+    for (int i = 0; i < ARRAYSIZE(countries_file_name); i++) {
+        if (countries_file_name[i]) {
+            LoadTextureFromFile(device, countries_file_name[i], &countries[i]);
+        }
+    }
+}
+
+
 void window_profiling::unload_textures()
 {
     if (g_videoTexture)     g_videoTexture->Release();
@@ -224,47 +373,36 @@ void window_profiling::unload_textures()
         if (countries[i]) countries[i]->Release();
     }
 }
-void window_profiling::load_textures()
-
+void change_resolution(int width, int height)
 {
-    InitVideo(g_pd3dDevice);
+    g_window.g_pd3dDeviceContext->OMSetRenderTargets(0, nullptr, nullptr); // Удаляем рендер-таргеты
+    g_window.g_pd3dDeviceContext->Flush(); // Завершаем команды GPU
 
-    D3DXCreateTextureFromFileInMemory(g_pd3dDevice, &planet_menu, sizeof(planet_menu), &Logotype);
-    D3DXCreateTextureFromFileInMemory(g_pd3dDevice, &noise, sizeof(noise), &Noise);
-    D3DXCreateTextureFromFileInMemory(g_pd3dDevice, &tv, sizeof(tv), &Tv);
-    D3DXCreateTextureFromFileInMemory(g_pd3dDevice, &RGB_LINES, sizeof(RGB_LINES), &RGB);
-
-    for (int i = 0; i < ARRAYSIZE(countries_file_name); i++)
-    {
-        if (countries_file_name[i])
-            D3DXCreateTextureFromFileA(g_pd3dDevice, countries_file_name[i], &countries[i]);
+    if (g_window.g_pRenderTargetView) {
+        g_window.g_pRenderTargetView->Release();
+        g_window.g_pRenderTargetView = nullptr;
     }
+
+    HRESULT hr = g_window.g_pSwapChain->ResizeBuffers(0, width, height, DXGI_FORMAT_UNKNOWN, 0);
+    ID3D11Texture2D* pBackBuffer = nullptr;
+    hr = g_window.g_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&pBackBuffer);
+    if (SUCCEEDED(hr)) {
+        hr = g_window.g_pd3dDevice->CreateRenderTargetView(pBackBuffer, nullptr, &g_window.g_pRenderTargetView);
+        pBackBuffer->Release();
+    }
+
+    D3D11_VIEWPORT vp = {};
+    vp.Width = static_cast<FLOAT>(width);
+    vp.Height = static_cast<FLOAT>(height);
+    vp.MinDepth = 0.0f;
+    vp.MaxDepth = 1.0f;
+    vp.TopLeftX = 0;
+    vp.TopLeftY = 0;
+    g_window.g_pd3dDeviceContext->RSSetViewports(1, &vp);
+
+
+
 }
-void window_profiling::handle_device_lost() {
-
-    HRESULT hr = g_pd3dDevice->TestCooperativeLevel();
-
-    if (hr == D3DERR_DEVICELOST) {
-        Sleep(100);  // можно попробовать различные задержки
-    }
-    else if (hr == D3DERR_DEVICENOTRESET) {
-        // Устройство нужно перезагрузить
-
-        unload_textures();
-
-        HRESULT hr = g_pd3dDevice->Reset(&g_d3dpp);
-        if (FAILED(hr)) {
-            // Выводим конкретный HRESULT код для диагностики
-            std::wostringstream oss;
-            oss << L"Failed to reset device. HRESULT: 0x" << std::hex << hr;
-            MessageBox(NULL, oss.str().c_str(), L"Error", MB_OK | MB_ICONERROR);
-        }
-
-        load_textures();
-
-    }
-}
-
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     static POINTS ptsBegin;
@@ -275,39 +413,57 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     switch (msg)
     {
 
+    case WM_APP + 1:  // Обработка клика по иконке
+        if (lParam == WM_LBUTTONDOWN)  // Левый клик
+        {
+
+        }
+        break;
+
     case WM_ACTIVATE:
         if (LOWORD(wParam) == WA_INACTIVE) {
-            // Окно свернуто или потеряло фокус
-            PauseRendering(true);
+            // Окно теряет фокус — выйти из полноэкранного режима
+            BOOL isFullscreen;
+            g_window.g_pSwapChain->GetFullscreenState(&isFullscreen, nullptr);
+            if (isFullscreen) {
+                g_window.g_pSwapChain->SetFullscreenState(FALSE, nullptr);
+            }
         }
         else {
-            // Окно восстановлено
-            PauseRendering(false);
+            // Окно восстанавливает фокус — вернуться в полноэкранный режим
+            BOOL isFullscreen;
+            g_window.g_pSwapChain->GetFullscreenState(&isFullscreen, nullptr);
+            if (!isFullscreen) {
+                g_window.g_pSwapChain->SetFullscreenState(TRUE, nullptr);
+            }
         }
-        return 0;
+        break;
 
     case WM_SIZE:
-        g_xgui.real_size_of_window_x = LOWORD(lParam);
-        g_xgui.real_size_of_window_y = HIWORD(lParam);
-        g_xgui.hwnd_of_process = hWnd;
-        InvalidateRect(hWnd, NULL, TRUE);
-
-        if (g_pd3dDevice != NULL && wParam != SIZE_MINIMIZED)
-        {
-            ImGui_ImplDX9_InvalidateDeviceObjects();
-            g_d3dpp.BackBufferWidth = LOWORD(lParam);
-            g_d3dpp.BackBufferHeight = HIWORD(lParam);
-            HRESULT hr = g_pd3dDevice->Reset(&g_d3dpp);
-            if (hr == D3DERR_INVALIDCALL)
-                IM_ASSERT(0);
-            ImGui_ImplDX9_CreateDeviceObjects();
+        if (wParam == SIZE_MINIMIZED) {
+            // Окно сворачивается — выйти из полноэкранного режима
+            BOOL isFullscreen;
+            g_window.g_pSwapChain->GetFullscreenState(&isFullscreen, nullptr);
+            if (isFullscreen) {
+                g_window.g_pSwapChain->SetFullscreenState(FALSE, nullptr);
+            }
         }
-        return 0;
+        else if (wParam == SIZE_RESTORED) {
+            // Окно восстанавливается — вернуться в полноэкранный режим
+            BOOL isFullscreen;
+            g_window.g_pSwapChain->GetFullscreenState(&isFullscreen, nullptr);
+            if (!isFullscreen) {
+                g_window.g_pSwapChain->SetFullscreenState(TRUE, nullptr);
+            }
+        }
+        break;
 
     case WM_SYSCOMMAND:
-        if ((wParam & 0xfff0) == SC_KEYMENU)
+        if ((wParam & 0xfff0) == SC_KEYMENU) 
             return 0;
+
         break;
+
     case WM_DESTROY:
         PostQuitMessage(0);
         return 0;
@@ -315,6 +471,7 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         ptsBegin = MAKEPOINTS(lParam);
         SetCapture(hWnd);
         break;
+
     case WM_MOUSEMOVE:
         if (wParam & MK_LBUTTON)
         {
@@ -382,51 +539,88 @@ void window_profiling::make_it_fullscreen()
 
 bool IsWindowMinimized(HWND hWnd) { return IsIconic(hWnd); }
 
-void window_profiling::create_window() 
+void window_profiling::create_window()
 {
     FPS_Limiter fps(150);
 
+
     WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(NULL), NULL, NULL, NULL, NULL, _T("Window"), NULL };
     RegisterClassEx(&wc);
-    HWND hwnd = CreateWindow(_T("Window"), _T("Defcon"), types_of_window::POPUP, 0, 0, this->window_size.x, this->window_size.y, NULL, NULL, wc.hInstance, NULL);
+    HWND hwnd = CreateWindow(_T("Window"), _T("Defcon"), WS_OVERLAPPEDWINDOW, 0, 0, this->window_size.x, this->window_size.y, NULL, NULL, wc.hInstance, NULL);
 
-    LPDIRECT3D9 pD3D = Direct3DCreate9(D3D_SDK_VERSION);
-    if (!pD3D) return;
+    UINT numerator, denominator;
 
-    D3DPRESENT_PARAMETERS g_d3dpp = {};
-    g_d3dpp.Windowed = TRUE;
-    g_d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
-    g_d3dpp.BackBufferFormat = D3DFMT_X8R8G8B8; // Формат цвета
-    g_d3dpp.BackBufferWidth = GetSystemMetrics(SM_CXSCREEN);  // Ширина экрана
-    g_d3dpp.BackBufferHeight = GetSystemMetrics(SM_CYSCREEN); // Высота экрана
-    g_d3dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE; // Избегает блокировок
-    g_d3dpp.EnableAutoDepthStencil = TRUE;
-    g_d3dpp.AutoDepthStencilFormat = D3DFMT_D16; // Используйте аппаратный z-буфер
+    swapChainDesc.BufferCount = 1;
+    swapChainDesc.BufferDesc.Width = this->window_size.x;
+    swapChainDesc.BufferDesc.Height = this->window_size.y;
+    swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    swapChainDesc.BufferDesc.RefreshRate.Numerator = 144;
+    swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
+    swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    swapChainDesc.OutputWindow = hwnd;
+    swapChainDesc.SampleDesc.Count = 1;
+    swapChainDesc.SampleDesc.Quality = 0;
+    swapChainDesc.Windowed = TRUE;
+    swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 
-    pD3D->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hwnd, D3DCREATE_SOFTWARE_VERTEXPROCESSING | D3DCREATE_MULTITHREADED, &g_d3dpp, &g_pd3dDevice);
+    UINT createDeviceFlags = 0;
+#if defined(_DEBUG)
+    createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+#endif
 
-    g_pd3dDevice->SetRenderState(D3DRS_LIGHTING,              FALSE);
-    g_pd3dDevice->SetRenderState(D3DRS_ZENABLE,               FALSE);
-    g_pd3dDevice->SetRenderState(D3DRS_ANTIALIASEDLINEENABLE, FALSE);
+    D3D_FEATURE_LEVEL featureLevel[] = 
+    {
+        D3D_FEATURE_LEVEL_10_0  // Уровень 10.0
+    };
 
-    RECT scissorRect = { 0, 0, this->window_size.x, this->window_size.y }; // Параметры экрана, где рендерить
-    g_pd3dDevice->SetScissorRect(&scissorRect);
-    g_pd3dDevice->SetRenderState(D3DRS_SCISSORTESTENABLE, TRUE);
 
-    D3DVIEWPORT9 viewport;
-    viewport.X = 0;
-    viewport.Y = 0;
-    viewport.Width = this->window_size.x;
-    viewport.Height = this->window_size.y;
-    viewport.MinZ = 0.0f;
-    viewport.MaxZ = 1.0f;
+    HRESULT hr = D3D11CreateDeviceAndSwapChain(
+        nullptr,
+        D3D_DRIVER_TYPE_HARDWARE,
+        nullptr,
+        createDeviceFlags,
+        nullptr,
+        0,
+        D3D11_SDK_VERSION,
+        &swapChainDesc,
+        &g_pSwapChain,
+        &g_pd3dDevice,
+        featureLevel,
+        &g_pd3dDeviceContext
+    );
 
-    g_pd3dDevice->SetViewport(&viewport);
 
+    if (FAILED(hr)) {
+        std::cerr << "Failed to create DirectX 11 device and swap chain!" << std::endl;
+        return;
+    }
+
+    // Создание рендер-таргета
+    ID3D11Texture2D* pBackBuffer = nullptr;
+    g_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&pBackBuffer);
+    g_pd3dDevice->CreateRenderTargetView(pBackBuffer, nullptr, &g_pRenderTargetView);
+    pBackBuffer->Release();
+
+    g_pd3dDeviceContext->OMSetRenderTargets(1, &g_pRenderTargetView, nullptr);
+
+    // Установка вьюпорта
+    D3D11_VIEWPORT viewport = {};
+    viewport.TopLeftX = 0;
+    viewport.TopLeftY = 0;
+    viewport.Width = static_cast<float>(this->window_size.x);
+    viewport.Height = static_cast<float>(this->window_size.y);
+    viewport.MinDepth = 0.0f;
+    viewport.MaxDepth = 1.0f;
+    g_pd3dDeviceContext->RSSetViewports(1, &viewport);
+
+    g_menu.change_res_x = this->window_size.x;
+    g_menu.change_res_y = this->window_size.y;
+
+    // Инициализация ImGui
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGui_ImplWin32_Init(hwnd);
-    ImGui_ImplDX9_Init(g_pd3dDevice);
+    ImGui_ImplDX11_Init(g_pd3dDevice, g_pd3dDeviceContext);
 
     ImFontConfig cfg;
     cfg.FontBuilderFlags = ImGuiFreeTypeBuilderFlags_Monochrome | ImGuiFreeTypeBuilderFlags_MonoHinting;
@@ -435,7 +629,7 @@ void window_profiling::create_window()
 
     if (!loaded)
     {
-        this->load_textures();
+        this->load_textures(g_pd3dDevice, g_pd3dDeviceContext);
 
         for (int i = 0; i < g_xgui.fonts.size(); i++)
         {
@@ -479,8 +673,15 @@ void window_profiling::create_window()
     UpdateWindow(hwnd);
 
     MSG msg = {};
-    while (msg.message != WM_QUIT) {
 
+    BOOL isFullscreen;
+    g_window.g_pSwapChain->GetFullscreenState(&isFullscreen, nullptr);
+    if (!isFullscreen) {
+        g_window.g_pSwapChain->SetFullscreenState(TRUE, nullptr);
+    }
+
+    while (msg.message != WM_QUIT) 
+    {
         if (PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE)) {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
@@ -488,24 +689,39 @@ void window_profiling::create_window()
                 continue;
         }
 
-        g_pd3dDevice->Clear(0, NULL, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER, D3DCOLOR_XRGB(0, 0, 0), 1.0f, 0);
+        // Очистка экрана
+        FLOAT clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+        g_pd3dDeviceContext->ClearRenderTargetView(g_pRenderTargetView, clearColor);
 
-        g_pd3dDevice->BeginScene();
-
-        ImGui_ImplDX9_NewFrame();
+        // Начало нового кадра ImGui
+        ImGui_ImplDX11_NewFrame();
         ImGui_ImplWin32_NewFrame();
-        //UpdateVideoFrame(g_pd3dDevice); // Обновление кадра видео
         ImGui::NewFrame();
 
+        // Рендеринг интерфейса
+        g_menu.render(*this);
 
-        // Рендеринг объектов
         std::random_device rd;
         std::mt19937 gen(rd());
         std::uniform_int_distribution<int> distrib(0, 300);
         int random_y = distrib(gen);
 
-        ImGui::GetBackgroundDrawList()->AddRectFilled(ImVec2(0, 0), ImVec2(this->window_size.x, this->window_size.y), ImColor(0, 0, 0));
+        ImGui::GetForegroundDrawList()->AddImage(
+            (ImTextureID)Noise,
+            ImVec2(0, 0),
+            ImVec2(this->window_size.x, this->window_size.y + random_y),
+            ImVec2(0, 0), ImVec2(1, 1), ImColor(128, 128, 128, 45)
+        );
 
+        ImGui::GetForegroundDrawList()->AddImage(
+            (ImTextureID)Tv,
+            ImVec2(0, 0),
+            ImVec2(this->window_size.x, this->window_size.y),
+            ImVec2(0, 0), ImVec2(1, 1), ImColor(128, 255, 128, 14)
+        );
+
+
+        // Рендеринг видео (раскомментируйте при необходимости)
         /*
         ImGui::GetBackgroundDrawList()->AddImage(
             (ImTextureID)g_videoTexture,
@@ -515,54 +731,27 @@ void window_profiling::create_window()
         );
         */
 
-        // Рендеринг меню
-        g_menu.render(*this);
-
-        
-        // Ваш рендеринг с эффектом
-        ImGui::GetForegroundDrawList()->AddImage(
-            (ImTextureID)Noise,
-            ImVec2(0, 0),
-            ImVec2(this->window_size.x, this->window_size.y + random_y),
-            ImVec2(0, 0), ImVec2(1, 1), ImColor(128, 128, 128, 45)
-        );
-
-        
-        //ImGui::GetForegroundDrawList()->AddRectFilled(ImVec2(0, 0), ImVec2(this->window_size.x, 30), ImColor(255, 255, 255, 20));
-
-        // Другие изображения
-        
-        
-        ImGui::GetForegroundDrawList()->AddImage(
-            (ImTextureID)Tv,
-            ImVec2(0, 0),
-            ImVec2(this->window_size.x, this->window_size.y),
-            ImVec2(0, 0), ImVec2(1, 1), ImColor(128, 255, 128, 14)
-        );
-        
-
-
         ImGui::EndFrame();
         ImGui::Render();
 
-         
-        ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
-        g_pd3dDevice->EndScene();
-        g_pd3dDevice->Present(NULL, NULL, NULL, NULL);
+        // Рендеринг ImGui
+        ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
+        // Обновление экрана
+        g_pSwapChain->Present(1, 0);
+
+        // Ограничение FPS
         fps.WaitForNextFrame();
     }
 
-    // Освобождаем ресурсы
+    // Освобождение ресурсов
     this->unload_textures();
-
-    ImGui_ImplDX9_Shutdown();
+    ImGui_ImplDX11_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
+    g_pRenderTargetView->Release();
+    g_pSwapChain->Release();
+    g_pd3dDeviceContext->Release();
     g_pd3dDevice->Release();
-    // Выключаем тест обрезки после рендеринга
-    g_pd3dDevice->SetRenderState(D3DRS_SCISSORTESTENABLE, FALSE);
-
-    pD3D->Release();
     UnregisterClass(_T("Window"), wc.hInstance);
 }

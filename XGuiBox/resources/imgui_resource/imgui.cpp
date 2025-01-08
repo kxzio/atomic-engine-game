@@ -7807,7 +7807,7 @@ float ImGui::LerpAnimate(const char* label, const char* second_label, bool if_, 
         ItPLibrary = pValue.find(ID);
     }
 
-    const float FrameRateBasedSpeed = Speed_ * (1.f - ImGui::GetIO().DeltaTime);
+    const float FrameRateBasedSpeed = (Speed_ * (1.f - ImGui::GetIO().DeltaTime)) / 1.3;
 
     switch (type) {
 

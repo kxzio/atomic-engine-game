@@ -2,23 +2,29 @@
 
 //GUI RESOURCES
 #include "../imgui_resource/imgui.h"
-#include "../imgui_resource/imgui_impl_dx9.h"
+#include "../imgui_resource/imgui_impl_dx11.h"
 #include "../imgui_resource/imgui_impl_win32.h"
 
 #include <dinput.h>
 #include <tchar.h>
-#include <d3d9.h>
+#include <d3d11.h>
 #include <string>
 
-#pragma comment(lib, "d3d9.lib")
+#pragma comment(lib, "d3d11.lib")
 #pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup")
-
-static LPDIRECT3DDEVICE9        g_pd3dDevice = NULL;
-static D3DPRESENT_PARAMETERS    g_d3dpp;
 
 class window_profiling
 {
 public:
+
+	ID3D11Device* g_pd3dDevice = NULL;
+	// Создание устройства DirectX 11 и контекста
+	DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
+	IDXGISwapChain* g_pSwapChain = nullptr; // Глобальная переменная для цепочки обмена
+	ID3D11DeviceContext* g_pd3dDeviceContext = nullptr; // Контекст устройства Direct3D 11
+	ID3D11RenderTargetView* g_pRenderTargetView = nullptr; // Рендер-таргет
+
+	window_profiling() = default;
 
 	window_profiling(const char* string)
 	{
@@ -46,13 +52,15 @@ public:
 
 	void set_window_type(int type);
 
+	void set_name(std::string s)
+	{
+		name_of_class = s;
+	}
 	void make_it_fullscreen();
 
-	void load_textures();
+	void load_textures(ID3D11Device* device, ID3D11DeviceContext* context);
 
 	void unload_textures();
-
-	void handle_device_lost();
 
 	enum countries_name
 	{
@@ -79,15 +87,12 @@ public:
 
 
 
-	IDirect3DTexture9* countries[20];
+	ID3D11ShaderResourceView* countries[20];  // Используйте Shader Resource View для текстур стран
+	ID3D11ShaderResourceView* Logotype;      // Текстура для логотипа
+	ID3D11ShaderResourceView* Noise;         // Текстура для шума
+	ID3D11ShaderResourceView* Tv;            // Текстура для телевизионного эффекта
+	ID3D11ShaderResourceView* RGB;           // Текстура для RGB линий
 
-	IDirect3DTexture9* Logotype;
-
-	IDirect3DTexture9* Noise;
-
-	IDirect3DTexture9* Tv; 
-
-	IDirect3DTexture9* RGB;
 
 
 private:
@@ -100,3 +105,5 @@ private:
 
 	HWND HWND_OF_PROCESS;
 };
+
+inline window_profiling g_window;

@@ -20,13 +20,13 @@ int main()
 	_CrtSetReportMode(_CRT_ASSERT, 0);
 
 	/* Window title and creating main class, that creates window */
-	window_profiling new_window_profile ("XGUI Presentation");
+	g_window.set_name("XGUI Presentation");
 
 	/* Window size customization. This will be not avaviable in future */
-	new_window_profile.set_window_pos (	ImVec2(0, 0)	);
-	new_window_profile.set_window_size(	ImVec2(400, 400)	);
+	g_window.set_window_pos (	ImVec2(0, 0)	);
+	g_window.set_window_size(	ImVec2(400, 400)	);
 	
-	new_window_profile.make_it_fullscreen();
+	g_window.make_it_fullscreen();
 
 	/* Font initialization ( Important to be before the "create window" function ) */
 	g_xgui			  .add_font("verdana", 15);
@@ -35,7 +35,7 @@ int main()
 	g_xgui            .add_font("framd", 17);
 
 	/* Main window is now appear on your screen with no (at this moment) interface */
-	new_window_profile.create_window();
+	g_window.create_window();
 
 
 };

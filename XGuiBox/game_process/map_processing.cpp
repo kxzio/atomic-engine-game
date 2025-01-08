@@ -1,4 +1,5 @@
 #include "map_processing.h"
+#include <sstream>
 
 static float map_scale2 = 0.240010;
 
@@ -72,8 +73,72 @@ void process_object_selections(int current_country, int player_id, std::vector <
         ImGui::GetForegroundDrawList()->AddRect(point_pos, point_size, ImColor(79, 255, 69, 200));
     }
 }
+
+void process_convex_file(const std::string& input_filename, std::vector<country_data>& countries) 
+{
+    std::ifstream file(input_filename);
+    if (!file.is_open()) {
+        std::cerr << "Не удалось открыть файл." << std::endl;
+        return;
+    }
+
+    std::string line;
+    country_data current_country;
+    while (std::getline(file, line)) {
+        // Пропускаем пустые строки
+        if (line.empty()) {
+            continue;
+        }
+
+        // Если это имя страны, создаём новый объект country_data
+        if (line.find_first_of("ABCDEFGHIJKLMNOPQRSTUVWXYZ") != std::string::npos) {
+            if (!current_country.name.empty()) {
+                // Сохраняем предыдущую страну
+                countries.push_back(current_country);
+            }
+            current_country = country_data();  // Создаём новый объект для следующей страны
+            current_country.name = line;  // Имя страны
+        }
+        else {
+            // Чтение координат
+            std::istringstream ss(line);
+            float x, y;
+            char comma;
+            if (ss >> x >> comma >> y) {
+                current_country.convex_hull.push_back(Point(x, y));  // Добавляем точку
+            }
+        }
+    }
+
+    // Добавляем последнюю страну
+    if (!current_country.name.empty()) {
+        countries.push_back(current_country);
+    }
+
+    file.close();
+}
 void map_processing::render_map_and_process_hitboxes(window_profiling window, std::vector <country_data>* countries, float animated_map_scale, int* hovered_id, ImVec2 cursor_pos, ImVec2 map_pos, int player_id)
 {
+
+    static bool read;
+
+    if (!read)
+    {
+        static std::vector<country_data> temp;
+        process_convex_file("convex_hull.data", temp);
+        for (size_t i = 0; i < temp.size(); ++i)
+        {
+            for (size_t i2 = 0; i2 < temp[i].convex_hull.size(); ++i2) 
+            {
+                const Point& pt = temp[i].convex_hull[i2];
+
+                countries->at(i).convex_hull.push_back(Point(pt.x, pt.y));
+            }
+        }
+
+        read = true;
+    }
+
     /*
     	enum countries_name
 	{
@@ -118,11 +183,6 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
 
             if (!countries->at(i).hitbox_get)
             {
-                const unsigned char* texture_pixels = g_convex_math.GetTexturePixels(data.texture, g_pd3dDevice, texture_size_x, texture_size_y);
-                int step;
-                std::vector<Point> filled_pixels = g_convex_math.GetFilledPixels(texture_pixels, texture_size_x, texture_size_y, &step);
-                //countries[i].convex_hull = filled_pixels;
-                countries->at(i).convex_hull = g_convex_math.GetConvexHullWithMorePoints(filled_pixels, 0.8);
 
                 if (i == window.countries_name::Indostan)
                 {
@@ -134,13 +194,10 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
                         countries->at(i).convex_hull.erase(countries->at(i).convex_hull.begin() + start_index, countries->at(i).convex_hull.begin() + end_index + 1);
                     }
                 }
-
-
                 Point mouse_point = { static_cast<int>(cursor_pos.x), static_cast<int>(cursor_pos.y) };
                 countries->at(i).hitbox_get = true;
-                texture_pixels = 0;
-                filled_pixels.clear();
             }
+
 
             float scale = animated_map_scale;
 
@@ -268,14 +325,14 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
                     }
                 }
 
-                /*
-                ImGui::GetForegroundDrawList()->AddRect(
-                    screen_pos,
-                    ImVec2(screen_pos.x + 2 * animated_map_scale, screen_pos.y + 2 * animated_map_scale),
-                    country_colors[i]
-                );
-                ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[0].font_addr, 15, screen_pos, ImColor(255, 255, 255), std::to_string(i2).c_str());
-                */
+                
+                //ImGui::GetForegroundDrawList()->AddRect(
+                 //   screen_pos,
+                //    ImVec2(screen_pos.x + 2 * animated_map_scale, screen_pos.y + 2 * animated_map_scale),
+                //    ImColor(255, 255, 255)
+                //);
+                //ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[0].font_addr, 15, screen_pos, ImColor(255, 255, 255), std::to_string(i2).c_str());
+                
             }
 
             posx = data.position.x * animated_map_scale - (data.size.x * animated_map_scale * map_scale2) / 2 + map_pos.x * animated_map_scale;
@@ -289,7 +346,6 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
             if (g_convex_math.IsPointInsidePolygon2(Point(cursor_pos.x, cursor_pos.y), converted_to_screen_convex))
             {
                 *hovered_id = i;
-
             }
 
         }
@@ -309,6 +365,22 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
 
             auto fontsize = 17 + animated_map_scale * 3;
             auto textsize = g_xgui.fonts[2].font_addr->CalcTextSizeA(fontsize, FLT_MAX, -1.f, data.name.c_str());
+
+            
+
+            //ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[2].font_addr, fontsize, ImVec2(posx + sizex / 2 - textsize.x / 2, posy + sizey / 2 - textsize.y / 2), ImColor(255, 255, 255), data.name.c_str());
+
+            if (*hovered_id != -1)
+            {
+                if (*hovered_id == i)
+                {
+                    data.color = ImColor(71 + 80, 115 + 80, 65 + 80);
+
+                    auto pos = ImVec2(countries->at(i).position.x * animated_map_scale - (countries->at(i).size.x * animated_map_scale * map_scale2) / 2 + map_pos.x * animated_map_scale,
+                        countries->at(i).position.y * animated_map_scale - (countries->at(i).size.y * animated_map_scale * map_scale2) / 2 + map_pos.y * animated_map_scale);
+                }
+
+            }
 
             //cities
             for (int city_id = 0; city_id < data.cities.size(); city_id++)
@@ -336,20 +408,6 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
             }
    
             data.color.Value.w = 255.f;
-
-            //ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[2].font_addr, fontsize, ImVec2(posx + sizex / 2 - textsize.x / 2, posy + sizey / 2 - textsize.y / 2), ImColor(255, 255, 255), data.name.c_str());
-
-            if (*hovered_id != -1)
-            {
-                if (*hovered_id == i)
-                {
-                    data.color = ImColor(71 + 60, 115 + 60, 65 + 60);
-
-                    auto pos = ImVec2(countries->at(i).position.x * animated_map_scale - (countries->at(i).size.x * animated_map_scale * map_scale2) / 2 + map_pos.x * animated_map_scale,
-                        countries->at(i).position.y * animated_map_scale - (countries->at(i).size.y * animated_map_scale * map_scale2) / 2 + map_pos.y * animated_map_scale);
-                }
-
-            }
 
             ImGui::GetBackgroundDrawList()->AddImage(
                 (ImTextureID)data.texture,
@@ -886,7 +944,7 @@ void map_processing::process_map(window_profiling window, int screen_size_x, int
         { "Mid-Africa",     window.countries[window.countries_name::MidWellWellWell],       ImVec2(438.9074 + offset.x, 340.2161 + offset.y)   , ImVec2(623, 291),   ImVec2(0.146, 0.1374),      ImColor(71, 115, 65),   city_data[window.countries_name::MidWellWellWell]   },
         { "South-Africa",   window.countries[window.countries_name::South_WellWellWell],    ImVec2(443.0285 + offset.x, 439.819 + offset.y)   ,  ImVec2(563, 849),   ImVec2(0.1316, 0.1986),     ImColor(71, 115, 65),   city_data[window.countries_name::South_WellWellWell]},
         { "Turkey",         window.countries[window.countries_name::Turk],                  ImVec2(463.8263 + offset.x, 226.1221 + offset.y)   , ImVec2(335, 243),   ImVec2(0.1596, 0.2266),     ImColor(71, 115, 65),   city_data[window.countries_name::Turk]              },
-        { "",               window.countries[window.countries_name::Zakavkazie],            ImVec2(491.7546 + offset.x, 202.2194 + offset.y)   , ImVec2(154, 101),   ImVec2(0.1432, 0.1956),     ImColor(71, 115, 65),   city_data[window.countries_name::Zakavkazie]        }
+        { "Zakavkazie",     window.countries[window.countries_name::Zakavkazie],            ImVec2(491.7546 + offset.x, 202.2194 + offset.y)   , ImVec2(154, 101),   ImVec2(0.1432, 0.1956),     ImColor(71, 115, 65),   city_data[window.countries_name::Zakavkazie]        }
     };
 
     int hovered_country_id = -1;

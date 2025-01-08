@@ -41,6 +41,8 @@ public:
 	//server settings
 	int selected_game_mode;
 
+	int change_res_x, change_res_y;
+
 	std::vector <std::string> player_names;
 
 	std::vector < player > players;
