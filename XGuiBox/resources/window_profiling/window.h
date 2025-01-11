@@ -23,6 +23,7 @@ public:
 	IDXGISwapChain* g_pSwapChain = nullptr; // Глобальная переменная для цепочки обмена
 	ID3D11DeviceContext* g_pd3dDeviceContext = nullptr; // Контекст устройства Direct3D 11
 	ID3D11RenderTargetView* g_pRenderTargetView = nullptr; // Рендер-таргет
+	ID3D11ShaderResourceView* g_pTextureView = nullptr;
 
 	window_profiling() = default;
 
@@ -93,6 +94,9 @@ public:
 	ID3D11ShaderResourceView* Tv;            // Текстура для телевизионного эффекта
 	ID3D11ShaderResourceView* RGB;           // Текстура для RGB линий
 
+	ID3D11ShaderResourceView* Additional_Noise;           // Текстура для RGB линий
+	ID3D11ShaderResourceView* Color_Diss;           // Текстура для RGB линий
+	ID3D11ShaderResourceView* Logo;
 
 
 private:

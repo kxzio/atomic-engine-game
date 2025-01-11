@@ -744,7 +744,7 @@ void menu::render(window_profiling window)
         game_sound_system::fmod_init = true;
     }
 
-    ImGui::GetStyle().Colors[ImGuiCol_WindowBg]         = ImColor(0, 0, 0); 
+    ImGui::GetStyle().Colors[ImGuiCol_WindowBg]         = ImColor(0, 0, 0, 0); 
     ImGui::GetStyle().Colors[ImGuiCol_TitleBg]          = ImColor(0, 0, 0);
     ImGui::GetStyle().Colors[ImGuiCol_TitleBgActive]    = ImColor(0, 0, 0);
     ImGui::GetStyle().Colors[ImGuiCol_TitleBgCollapsed] = ImColor(0, 0, 0);
@@ -754,16 +754,19 @@ void menu::render(window_profiling window)
     ImGui::GetStyle().Colors[ImGuiCol_FrameBg]          = ImColor(0, 0, 0);
     ImGui::GetStyle().Colors[ImGuiCol_FrameBgHovered]   = ImColor(0, 0, 0);
     ImGui::GetStyle().Colors[ImGuiCol_FrameBgActive]    = ImColor(0, 0, 0);
-    ImGui::GetStyle().Colors[ImGuiCol_Border]           = ImColor(79, 255, 69, 130);
+    ImGui::GetStyle().Colors[ImGuiCol_Border]           = ImColor(79, 255, 69, 70);
     ImGui::GetStyle().Colors[ImGuiCol_Separator]        = ImColor(79, 255, 69, 130);
     ImGui::GetStyle().Colors[ImGuiCol_ChildBg]          = ImColor(5, 5, 5, 255);
     ImGui::GetStyle().Colors[ImGuiCol_CheckMark]        = ImColor(79, 255, 69, 130);
     ImGui::GetStyle().Colors[ImGuiCol_ScrollbarGrab]    = ImColor(79, 255, 69, 130);
+    ImGui::GetStyle().Colors[ImGuiCol_Header] = ImColor(0, 0, 0, 200);
+    ImGui::GetStyle().Colors[ImGuiCol_HeaderHovered] = ImColor(79, 255, 69, 130);
+    ImGui::GetStyle().Colors[ImGuiCol_HeaderActive] = ImColor(79, 255, 69, 200);
 
     ImGui::GetStyle().WindowPadding     = ImVec2(10, 10);
     ImGui::GetStyle().ScrollbarRounding = 0;
     ImGui::GetStyle().ScrollbarSize     = 4.f;
-
+ 
     //get screen size
     static bool screen_size_get = false;
     static int  screen_x, screen_y;
@@ -963,27 +966,34 @@ void menu::render(window_profiling window)
     //game global scenes
     switch (game_scenes_params::global_game_scene_tab)
     {
+
         case game_scenes_params::global_game_tabs::menu:
         {
+
+            ImGui::GetBackgroundDrawList()->AddImage(
+                (ImTextureID)g_window.g_pTextureView,
+                ImVec2(0, 0),
+                ImVec2(screen_x, screen_y),
+                ImVec2(0, 0), ImVec2(1, 1), ImColor(255, 255, 255, 210)
+            );
+
             //main menu window setup
-            ImGui::SetNextWindowPos(ImVec2(screen_x / 2 - 400 / 2, screen_y / 2 - 400 / 2));
-            ImGui::SetNextWindowSize(ImVec2(400, 490));
+            ImGui::SetNextWindowPos(ImVec2(30, screen_y / 2 - 400 / 2));
+            ImGui::SetNextWindowSize(ImVec2(430, 590));
 
             //menu
             static bool r = true;
-            ImGui::Begin("Defcon 2.0", &r, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoResize);
+            ImGui::Begin("Defcon 2.0", &r, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBackground);
 
             ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.5f);
-
             //main menu code
             switch (game_scenes_params::main_menu_tabs)
             {
                 case  MAIN_MENU: {
-                    ImGui::NewLine();
-                    ImGui::Text("Welcome to Atomic Bulletin!");
 
+                    ImGui::Text("Nickname");
                     ImGui::NewLine();
-                    ImGui::InputText("Nickname", nickname, 128);
+                    ImGui::InputText("  ", nickname, 128);
                     ImGui::NewLine();
 
                     if (ImGui::Button("Create Server", ImVec2(380, 35))) {
@@ -995,6 +1005,9 @@ void menu::render(window_profiling window)
                     if (ImGui::Button("Settings", ImVec2(380, 35))) {
                         game_scenes_params::main_menu_tabs = SETTINGS_MENU;
                     }
+                    if (ImGui::Button("Exit", ImVec2(380, 35))) {
+                        PostQuitMessage(0);
+                    }
                     break;
                 }
                 case  SERVER_CREATE: {
@@ -1005,6 +1018,11 @@ void menu::render(window_profiling window)
                         game_scenes_params::main_menu_tabs = 2;
                         server_client_space::server_client_menu_information::server_nickname = nickname;
                         std::thread(run_server, std::string(server_ip), 1234, std::string(nickname)).detach();
+                    }
+
+                    if (ImGui::Button("Back"))
+                    {
+                        game_scenes_params::main_menu_tabs = MAIN_MENU;
                     }
                     break;
                 }
@@ -1241,6 +1259,11 @@ void menu::render(window_profiling window)
                         game_scenes_params::main_menu_tabs = 4;
                         server_client_space::server_client_menu_information::client_nickname = nickname;
                         std::thread(run_client, std::string(client_ip), 1234, std::string(nickname)).detach();
+                    }
+
+                    if (ImGui::Button("Back"))
+                    {
+                        game_scenes_params::main_menu_tabs = MAIN_MENU;
                     }
                     break;
                 }

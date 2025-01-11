@@ -2,6 +2,7 @@
 
 #include "window.h"
 #include <sstream>
+#include <fstream>
 #include "../../misc/instruments.h"
 #include "../../xguibox/xgui.h"
 #include "../../menu.h"
@@ -31,7 +32,8 @@ extern "C"
 #include <random>
 
 #pragma comment(lib, "d3d11.lib")
-
+#pragma comment(lib, "d3dcompiler.lib")
+#include <DirectXMath.h>
 #pragma comment(lib, "C:\\Users\\sasha\\OneDrive\\Documents\\ffmpeg lib\\ffmpeg-4.3.1-win64-dev\\lib\\avcodec.lib")
 #pragma comment(lib, "C:\\Users\\sasha\\OneDrive\\Documents\\ffmpeg lib\\ffmpeg-4.3.1-win64-dev\\lib\\avformat.lib")
 #pragma comment(lib, "C:\\Users\\sasha\\OneDrive\\Documents\\ffmpeg lib\\ffmpeg-4.3.1-win64-dev\\lib\\avutil.lib")
@@ -48,13 +50,202 @@ extern "C"
 #define D3D10_ERROR_TOO_MANY_UNIQUE_STATE_OBJECTS 0
 #define D3D10_ERROR_FILE_NOT_FOUND 0
 
-ID3D11ShaderResourceView* g_videoTextureSRV = nullptr;
-ID3D11Texture2D* g_videoTexture = nullptr;
-AVFormatContext* g_formatContext = nullptr;
-AVCodecContext* g_codecContext = nullptr;
-AVFrame* g_frame = nullptr;
-AVPacket* g_packet = nullptr;
-struct SwsContext* g_swsContext = nullptr;
+// FFmpeg структуры
+AVFormatContext* formatContext = nullptr;
+AVCodecContext* codecContext = nullptr;
+AVFrame* frame = nullptr;
+AVFrame* frameRGBA = nullptr;
+SwsContext* swsContext = nullptr;
+
+// Размеры видео
+int videoWidth = 0, videoHeight = 0;
+
+// DirectX текстура
+ID3D11Texture2D* g_pTexture = nullptr;
+
+bool SeekToStart() {
+    if (av_seek_frame(formatContext, -1, 0, AVSEEK_FLAG_BACKWARD) < 0) {
+        std::cerr << "Ошибка: не удалось перемотать видео на начало.\n";
+        return false;
+    }
+
+    // Сбрасываем декодер, чтобы начать заново
+    avcodec_flush_buffers(codecContext);
+    return true;
+}
+
+// Инициализация FFmpeg
+bool InitFFmpeg(const char* filename) {
+
+    avformat_network_init();
+
+    // Открытие файла
+    if (avformat_open_input(&formatContext, filename, nullptr, nullptr) != 0) {
+        std::cerr << "Ошибка: не удалось открыть файл.\n";
+        return false;
+    }
+
+    // Поиск потоков
+    if (avformat_find_stream_info(formatContext, nullptr) < 0) {
+        std::cerr << "Ошибка: не удалось найти потоки.\n";
+        return false;
+    }
+
+    // Поиск видеопотока
+    int videoStreamIndex = -1;
+    for (unsigned int i = 0; i < formatContext->nb_streams; i++) {
+        if (formatContext->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+            videoStreamIndex = i;
+            break;
+        }
+    }
+
+    if (videoStreamIndex == -1) {
+        std::cerr << "Ошибка: видеопоток не найден.\n";
+        return false;
+    }
+
+    // Настройка кодека
+    const AVCodec* codec = avcodec_find_decoder(formatContext->streams[videoStreamIndex]->codecpar->codec_id);
+    if (!codec) {
+        std::cerr << "Ошибка: кодек не найден.\n";
+        return false;
+    }
+
+    codecContext = avcodec_alloc_context3(codec);
+    if (avcodec_parameters_to_context(codecContext, formatContext->streams[videoStreamIndex]->codecpar) < 0) {
+        std::cerr << "Ошибка: не удалось настроить контекст кодека.\n";
+        return false;
+    }
+
+    if (avcodec_open2(codecContext, codec, nullptr) < 0) {
+        std::cerr << "Ошибка: не удалось открыть кодек.\n";
+        return false;
+    }
+
+    // Получение размеров видео
+    videoWidth = codecContext->width;
+    videoHeight = codecContext->height;
+
+    // Инициализация структур для кадров
+    frame = av_frame_alloc();
+    frameRGBA = av_frame_alloc();
+
+    // Настройка SWS контекста
+    swsContext = sws_getContext(videoWidth, videoHeight, codecContext->pix_fmt,
+        videoWidth, videoHeight, AV_PIX_FMT_RGBA,
+        SWS_BILINEAR, nullptr, nullptr, nullptr);
+
+    return true;
+}
+
+// Глобальные переменные для контроля времени
+std::chrono::steady_clock::time_point lastFrameTime = std::chrono::steady_clock::now();
+const double targetFrameTime = 1.0 / 35.0; // 30 кадров в секунду
+
+bool UpdateTexture(ID3D11Device* device, ID3D11DeviceContext* context)
+{
+    using namespace std::chrono;
+
+    // Рассчитать время, прошедшее с последнего обновления
+    steady_clock::time_point currentTime = steady_clock::now();
+    double elapsedTime = duration<double>(currentTime - lastFrameTime).count();
+
+    // Если с момента последнего кадра прошло недостаточно времени, выходим
+    if (elapsedTime < targetFrameTime) {
+        return true; // Пропускаем обновление
+    }
+
+    // Обновляем время последнего кадра
+    lastFrameTime = currentTime;
+
+    AVPacket packet;
+
+    // Читаем кадры
+    while (true) {
+        if (av_read_frame(formatContext, &packet) < 0) {
+            // Если достигнут конец видео, перемотать на начало
+            if (av_seek_frame(formatContext, -1, 0, AVSEEK_FLAG_BACKWARD) < 0) {
+                std::cerr << "Ошибка: не удалось перемотать видео на начало.\n";
+                return false;
+            }
+            avcodec_flush_buffers(codecContext); // Сброс буферов декодера
+            continue;
+        }
+
+        if (packet.stream_index == formatContext->streams[0]->index) {
+            if (avcodec_send_packet(codecContext, &packet) == 0) {
+                if (avcodec_receive_frame(codecContext, frame) == 0) {
+                    // Конвертация в формат RGBA
+                    uint8_t* dest[4] = { nullptr };
+                    int destLinesize[4] = { 0 };
+                    av_image_alloc(dest, destLinesize, videoWidth, videoHeight, AV_PIX_FMT_RGBA, 1);
+
+                    sws_scale(
+                        swsContext,
+                        frame->data,
+                        frame->linesize,
+                        0,
+                        videoHeight,
+                        dest,
+                        destLinesize
+                    );
+
+                    // Описание текстуры
+                    D3D11_TEXTURE2D_DESC desc = {};
+                    desc.Width = videoWidth;
+                    desc.Height = videoHeight;
+                    desc.MipLevels = 1;
+                    desc.ArraySize = 1;
+                    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+                    desc.SampleDesc.Count = 1;
+                    desc.Usage = D3D11_USAGE_DYNAMIC;
+                    desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+                    desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+                    // Данные текстуры
+                    D3D11_SUBRESOURCE_DATA initData = {};
+                    initData.pSysMem = dest[0];
+                    initData.SysMemPitch = destLinesize[0];
+
+                    // Освобождение старой текстуры и создание новой
+                    if (g_pTexture) g_pTexture->Release();
+                    if (FAILED(device->CreateTexture2D(&desc, &initData, &g_pTexture))) {
+                        std::cerr << "Ошибка: не удалось создать текстуру.\n";
+                        av_freep(&dest[0]);
+                        av_packet_unref(&packet);
+                        return false;
+                    }
+
+                    // Освобождение старого представления текстуры и создание нового
+                    if (g_window.g_pTextureView) g_window.g_pTextureView->Release();
+                    if (FAILED(device->CreateShaderResourceView(g_pTexture, nullptr, &g_window.g_pTextureView))) {
+                        std::cerr << "Ошибка: не удалось создать представление текстуры.\n";
+                        av_freep(&dest[0]);
+                        av_packet_unref(&packet);
+                        return false;
+                    }
+
+                    // Освобождение ресурсов кадра
+                    av_freep(&dest[0]);
+                    av_packet_unref(&packet);
+                    return true; // Успешное обновление текстуры
+                }
+            }
+        }
+
+        av_packet_unref(&packet);
+    }
+}
+
+// Очистка ресурсов
+void CleanupFFmpeg() {
+    if (frame) av_frame_free(&frame);
+    if (frameRGBA) av_frame_free(&frameRGBA);
+    if (codecContext) avcodec_free_context(&codecContext);
+    if (formatContext) avformat_close_input(&formatContext);
+    if (swsContext) sws_freeContext(swsContext);
+}
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -64,151 +255,53 @@ void PauseRendering(bool pause) {
     isPaused = pause;
 }
 
-// Настройки для видео
-const char* g_videoPath = "123.mp4"; // Укажите путь к видео
-int g_videoStreamIndex = -1;
-
-void UpdateVideoFrame(ID3D11Device* device, ID3D11DeviceContext* context) 
+HRESULT CompileShaderFromFileManual(const wchar_t* fileName, LPCSTR entryPoint, LPCSTR shaderModel, ID3DBlob** blobOut)
 {
-    // Проверяем, что g_formatContext был инициализирован
-    if (g_formatContext == nullptr) {
-        std::cerr << "AVFormatContext is not initialized!" << std::endl;
-        return;
+    // Загрузка файла шейдера
+    std::ifstream shaderFile(fileName, std::ios::binary);
+    if (!shaderFile.is_open()) {
+        std::wstring errorMessage = L"Failed to open shader file: ";
+        errorMessage += fileName;
+        MessageBox(NULL, errorMessage.c_str(), L"Shader Error", MB_ICONERROR);
+        return HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND);
     }
 
-    // Чтение кадра из видео потока
-    int ret = av_read_frame(g_formatContext, g_packet);
-    if (ret < 0) {
-        // Если достигнут конец видео, перематываем на начало
-        if (ret == AVERROR_EOF) {
-            av_seek_frame(g_formatContext, g_videoStreamIndex, 0, AVSEEK_FLAG_BACKWARD); // Перематываем на начало
-            avcodec_flush_buffers(g_codecContext); // Сбрасываем декодер
-        }
-        return;
-    }
+    // Чтение файла в буфер
+    std::vector<char> shaderData((std::istreambuf_iterator<char>(shaderFile)), std::istreambuf_iterator<char>());
+    shaderFile.close();
 
-    // Декодируем кадр
-    if (g_packet->stream_index == g_videoStreamIndex) {
-        int response = avcodec_send_packet(g_codecContext, g_packet);
-        if (response >= 0) {
-            response = avcodec_receive_frame(g_codecContext, g_frame);
-            if (response == 0) {
-                // Конвертируем кадр в формат RGBA
-                uint8_t* dest[4] = { nullptr };
-                int destLinesize[4] = { 0 };
-
-                // Выделяем память для конвертированного кадра
-                av_image_alloc(dest, destLinesize, g_codecContext->width, g_codecContext->height, AV_PIX_FMT_RGBA, 1);
-
-                // Преобразуем YUV в RGBA
-                sws_scale(g_swsContext, g_frame->data, g_frame->linesize, 0, g_codecContext->height, dest, destLinesize);
-
-                // Модификация данных: Удаляем зеленый канал
-                for (int y = 0; y < g_codecContext->height; ++y) {
-                    for (int x = 0; x < g_codecContext->width; ++x) {
-                        uint8_t* pixel = dest[0] + y * destLinesize[0] + x * 4;
-
-                        // Убираем зеленый канал
-                        pixel[1] = 0; // Зеленый канал
-                    }
-                }
-
-                // Обновляем текстуру в DirectX 11
-                D3D11_MAPPED_SUBRESOURCE mappedResource;
-                HRESULT hr = context->Map(g_videoTexture, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
-                if (SUCCEEDED(hr)) {
-                    uint8_t* textureData = static_cast<uint8_t*>(mappedResource.pData);
-                    for (int y = 0; y < g_codecContext->height; ++y) {
-                        memcpy(textureData + y * mappedResource.RowPitch, dest[0] + y * destLinesize[0], g_codecContext->width * 4);
-                    }
-                    context->Unmap(g_videoTexture, 0);
-                }
-
-                // Освобождаем память для временного кадра
-                av_freep(&dest[0]);
-            }
-        }
-    }
-
-    // Очистка пакета после использования
-    av_packet_unref(g_packet);
-}
-
-void InitVideo(ID3D11Device* device, ID3D11DeviceContext* context) {
-    // Инициализация FFmpeg
-    g_formatContext = avformat_alloc_context();
-    if (avformat_open_input(&g_formatContext, g_videoPath, nullptr, nullptr) != 0) {
-        std::cerr << "Не удалось открыть видео!" << std::endl;
-        return;
-    }
-    if (avformat_find_stream_info(g_formatContext, nullptr) < 0) {
-        std::cerr << "Не удалось найти информацию о потоках!" << std::endl;
-        return;
-    }
-
-    // Поиск видеопотока
-    for (unsigned int i = 0; i < g_formatContext->nb_streams; i++) {
-        if (g_formatContext->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
-            g_videoStreamIndex = i;
-            break;
-        }
-    }
-    if (g_videoStreamIndex == -1) {
-        std::cerr << "Видео-поток не найден!" << std::endl;
-        return;
-    }
-
-    // Настройка кодека
-    AVCodecParameters* codecParams = g_formatContext->streams[g_videoStreamIndex]->codecpar;
-    const AVCodec* codec = avcodec_find_decoder(codecParams->codec_id);
-    g_codecContext = avcodec_alloc_context3(codec);
-    avcodec_parameters_to_context(g_codecContext, codecParams);
-    if (avcodec_open2(g_codecContext, codec, nullptr) < 0) {
-        std::cerr << "Не удалось открыть кодек!" << std::endl;
-        return;
-    }
-
-    // Создание текстуры
-    D3D11_TEXTURE2D_DESC textureDesc = {};
-    textureDesc.Width = g_codecContext->width;
-    textureDesc.Height = g_codecContext->height;
-    textureDesc.MipLevels = 1;
-    textureDesc.ArraySize = 1;
-    textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // Соответствует D3DFMT_A8R8G8B8
-    textureDesc.SampleDesc.Count = 1;
-    textureDesc.Usage = D3D11_USAGE_DYNAMIC; // Позволяет обновлять текстуру с CPU
-    textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE; // Использование в шейдерах
-    textureDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE; // Доступ для записи
-
-    HRESULT hr = device->CreateTexture2D(&textureDesc, nullptr, &g_videoTexture);
-    if (FAILED(hr)) {
-        std::cerr << "Не удалось создать текстуру!" << std::endl;
-        return;
-    }
-
-    // Создание Shader Resource View для текстуры
-    D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-    srvDesc.Format = textureDesc.Format;
-    srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-    srvDesc.Texture2D.MostDetailedMip = 0;
-    srvDesc.Texture2D.MipLevels = 1;
-
-    hr = device->CreateShaderResourceView(g_videoTexture, &srvDesc, &g_videoTextureSRV);
-    if (FAILED(hr)) {
-        std::cerr << "Не удалось создать Shader Resource View для текстуры!" << std::endl;
-        return;
-    }
-
-    // Создание кадров и пакетов
-    g_frame = av_frame_alloc();
-    g_packet = av_packet_alloc();
-
-    // Настройка SwsContext для преобразования YUV -> RGB
-    g_swsContext = sws_getContext(
-        g_codecContext->width, g_codecContext->height, g_codecContext->pix_fmt,
-        g_codecContext->width, g_codecContext->height, AV_PIX_FMT_RGBA,
-        SWS_BILINEAR, nullptr, nullptr, nullptr
+    // Компиляция шейдера
+    ID3DBlob* errorBlob = nullptr;
+    HRESULT hr = D3DCompile(
+        shaderData.data(),
+        shaderData.size(),
+        nullptr,        // Имя файла (опционально)
+        nullptr,        // Макросы
+        nullptr,        // Включения
+        entryPoint,     // Точка входа
+        shaderModel,    // Модель шейдера
+        0,              // Флаги компиляции
+        0,              // Флаги эффектов
+        blobOut,        // Выходной blob
+        &errorBlob      // Blob с ошибками
     );
+
+    if (FAILED(hr)) {
+        std::wstring errorMessage = L"Shader compile failed. Error: ";
+        if (errorBlob) {
+            std::string errorStr((char*)errorBlob->GetBufferPointer(), errorBlob->GetBufferSize());
+            errorMessage += std::wstring(errorStr.begin(), errorStr.end());  // Преобразуем std::string в std::wstring
+            errorBlob->Release();
+        }
+        else {
+            errorMessage += L"Unknown error";
+        }
+        MessageBox(NULL, errorMessage.c_str(), L"Shader Error", MB_ICONERROR);
+        return hr;
+    }
+
+    if (errorBlob) errorBlob->Release();
+    return hr;
 }
 
 bool LoadTextureFromFile(ID3D11Device* device, const char* filename, ID3D11ShaderResourceView** textureSRV) {
@@ -230,7 +323,7 @@ bool LoadTextureFromFile(ID3D11Device* device, const char* filename, ID3D11Shade
     textureDesc.SampleDesc.Count = 1;
     textureDesc.Usage = D3D11_USAGE_DEFAULT;
     textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-    textureDesc.CPUAccessFlags = 0;
+    textureDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ | D3D11_CPU_ACCESS_WRITE;
 
     // Заполняем данные для текстуры
     D3D11_SUBRESOURCE_DATA initData = {};
@@ -282,7 +375,7 @@ bool LoadTextureFromMemory(ID3D11Device* device, const void* data, size_t size, 
     textureDesc.SampleDesc.Count = 1;
     textureDesc.Usage = D3D11_USAGE_DEFAULT;
     textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-    textureDesc.CPUAccessFlags = 0;
+    textureDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ | D3D11_CPU_ACCESS_WRITE;
 
     // Заполняем данные для текстуры
     D3D11_SUBRESOURCE_DATA initData = {};
@@ -341,7 +434,6 @@ const char* countries_file_name[] =
 // Обновленный код для загрузки текстур
 void window_profiling::load_textures(ID3D11Device* device, ID3D11DeviceContext* context) {
     // Инициализация видео
-    InitVideo(device, context);
 
     // Загрузка текстур из памяти
     LoadTextureFromMemory(g_pd3dDevice, &planet_menu, sizeof(planet_menu), &Logotype);
@@ -356,12 +448,15 @@ void window_profiling::load_textures(ID3D11Device* device, ID3D11DeviceContext* 
             LoadTextureFromFile(device, countries_file_name[i], &countries[i]);
         }
     }
-}
 
+    LoadTextureFromFile(device, "noise_add.png", &Additional_Noise);
+    LoadTextureFromFile(device, "vhs.jpg", &Color_Diss);
+    LoadTextureFromFile(device, "logo.png", &Logo);
+
+}
 
 void window_profiling::unload_textures()
 {
-    if (g_videoTexture)     g_videoTexture->Release();
     if (Tv)                 Tv->Release();
     if (Noise)              Noise->Release();
     if (Logotype)           Logotype->Release();
@@ -372,6 +467,7 @@ void window_profiling::unload_textures()
     {
         if (countries[i]) countries[i]->Release();
     }
+
 }
 void change_resolution(int width, int height)
 {
@@ -539,10 +635,38 @@ void window_profiling::make_it_fullscreen()
 
 bool IsWindowMinimized(HWND hWnd) { return IsIconic(hWnd); }
 
+void ApplyVHSLinesEffect(ImDrawList* drawList, const ImVec2& screenSize) {
+    const int numLines = 50;  // Количество линий
+    const float lineWidth = 2.0f;  // Ширина линий
+    const float minLineHeight = 1.0f;  // Минимальная высота линии
+    const float maxLineHeight = 5.0f;  // Максимальная высота линии
+
+    // Генерация случайных линий
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<int> distrib(0, static_cast<int>(screenSize.y));
+
+    for (int i = 0; i < numLines; ++i) {
+        // Генерация случайных вертикальных позиций и высоты линии
+        float yPos = distrib(gen);
+        float lineHeight = minLineHeight + static_cast<float>(rand() % static_cast<int>(maxLineHeight - minLineHeight));
+
+        // Генерация случайной прозрачности
+        float alpha = 0.2f + static_cast<float>(rand() % 100) / 500.0f;  // Прозрачность от 0.2 до 0.4
+
+        // Рисуем линии
+        drawList->AddLine(
+            ImVec2(0, yPos),
+            ImVec2(screenSize.x, yPos + lineHeight),
+            ImColor(10, 10, 10, static_cast<int>(255 * alpha)),
+            lineWidth
+        );
+    }
+}
+
+
 void window_profiling::create_window()
 {
-    FPS_Limiter fps(150);
-
 
     WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(NULL), NULL, NULL, NULL, NULL, _T("Window"), NULL };
     RegisterClassEx(&wc);
@@ -550,7 +674,7 @@ void window_profiling::create_window()
 
     UINT numerator, denominator;
 
-    swapChainDesc.BufferCount = 1;
+    swapChainDesc.BufferCount = 2;
     swapChainDesc.BufferDesc.Width = this->window_size.x;
     swapChainDesc.BufferDesc.Height = this->window_size.y;
     swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -561,7 +685,8 @@ void window_profiling::create_window()
     swapChainDesc.SampleDesc.Count = 1;
     swapChainDesc.SampleDesc.Quality = 0;
     swapChainDesc.Windowed = TRUE;
-    swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+    swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+    swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_SEQUENTIAL;
 
     UINT createDeviceFlags = 0;
 #if defined(_DEBUG)
@@ -599,6 +724,8 @@ void window_profiling::create_window()
     ID3D11Texture2D* pBackBuffer = nullptr;
     g_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&pBackBuffer);
     g_pd3dDevice->CreateRenderTargetView(pBackBuffer, nullptr, &g_pRenderTargetView);
+    g_pSwapChain->Present(1, 0); // 1 - Включает ожидание вертикального синхроимпульса
+
     pBackBuffer->Release();
 
     g_pd3dDeviceContext->OMSetRenderTargets(1, &g_pRenderTargetView, nullptr);
@@ -630,7 +757,6 @@ void window_profiling::create_window()
     if (!loaded)
     {
         this->load_textures(g_pd3dDevice, g_pd3dDeviceContext);
-
         for (int i = 0; i < g_xgui.fonts.size(); i++)
         {
             ImGuiIO& io = ImGui::GetIO();
@@ -680,6 +806,9 @@ void window_profiling::create_window()
         g_window.g_pSwapChain->SetFullscreenState(TRUE, nullptr);
     }
 
+    InitFFmpeg("123.mkv");
+
+
     while (msg.message != WM_QUIT) 
     {
         if (PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE)) {
@@ -689,22 +818,27 @@ void window_profiling::create_window()
                 continue;
         }
 
-        // Очистка экрана
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<int> distrib(0, 300);
+        int random_y = distrib(gen);
+
         FLOAT clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+        // Очистка экрана
         g_pd3dDeviceContext->ClearRenderTargetView(g_pRenderTargetView, clearColor);
 
         // Начало нового кадра ImGui
         ImGui_ImplDX11_NewFrame();
         ImGui_ImplWin32_NewFrame();
+        UpdateTexture(g_pd3dDevice, g_pd3dDeviceContext);
         ImGui::NewFrame();
 
         // Рендеринг интерфейса
         g_menu.render(*this);
 
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::uniform_int_distribution<int> distrib(0, 300);
-        int random_y = distrib(gen);
+        ApplyVHSLinesEffect(ImGui::GetForegroundDrawList(), ImVec2(window_size.x, window_size.y));
+
+        ID3D11Texture2D* texture;
 
         ImGui::GetForegroundDrawList()->AddImage(
             (ImTextureID)Noise,
@@ -720,19 +854,24 @@ void window_profiling::create_window()
             ImVec2(0, 0), ImVec2(1, 1), ImColor(128, 255, 128, 14)
         );
 
-
-        // Рендеринг видео (раскомментируйте при необходимости)
-        /*
-        ImGui::GetBackgroundDrawList()->AddImage(
-            (ImTextureID)g_videoTexture,
+        ImGui::GetForegroundDrawList()->AddImage(
+            (ImTextureID)Color_Diss,
             ImVec2(0, 0),
             ImVec2(this->window_size.x, this->window_size.y),
-            ImVec2(0, 0), ImVec2(1, 1), ImColor(255, 255, 255, 40)
+            ImVec2(0, 0), ImVec2(1, 1), ImColor(255, 255, 255, 4)
         );
-        */
+
+        ImGui::GetForegroundDrawList()->AddImage(
+            (ImTextureID)Additional_Noise,
+            ImVec2(0, 0),
+            ImVec2(this->window_size.x, this->window_size.y),
+            ImVec2(0, 0), ImVec2(1, 1), ImColor(255, 255, 255, 6)
+        );
+
 
         ImGui::EndFrame();
         ImGui::Render();
+
 
         // Рендеринг ImGui
         ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
@@ -740,8 +879,7 @@ void window_profiling::create_window()
         // Обновление экрана
         g_pSwapChain->Present(1, 0);
 
-        // Ограничение FPS
-        fps.WaitForNextFrame();
+
     }
 
     // Освобождение ресурсов

@@ -1189,7 +1189,7 @@ void map_processing::process_and_sync_game_cycle(std::vector <country_data>* cou
         ImGui::SetNextWindowSize(ImVec2(screen_x - 25, last_playerlist_pos_y + 500));
         ImGui::Begin("Building Window", nullptr, 
         ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove 
-        | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoNavInputs | ImGuiWindowFlags_NoDecoration);
+        | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoNavInputs | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoDecoration);
         {
             ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.5f);
             {

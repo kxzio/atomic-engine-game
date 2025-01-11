@@ -14,7 +14,6 @@
 #pragma comment(lib, "d3d9.lib")
 #pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup")
 
-
 int main()
 {
 	_CrtSetReportMode(_CRT_ASSERT, 0);
@@ -29,13 +28,12 @@ int main()
 	g_window.make_it_fullscreen();
 
 	/* Font initialization ( Important to be before the "create window" function ) */
-	g_xgui			  .add_font("verdana", 15);
+	g_xgui			  .add_font("verdana", 16);
 	g_xgui            .add_font("cour", 16);
 	g_xgui			  .add_font("framd", 25);
 	g_xgui            .add_font("framd", 17);
 
 	/* Main window is now appear on your screen with no (at this moment) interface */
 	g_window.create_window();
-
 
 };
