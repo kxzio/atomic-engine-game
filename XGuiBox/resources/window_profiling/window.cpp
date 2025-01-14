@@ -1,4 +1,4 @@
-#define STB_IMAGE_IMPLEMENTATION
+п»ї#define STB_IMAGE_IMPLEMENTATION
 
 #include "window.h"
 #include <sstream>
@@ -50,48 +50,48 @@ extern "C"
 #define D3D10_ERROR_TOO_MANY_UNIQUE_STATE_OBJECTS 0
 #define D3D10_ERROR_FILE_NOT_FOUND 0
 
-// FFmpeg структуры
+// FFmpeg СЃС‚СЂСѓРєС‚СѓСЂС‹
 AVFormatContext* formatContext = nullptr;
 AVCodecContext* codecContext = nullptr;
 AVFrame* frame = nullptr;
 AVFrame* frameRGBA = nullptr;
 SwsContext* swsContext = nullptr;
 
-// Размеры видео
+// Р Р°Р·РјРµСЂС‹ РІРёРґРµРѕ
 int videoWidth = 0, videoHeight = 0;
 
-// DirectX текстура
+// DirectX С‚РµРєСЃС‚СѓСЂР°
 ID3D11Texture2D* g_pTexture = nullptr;
 
 bool SeekToStart() {
     if (av_seek_frame(formatContext, -1, 0, AVSEEK_FLAG_BACKWARD) < 0) {
-        std::cerr << "Ошибка: не удалось перемотать видео на начало.\n";
+        std::cerr << "РћС€РёР±РєР°: РЅРµ СѓРґР°Р»РѕСЃСЊ РїРµСЂРµРјРѕС‚Р°С‚СЊ РІРёРґРµРѕ РЅР° РЅР°С‡Р°Р»Рѕ.\n";
         return false;
     }
 
-    // Сбрасываем декодер, чтобы начать заново
+    // РЎР±СЂР°СЃС‹РІР°РµРј РґРµРєРѕРґРµСЂ, С‡С‚РѕР±С‹ РЅР°С‡Р°С‚СЊ Р·Р°РЅРѕРІРѕ
     avcodec_flush_buffers(codecContext);
     return true;
 }
 
-// Инициализация FFmpeg
+// РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ FFmpeg
 bool InitFFmpeg(const char* filename) {
 
     avformat_network_init();
 
-    // Открытие файла
+    // РћС‚РєСЂС‹С‚РёРµ С„Р°Р№Р»Р°
     if (avformat_open_input(&formatContext, filename, nullptr, nullptr) != 0) {
-        std::cerr << "Ошибка: не удалось открыть файл.\n";
+        std::cerr << "РћС€РёР±РєР°: РЅРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РєСЂС‹С‚СЊ С„Р°Р№Р».\n";
         return false;
     }
 
-    // Поиск потоков
+    // РџРѕРёСЃРє РїРѕС‚РѕРєРѕРІ
     if (avformat_find_stream_info(formatContext, nullptr) < 0) {
-        std::cerr << "Ошибка: не удалось найти потоки.\n";
+        std::cerr << "РћС€РёР±РєР°: РЅРµ СѓРґР°Р»РѕСЃСЊ РЅР°Р№С‚Рё РїРѕС‚РѕРєРё.\n";
         return false;
     }
 
-    // Поиск видеопотока
+    // РџРѕРёСЃРє РІРёРґРµРѕРїРѕС‚РѕРєР°
     int videoStreamIndex = -1;
     for (unsigned int i = 0; i < formatContext->nb_streams; i++) {
         if (formatContext->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
@@ -101,37 +101,37 @@ bool InitFFmpeg(const char* filename) {
     }
 
     if (videoStreamIndex == -1) {
-        std::cerr << "Ошибка: видеопоток не найден.\n";
+        std::cerr << "РћС€РёР±РєР°: РІРёРґРµРѕРїРѕС‚РѕРє РЅРµ РЅР°Р№РґРµРЅ.\n";
         return false;
     }
 
-    // Настройка кодека
+    // РќР°СЃС‚СЂРѕР№РєР° РєРѕРґРµРєР°
     const AVCodec* codec = avcodec_find_decoder(formatContext->streams[videoStreamIndex]->codecpar->codec_id);
     if (!codec) {
-        std::cerr << "Ошибка: кодек не найден.\n";
+        std::cerr << "РћС€РёР±РєР°: РєРѕРґРµРє РЅРµ РЅР°Р№РґРµРЅ.\n";
         return false;
     }
 
     codecContext = avcodec_alloc_context3(codec);
     if (avcodec_parameters_to_context(codecContext, formatContext->streams[videoStreamIndex]->codecpar) < 0) {
-        std::cerr << "Ошибка: не удалось настроить контекст кодека.\n";
+        std::cerr << "РћС€РёР±РєР°: РЅРµ СѓРґР°Р»РѕСЃСЊ РЅР°СЃС‚СЂРѕРёС‚СЊ РєРѕРЅС‚РµРєСЃС‚ РєРѕРґРµРєР°.\n";
         return false;
     }
 
     if (avcodec_open2(codecContext, codec, nullptr) < 0) {
-        std::cerr << "Ошибка: не удалось открыть кодек.\n";
+        std::cerr << "РћС€РёР±РєР°: РЅРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РєСЂС‹С‚СЊ РєРѕРґРµРє.\n";
         return false;
     }
 
-    // Получение размеров видео
+    // РџРѕР»СѓС‡РµРЅРёРµ СЂР°Р·РјРµСЂРѕРІ РІРёРґРµРѕ
     videoWidth = codecContext->width;
     videoHeight = codecContext->height;
 
-    // Инициализация структур для кадров
+    // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ СЃС‚СЂСѓРєС‚СѓСЂ РґР»СЏ РєР°РґСЂРѕРІ
     frame = av_frame_alloc();
     frameRGBA = av_frame_alloc();
 
-    // Настройка SWS контекста
+    // РќР°СЃС‚СЂРѕР№РєР° SWS РєРѕРЅС‚РµРєСЃС‚Р°
     swsContext = sws_getContext(videoWidth, videoHeight, codecContext->pix_fmt,
         videoWidth, videoHeight, AV_PIX_FMT_RGBA,
         SWS_BILINEAR, nullptr, nullptr, nullptr);
@@ -139,44 +139,44 @@ bool InitFFmpeg(const char* filename) {
     return true;
 }
 
-// Глобальные переменные для контроля времени
+// Р“Р»РѕР±Р°Р»СЊРЅС‹Рµ РїРµСЂРµРјРµРЅРЅС‹Рµ РґР»СЏ РєРѕРЅС‚СЂРѕР»СЏ РІСЂРµРјРµРЅРё
 std::chrono::steady_clock::time_point lastFrameTime = std::chrono::steady_clock::now();
-const double targetFrameTime = 1.0 / 35.0; // 30 кадров в секунду
+const double targetFrameTime = 1.0 / 35.0; // 30 РєР°РґСЂРѕРІ РІ СЃРµРєСѓРЅРґСѓ
 
 bool UpdateTexture(ID3D11Device* device, ID3D11DeviceContext* context)
 {
     using namespace std::chrono;
 
-    // Рассчитать время, прошедшее с последнего обновления
+    // Р Р°СЃСЃС‡РёС‚Р°С‚СЊ РІСЂРµРјСЏ, РїСЂРѕС€РµРґС€РµРµ СЃ РїРѕСЃР»РµРґРЅРµРіРѕ РѕР±РЅРѕРІР»РµРЅРёСЏ
     steady_clock::time_point currentTime = steady_clock::now();
     double elapsedTime = duration<double>(currentTime - lastFrameTime).count();
 
-    // Если с момента последнего кадра прошло недостаточно времени, выходим
+    // Р•СЃР»Рё СЃ РјРѕРјРµРЅС‚Р° РїРѕСЃР»РµРґРЅРµРіРѕ РєР°РґСЂР° РїСЂРѕС€Р»Рѕ РЅРµРґРѕСЃС‚Р°С‚РѕС‡РЅРѕ РІСЂРµРјРµРЅРё, РІС‹С…РѕРґРёРј
     if (elapsedTime < targetFrameTime) {
-        return true; // Пропускаем обновление
+        return true; // РџСЂРѕРїСѓСЃРєР°РµРј РѕР±РЅРѕРІР»РµРЅРёРµ
     }
 
-    // Обновляем время последнего кадра
+    // РћР±РЅРѕРІР»СЏРµРј РІСЂРµРјСЏ РїРѕСЃР»РµРґРЅРµРіРѕ РєР°РґСЂР°
     lastFrameTime = currentTime;
 
     AVPacket packet;
 
-    // Читаем кадры
+    // Р§РёС‚Р°РµРј РєР°РґСЂС‹
     while (true) {
         if (av_read_frame(formatContext, &packet) < 0) {
-            // Если достигнут конец видео, перемотать на начало
+            // Р•СЃР»Рё РґРѕСЃС‚РёРіРЅСѓС‚ РєРѕРЅРµС† РІРёРґРµРѕ, РїРµСЂРµРјРѕС‚Р°С‚СЊ РЅР° РЅР°С‡Р°Р»Рѕ
             if (av_seek_frame(formatContext, -1, 0, AVSEEK_FLAG_BACKWARD) < 0) {
-                std::cerr << "Ошибка: не удалось перемотать видео на начало.\n";
+                std::cerr << "РћС€РёР±РєР°: РЅРµ СѓРґР°Р»РѕСЃСЊ РїРµСЂРµРјРѕС‚Р°С‚СЊ РІРёРґРµРѕ РЅР° РЅР°С‡Р°Р»Рѕ.\n";
                 return false;
             }
-            avcodec_flush_buffers(codecContext); // Сброс буферов декодера
+            avcodec_flush_buffers(codecContext); // РЎР±СЂРѕСЃ Р±СѓС„РµСЂРѕРІ РґРµРєРѕРґРµСЂР°
             continue;
         }
 
         if (packet.stream_index == formatContext->streams[0]->index) {
             if (avcodec_send_packet(codecContext, &packet) == 0) {
                 if (avcodec_receive_frame(codecContext, frame) == 0) {
-                    // Конвертация в формат RGBA
+                    // РљРѕРЅРІРµСЂС‚Р°С†РёСЏ РІ С„РѕСЂРјР°С‚ RGBA
                     uint8_t* dest[4] = { nullptr };
                     int destLinesize[4] = { 0 };
                     av_image_alloc(dest, destLinesize, videoWidth, videoHeight, AV_PIX_FMT_RGBA, 1);
@@ -191,7 +191,7 @@ bool UpdateTexture(ID3D11Device* device, ID3D11DeviceContext* context)
                         destLinesize
                     );
 
-                    // Описание текстуры
+                    // РћРїРёСЃР°РЅРёРµ С‚РµРєСЃС‚СѓСЂС‹
                     D3D11_TEXTURE2D_DESC desc = {};
                     desc.Width = videoWidth;
                     desc.Height = videoHeight;
@@ -203,33 +203,33 @@ bool UpdateTexture(ID3D11Device* device, ID3D11DeviceContext* context)
                     desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
                     desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 
-                    // Данные текстуры
+                    // Р”Р°РЅРЅС‹Рµ С‚РµРєСЃС‚СѓСЂС‹
                     D3D11_SUBRESOURCE_DATA initData = {};
                     initData.pSysMem = dest[0];
                     initData.SysMemPitch = destLinesize[0];
 
-                    // Освобождение старой текстуры и создание новой
+                    // РћСЃРІРѕР±РѕР¶РґРµРЅРёРµ СЃС‚Р°СЂРѕР№ С‚РµРєСЃС‚СѓСЂС‹ Рё СЃРѕР·РґР°РЅРёРµ РЅРѕРІРѕР№
                     if (g_pTexture) g_pTexture->Release();
                     if (FAILED(device->CreateTexture2D(&desc, &initData, &g_pTexture))) {
-                        std::cerr << "Ошибка: не удалось создать текстуру.\n";
+                        std::cerr << "РћС€РёР±РєР°: РЅРµ СѓРґР°Р»РѕСЃСЊ СЃРѕР·РґР°С‚СЊ С‚РµРєСЃС‚СѓСЂСѓ.\n";
                         av_freep(&dest[0]);
                         av_packet_unref(&packet);
                         return false;
                     }
 
-                    // Освобождение старого представления текстуры и создание нового
+                    // РћСЃРІРѕР±РѕР¶РґРµРЅРёРµ СЃС‚Р°СЂРѕРіРѕ РїСЂРµРґСЃС‚Р°РІР»РµРЅРёСЏ С‚РµРєСЃС‚СѓСЂС‹ Рё СЃРѕР·РґР°РЅРёРµ РЅРѕРІРѕРіРѕ
                     if (g_window.g_pTextureView) g_window.g_pTextureView->Release();
                     if (FAILED(device->CreateShaderResourceView(g_pTexture, nullptr, &g_window.g_pTextureView))) {
-                        std::cerr << "Ошибка: не удалось создать представление текстуры.\n";
+                        std::cerr << "РћС€РёР±РєР°: РЅРµ СѓРґР°Р»РѕСЃСЊ СЃРѕР·РґР°С‚СЊ РїСЂРµРґСЃС‚Р°РІР»РµРЅРёРµ С‚РµРєСЃС‚СѓСЂС‹.\n";
                         av_freep(&dest[0]);
                         av_packet_unref(&packet);
                         return false;
                     }
 
-                    // Освобождение ресурсов кадра
+                    // РћСЃРІРѕР±РѕР¶РґРµРЅРёРµ СЂРµСЃСѓСЂСЃРѕРІ РєР°РґСЂР°
                     av_freep(&dest[0]);
                     av_packet_unref(&packet);
-                    return true; // Успешное обновление текстуры
+                    return true; // РЈСЃРїРµС€РЅРѕРµ РѕР±РЅРѕРІР»РµРЅРёРµ С‚РµРєСЃС‚СѓСЂС‹
                 }
             }
         }
@@ -238,7 +238,7 @@ bool UpdateTexture(ID3D11Device* device, ID3D11DeviceContext* context)
     }
 }
 
-// Очистка ресурсов
+// РћС‡РёСЃС‚РєР° СЂРµСЃСѓСЂСЃРѕРІ
 void CleanupFFmpeg() {
     if (frame) av_frame_free(&frame);
     if (frameRGBA) av_frame_free(&frameRGBA);
@@ -255,83 +255,34 @@ void PauseRendering(bool pause) {
     isPaused = pause;
 }
 
-HRESULT CompileShaderFromFileManual(const wchar_t* fileName, LPCSTR entryPoint, LPCSTR shaderModel, ID3DBlob** blobOut)
-{
-    // Загрузка файла шейдера
-    std::ifstream shaderFile(fileName, std::ios::binary);
-    if (!shaderFile.is_open()) {
-        std::wstring errorMessage = L"Failed to open shader file: ";
-        errorMessage += fileName;
-        MessageBox(NULL, errorMessage.c_str(), L"Shader Error", MB_ICONERROR);
-        return HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND);
-    }
-
-    // Чтение файла в буфер
-    std::vector<char> shaderData((std::istreambuf_iterator<char>(shaderFile)), std::istreambuf_iterator<char>());
-    shaderFile.close();
-
-    // Компиляция шейдера
-    ID3DBlob* errorBlob = nullptr;
-    HRESULT hr = D3DCompile(
-        shaderData.data(),
-        shaderData.size(),
-        nullptr,        // Имя файла (опционально)
-        nullptr,        // Макросы
-        nullptr,        // Включения
-        entryPoint,     // Точка входа
-        shaderModel,    // Модель шейдера
-        0,              // Флаги компиляции
-        0,              // Флаги эффектов
-        blobOut,        // Выходной blob
-        &errorBlob      // Blob с ошибками
-    );
-
-    if (FAILED(hr)) {
-        std::wstring errorMessage = L"Shader compile failed. Error: ";
-        if (errorBlob) {
-            std::string errorStr((char*)errorBlob->GetBufferPointer(), errorBlob->GetBufferSize());
-            errorMessage += std::wstring(errorStr.begin(), errorStr.end());  // Преобразуем std::string в std::wstring
-            errorBlob->Release();
-        }
-        else {
-            errorMessage += L"Unknown error";
-        }
-        MessageBox(NULL, errorMessage.c_str(), L"Shader Error", MB_ICONERROR);
-        return hr;
-    }
-
-    if (errorBlob) errorBlob->Release();
-    return hr;
-}
-
 bool LoadTextureFromFile(ID3D11Device* device, const char* filename, ID3D11ShaderResourceView** textureSRV) {
-    // Загружаем изображение через stb_image
+    // Р—Р°РіСЂСѓР¶Р°РµРј РёР·РѕР±СЂР°Р¶РµРЅРёРµ С‡РµСЂРµР· stb_image
     int width, height, channels;
-    unsigned char* data = stbi_load(filename, &width, &height, &channels, STBI_rgb_alpha); // Загружаем изображение с альфа-каналом
+    unsigned char* data = stbi_load(filename, &width, &height, &channels, STBI_rgb_alpha); // Р—Р°РіСЂСѓР¶Р°РµРј РёР·РѕР±СЂР°Р¶РµРЅРёРµ СЃ Р°Р»СЊС„Р°-РєР°РЅР°Р»РѕРј
     if (!data) {
         std::cerr << "Failed to load texture: " << filename << std::endl;
         return false;
     }
 
-    // Создаем структуру для описания текстуры
+    // РЎРѕР·РґР°РµРј СЃС‚СЂСѓРєС‚СѓСЂСѓ РґР»СЏ РѕРїРёСЃР°РЅРёСЏ С‚РµРєСЃС‚СѓСЂС‹
     D3D11_TEXTURE2D_DESC textureDesc = {};
     textureDesc.Width = width;
     textureDesc.Height = height;
     textureDesc.MipLevels = 1;
     textureDesc.ArraySize = 1;
-    textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // Используем формат с альфа-каналом
+    textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // РСЃРїРѕР»СЊР·СѓРµРј С„РѕСЂРјР°С‚ СЃ Р°Р»СЊС„Р°-РєР°РЅР°Р»РѕРј
     textureDesc.SampleDesc.Count = 1;
     textureDesc.Usage = D3D11_USAGE_DEFAULT;
     textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
     textureDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ | D3D11_CPU_ACCESS_WRITE;
 
-    // Заполняем данные для текстуры
+    // Р—Р°РїРѕР»РЅСЏРµРј РґР°РЅРЅС‹Рµ РґР»СЏ С‚РµРєСЃС‚СѓСЂС‹
     D3D11_SUBRESOURCE_DATA initData = {};
     initData.pSysMem = data;
-    initData.SysMemPitch = width * 4; // 4 байта на пиксель (RGBA)
+    initData.SysMemPitch = width * 4; // 4 Р±Р°Р№С‚Р° РЅР° РїРёРєСЃРµР»СЊ (RGBA)
     initData.SysMemSlicePitch = width * height * 4;
 
-    // Создаем текстуру
+    // РЎРѕР·РґР°РµРј С‚РµРєСЃС‚СѓСЂСѓ
     ID3D11Texture2D* texture = nullptr;
     HRESULT hr = device->CreateTexture2D(&textureDesc, &initData, &texture);
     if (FAILED(hr)) {
@@ -340,7 +291,7 @@ bool LoadTextureFromFile(ID3D11Device* device, const char* filename, ID3D11Shade
         return false;
     }
 
-    // Создаем Shader Resource View для текстуры
+    // РЎРѕР·РґР°РµРј Shader Resource View РґР»СЏ С‚РµРєСЃС‚СѓСЂС‹
     hr = device->CreateShaderResourceView(texture, nullptr, textureSRV);
     if (FAILED(hr)) {
         std::cerr << "Failed to create Shader Resource View!" << std::endl;
@@ -349,7 +300,7 @@ bool LoadTextureFromFile(ID3D11Device* device, const char* filename, ID3D11Shade
         return false;
     }
 
-    // Освобождаем память, занятую изображением
+    // РћСЃРІРѕР±РѕР¶РґР°РµРј РїР°РјСЏС‚СЊ, Р·Р°РЅСЏС‚СѓСЋ РёР·РѕР±СЂР°Р¶РµРЅРёРµРј
     texture->Release();
     stbi_image_free(data);
 
@@ -357,7 +308,7 @@ bool LoadTextureFromFile(ID3D11Device* device, const char* filename, ID3D11Shade
 }
 
 bool LoadTextureFromMemory(ID3D11Device* device, const void* data, size_t size, ID3D11ShaderResourceView** textureSRV) {
-    // Загружаем изображение из памяти через stb_image
+    // Р—Р°РіСЂСѓР¶Р°РµРј РёР·РѕР±СЂР°Р¶РµРЅРёРµ РёР· РїР°РјСЏС‚Рё С‡РµСЂРµР· stb_image
     int width, height, channels;
     unsigned char* imageData = stbi_load_from_memory(reinterpret_cast<const unsigned char*>(data), static_cast<int>(size), &width, &height, &channels, STBI_rgb_alpha);
     if (!imageData) {
@@ -365,25 +316,25 @@ bool LoadTextureFromMemory(ID3D11Device* device, const void* data, size_t size, 
         return false;
     }
 
-    // Создаем структуру для описания текстуры
+    // РЎРѕР·РґР°РµРј СЃС‚СЂСѓРєС‚СѓСЂСѓ РґР»СЏ РѕРїРёСЃР°РЅРёСЏ С‚РµРєСЃС‚СѓСЂС‹
     D3D11_TEXTURE2D_DESC textureDesc = {};
     textureDesc.Width = width;
     textureDesc.Height = height;
     textureDesc.MipLevels = 1;
     textureDesc.ArraySize = 1;
-    textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // Используем формат с альфа-каналом
+    textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; // РСЃРїРѕР»СЊР·СѓРµРј С„РѕСЂРјР°С‚ СЃ Р°Р»СЊС„Р°-РєР°РЅР°Р»РѕРј
     textureDesc.SampleDesc.Count = 1;
     textureDesc.Usage = D3D11_USAGE_DEFAULT;
     textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
     textureDesc.CPUAccessFlags = D3D11_CPU_ACCESS_READ | D3D11_CPU_ACCESS_WRITE;
 
-    // Заполняем данные для текстуры
+    // Р—Р°РїРѕР»РЅСЏРµРј РґР°РЅРЅС‹Рµ РґР»СЏ С‚РµРєСЃС‚СѓСЂС‹
     D3D11_SUBRESOURCE_DATA initData = {};
     initData.pSysMem = imageData;
-    initData.SysMemPitch = width * 4; // 4 байта на пиксель (RGBA)
+    initData.SysMemPitch = width * 4; // 4 Р±Р°Р№С‚Р° РЅР° РїРёРєСЃРµР»СЊ (RGBA)
     initData.SysMemSlicePitch = width * height * 4;
 
-    // Создаем текстуру
+    // РЎРѕР·РґР°РµРј С‚РµРєСЃС‚СѓСЂСѓ
     ID3D11Texture2D* texture = nullptr;
     HRESULT hr = device->CreateTexture2D(&textureDesc, &initData, &texture);
     if (FAILED(hr)) {
@@ -392,7 +343,7 @@ bool LoadTextureFromMemory(ID3D11Device* device, const void* data, size_t size, 
         return false;
     }
 
-    // Создаем Shader Resource View для текстуры
+    // РЎРѕР·РґР°РµРј Shader Resource View РґР»СЏ С‚РµРєСЃС‚СѓСЂС‹
     hr = device->CreateShaderResourceView(texture, nullptr, textureSRV);
     if (FAILED(hr)) {
         std::cerr << "Failed to create Shader Resource View!" << std::endl;
@@ -401,7 +352,7 @@ bool LoadTextureFromMemory(ID3D11Device* device, const void* data, size_t size, 
         return false;
     }
 
-    // Освобождаем память, занятую изображением
+    // РћСЃРІРѕР±РѕР¶РґР°РµРј РїР°РјСЏС‚СЊ, Р·Р°РЅСЏС‚СѓСЋ РёР·РѕР±СЂР°Р¶РµРЅРёРµРј
     texture->Release();
     stbi_image_free(imageData);
 
@@ -411,7 +362,7 @@ bool LoadTextureFromMemory(ID3D11Device* device, const void* data, size_t size, 
 const char* countries_file_name[] =
 {
      "Worldmap\\USA.png",
-     "Worldmap\\ЕС.png",
+     "Worldmap\\Р•РЎ.png",
      "Worldmap\\Northeurope.png",
      "Worldmap\\Australia.png",
      "Worldmap\\Russia.png",
@@ -431,18 +382,18 @@ const char* countries_file_name[] =
      "Worldmap\\Zakavkazie.png"
 };
 
-// Обновленный код для загрузки текстур
+// РћР±РЅРѕРІР»РµРЅРЅС‹Р№ РєРѕРґ РґР»СЏ Р·Р°РіСЂСѓР·РєРё С‚РµРєСЃС‚СѓСЂ
 void window_profiling::load_textures(ID3D11Device* device, ID3D11DeviceContext* context) {
-    // Инициализация видео
+    // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РІРёРґРµРѕ
 
-    // Загрузка текстур из памяти
+    // Р—Р°РіСЂСѓР·РєР° С‚РµРєСЃС‚СѓСЂ РёР· РїР°РјСЏС‚Рё
     LoadTextureFromMemory(g_pd3dDevice, &planet_menu, sizeof(planet_menu), &Logotype);
     LoadTextureFromMemory(g_pd3dDevice, &noise, sizeof(noise), &Noise);
     LoadTextureFromMemory(g_pd3dDevice, &tv, sizeof(tv), &Tv);
     LoadTextureFromMemory(g_pd3dDevice, &RGB_LINES, sizeof(RGB_LINES), &RGB);
 
 
-    // Загрузка текстур стран
+    // Р—Р°РіСЂСѓР·РєР° С‚РµРєСЃС‚СѓСЂ СЃС‚СЂР°РЅ
     for (int i = 0; i < ARRAYSIZE(countries_file_name); i++) {
         if (countries_file_name[i]) {
             LoadTextureFromFile(device, countries_file_name[i], &countries[i]);
@@ -452,6 +403,7 @@ void window_profiling::load_textures(ID3D11Device* device, ID3D11DeviceContext* 
     LoadTextureFromFile(device, "noise_add.png", &Additional_Noise);
     LoadTextureFromFile(device, "vhs.jpg", &Color_Diss);
     LoadTextureFromFile(device, "logo.png", &Logo);
+    LoadTextureFromFile(device, "grid.png", &Grid);
 
 }
 
@@ -471,8 +423,8 @@ void window_profiling::unload_textures()
 }
 void change_resolution(int width, int height)
 {
-    g_window.g_pd3dDeviceContext->OMSetRenderTargets(0, nullptr, nullptr); // Удаляем рендер-таргеты
-    g_window.g_pd3dDeviceContext->Flush(); // Завершаем команды GPU
+    g_window.g_pd3dDeviceContext->OMSetRenderTargets(0, nullptr, nullptr); // РЈРґР°Р»СЏРµРј СЂРµРЅРґРµСЂ-С‚Р°СЂРіРµС‚С‹
+    g_window.g_pd3dDeviceContext->Flush(); // Р—Р°РІРµСЂС€Р°РµРј РєРѕРјР°РЅРґС‹ GPU
 
     if (g_window.g_pRenderTargetView) {
         g_window.g_pRenderTargetView->Release();
@@ -509,8 +461,8 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     switch (msg)
     {
 
-    case WM_APP + 1:  // Обработка клика по иконке
-        if (lParam == WM_LBUTTONDOWN)  // Левый клик
+    case WM_APP + 1:  // РћР±СЂР°Р±РѕС‚РєР° РєР»РёРєР° РїРѕ РёРєРѕРЅРєРµ
+        if (lParam == WM_LBUTTONDOWN)  // Р›РµРІС‹Р№ РєР»РёРє
         {
 
         }
@@ -518,7 +470,7 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
     case WM_ACTIVATE:
         if (LOWORD(wParam) == WA_INACTIVE) {
-            // Окно теряет фокус — выйти из полноэкранного режима
+            // РћРєРЅРѕ С‚РµСЂСЏРµС‚ С„РѕРєСѓСЃ вЂ” РІС‹Р№С‚Рё РёР· РїРѕР»РЅРѕСЌРєСЂР°РЅРЅРѕРіРѕ СЂРµР¶РёРјР°
             BOOL isFullscreen;
             g_window.g_pSwapChain->GetFullscreenState(&isFullscreen, nullptr);
             if (isFullscreen) {
@@ -526,7 +478,7 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             }
         }
         else {
-            // Окно восстанавливает фокус — вернуться в полноэкранный режим
+            // РћРєРЅРѕ РІРѕСЃСЃС‚Р°РЅР°РІР»РёРІР°РµС‚ С„РѕРєСѓСЃ вЂ” РІРµСЂРЅСѓС‚СЊСЃСЏ РІ РїРѕР»РЅРѕСЌРєСЂР°РЅРЅС‹Р№ СЂРµР¶РёРј
             BOOL isFullscreen;
             g_window.g_pSwapChain->GetFullscreenState(&isFullscreen, nullptr);
             if (!isFullscreen) {
@@ -537,7 +489,7 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
     case WM_SIZE:
         if (wParam == SIZE_MINIMIZED) {
-            // Окно сворачивается — выйти из полноэкранного режима
+            // РћРєРЅРѕ СЃРІРѕСЂР°С‡РёРІР°РµС‚СЃСЏ вЂ” РІС‹Р№С‚Рё РёР· РїРѕР»РЅРѕСЌРєСЂР°РЅРЅРѕРіРѕ СЂРµР¶РёРјР°
             BOOL isFullscreen;
             g_window.g_pSwapChain->GetFullscreenState(&isFullscreen, nullptr);
             if (isFullscreen) {
@@ -545,7 +497,7 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             }
         }
         else if (wParam == SIZE_RESTORED) {
-            // Окно восстанавливается — вернуться в полноэкранный режим
+            // РћРєРЅРѕ РІРѕСЃСЃС‚Р°РЅР°РІР»РёРІР°РµС‚СЃСЏ вЂ” РІРµСЂРЅСѓС‚СЊСЃСЏ РІ РїРѕР»РЅРѕСЌРєСЂР°РЅРЅС‹Р№ СЂРµР¶РёРј
             BOOL isFullscreen;
             g_window.g_pSwapChain->GetFullscreenState(&isFullscreen, nullptr);
             if (!isFullscreen) {
@@ -601,7 +553,7 @@ public:
 
 private:
     DWORD lastFrameTime = GetTickCount64();
-    DWORD targetFrameTime;  // Время для каждого кадра (в миллисекундах)
+    DWORD targetFrameTime;  // Р’СЂРµРјСЏ РґР»СЏ РєР°Р¶РґРѕРіРѕ РєР°РґСЂР° (РІ РјРёР»Р»РёСЃРµРєСѓРЅРґР°С…)
 };
 void window_profiling::set_window_size(ImVec2 par)
 {
@@ -636,25 +588,25 @@ void window_profiling::make_it_fullscreen()
 bool IsWindowMinimized(HWND hWnd) { return IsIconic(hWnd); }
 
 void ApplyVHSLinesEffect(ImDrawList* drawList, const ImVec2& screenSize) {
-    const int numLines = 50;  // Количество линий
-    const float lineWidth = 2.0f;  // Ширина линий
-    const float minLineHeight = 1.0f;  // Минимальная высота линии
-    const float maxLineHeight = 5.0f;  // Максимальная высота линии
+    const int numLines = 50;  // РљРѕР»РёС‡РµСЃС‚РІРѕ Р»РёРЅРёР№
+    const float lineWidth = 2.0f;  // РЁРёСЂРёРЅР° Р»РёРЅРёР№
+    const float minLineHeight = 1.0f;  // РњРёРЅРёРјР°Р»СЊРЅР°СЏ РІС‹СЃРѕС‚Р° Р»РёРЅРёРё
+    const float maxLineHeight = 5.0f;  // РњР°РєСЃРёРјР°Р»СЊРЅР°СЏ РІС‹СЃРѕС‚Р° Р»РёРЅРёРё
 
-    // Генерация случайных линий
+    // Р“РµРЅРµСЂР°С†РёСЏ СЃР»СѓС‡Р°Р№РЅС‹С… Р»РёРЅРёР№
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<int> distrib(0, static_cast<int>(screenSize.y));
 
     for (int i = 0; i < numLines; ++i) {
-        // Генерация случайных вертикальных позиций и высоты линии
+        // Р“РµРЅРµСЂР°С†РёСЏ СЃР»СѓС‡Р°Р№РЅС‹С… РІРµСЂС‚РёРєР°Р»СЊРЅС‹С… РїРѕР·РёС†РёР№ Рё РІС‹СЃРѕС‚С‹ Р»РёРЅРёРё
         float yPos = distrib(gen);
         float lineHeight = minLineHeight + static_cast<float>(rand() % static_cast<int>(maxLineHeight - minLineHeight));
 
-        // Генерация случайной прозрачности
-        float alpha = 0.2f + static_cast<float>(rand() % 100) / 500.0f;  // Прозрачность от 0.2 до 0.4
+        // Р“РµРЅРµСЂР°С†РёСЏ СЃР»СѓС‡Р°Р№РЅРѕР№ РїСЂРѕР·СЂР°С‡РЅРѕСЃС‚Рё
+        float alpha = 0.2f + static_cast<float>(rand() % 100) / 500.0f;  // РџСЂРѕР·СЂР°С‡РЅРѕСЃС‚СЊ РѕС‚ 0.2 РґРѕ 0.4
 
-        // Рисуем линии
+        // Р РёСЃСѓРµРј Р»РёРЅРёРё
         drawList->AddLine(
             ImVec2(0, yPos),
             ImVec2(screenSize.x, yPos + lineHeight),
@@ -664,6 +616,74 @@ void ApplyVHSLinesEffect(ImDrawList* drawList, const ImVec2& screenSize) {
     }
 }
 
+void ApplyVHSLinesEffect2(ImDrawList* drawList, const ImVec2& screenSize) {
+    const int numLines = 100;  // РљРѕР»РёС‡РµСЃС‚РІРѕ Р»РёРЅРёР№
+    const float lineWidth = 1.0f;  // РЁРёСЂРёРЅР° Р»РёРЅРёР№
+    const float minLineHeight = 1.0f;  // РњРёРЅРёРјР°Р»СЊРЅР°СЏ РІС‹СЃРѕС‚Р° Р»РёРЅРёРё
+    const float maxLineHeight = 5.0f;  // РњР°РєСЃРёРјР°Р»СЊРЅР°СЏ РІС‹СЃРѕС‚Р° Р»РёРЅРёРё
+
+    for (int i = 0; i < numLines; ++i) {
+        // Р“РµРЅРµСЂР°С†РёСЏ СЃР»СѓС‡Р°Р№РЅС‹С… РІРµСЂС‚РёРєР°Р»СЊРЅС‹С… РїРѕР·РёС†РёР№ Рё РІС‹СЃРѕС‚С‹ Р»РёРЅРёРё
+        float yPos = (screenSize.y / numLines) * i;
+        float lineHeight = minLineHeight;
+
+        // Р РёСЃСѓРµРј Р»РёРЅРёРё
+        drawList->AddLine(
+            ImVec2(0, yPos),
+            ImVec2(screenSize.x, yPos + lineHeight),
+            ImColor(0, 0, 0, static_cast<int>(70)),
+            lineWidth
+        );
+    }
+}
+HRESULT CompileShaderFromFileManual(const wchar_t* fileName, LPCSTR entryPoint, LPCSTR shaderModel, ID3DBlob** blobOut)
+{
+    // Г‡Г ГЈГ°ГіГ§ГЄГ  ГґГ Г©Г«Г  ГёГҐГ©Г¤ГҐГ°Г 
+    std::ifstream shaderFile(fileName, std::ios::binary);
+    if (!shaderFile.is_open()) {
+        std::wstring errorMessage = L"Failed to open shader file: ";
+        errorMessage += fileName;
+        MessageBox(NULL, errorMessage.c_str(), L"Shader Error", MB_ICONERROR);
+        return HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND);
+    }
+
+    // Г—ГІГҐГ­ГЁГҐ ГґГ Г©Г«Г  Гў ГЎГіГґГҐГ°
+    std::vector<char> shaderData((std::istreambuf_iterator<char>(shaderFile)), std::istreambuf_iterator<char>());
+    shaderFile.close();
+
+    // ГЉГ®Г¬ГЇГЁГ«ГїГ¶ГЁГї ГёГҐГ©Г¤ГҐГ°Г 
+    ID3DBlob* errorBlob = nullptr;
+    HRESULT hr = D3DCompile(
+        shaderData.data(),
+        shaderData.size(),
+        nullptr,        // Г€Г¬Гї ГґГ Г©Г«Г  (Г®ГЇГ¶ГЁГ®Г­Г Г«ГјГ­Г®)
+        nullptr,        // ГЊГ ГЄГ°Г®Г±Г»
+        nullptr,        // Г‚ГЄГ«ГѕГ·ГҐГ­ГЁГї
+        entryPoint,     // Г’Г®Г·ГЄГ  ГўГµГ®Г¤Г 
+        shaderModel,    // ГЊГ®Г¤ГҐГ«Гј ГёГҐГ©Г¤ГҐГ°Г 
+        0,              // Г”Г«Г ГЈГЁ ГЄГ®Г¬ГЇГЁГ«ГїГ¶ГЁГЁ
+        0,              // Г”Г«Г ГЈГЁ ГЅГґГґГҐГЄГІГ®Гў
+        blobOut,        // Г‚Г»ГµГ®Г¤Г­Г®Г© blob
+        &errorBlob      // Blob Г± Г®ГёГЁГЎГЄГ Г¬ГЁ
+    );
+
+    if (FAILED(hr)) {
+        std::wstring errorMessage = L"Shader compile failed. Error: ";
+        if (errorBlob) {
+            std::string errorStr((char*)errorBlob->GetBufferPointer(), errorBlob->GetBufferSize());
+            errorMessage += std::wstring(errorStr.begin(), errorStr.end());  // ГЏГ°ГҐГ®ГЎГ°Г Г§ГіГҐГ¬ std::string Гў std::wstring
+            errorBlob->Release();
+        }
+        else {
+            errorMessage += L"Unknown error";
+        }
+        MessageBox(NULL, errorMessage.c_str(), L"Shader Error", MB_ICONERROR);
+        return hr;
+    }
+
+    if (errorBlob) errorBlob->Release();
+    return hr;
+}
 
 void window_profiling::create_window()
 {
@@ -695,7 +715,7 @@ void window_profiling::create_window()
 
     D3D_FEATURE_LEVEL featureLevel[] = 
     {
-        D3D_FEATURE_LEVEL_10_0  // Уровень 10.0
+        D3D_FEATURE_LEVEL_10_0  // РЈСЂРѕРІРµРЅСЊ 10.0
     };
 
 
@@ -720,17 +740,17 @@ void window_profiling::create_window()
         return;
     }
 
-    // Создание рендер-таргета
+    // РЎРѕР·РґР°РЅРёРµ СЂРµРЅРґРµСЂ-С‚Р°СЂРіРµС‚Р°
     ID3D11Texture2D* pBackBuffer = nullptr;
     g_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&pBackBuffer);
     g_pd3dDevice->CreateRenderTargetView(pBackBuffer, nullptr, &g_pRenderTargetView);
-    g_pSwapChain->Present(1, 0); // 1 - Включает ожидание вертикального синхроимпульса
+    g_pSwapChain->Present(1, 0); // 1 - Р’РєР»СЋС‡Р°РµС‚ РѕР¶РёРґР°РЅРёРµ РІРµСЂС‚РёРєР°Р»СЊРЅРѕРіРѕ СЃРёРЅС…СЂРѕРёРјРїСѓР»СЊСЃР°
 
     pBackBuffer->Release();
 
     g_pd3dDeviceContext->OMSetRenderTargets(1, &g_pRenderTargetView, nullptr);
 
-    // Установка вьюпорта
+    // РЈСЃС‚Р°РЅРѕРІРєР° РІСЊСЋРїРѕСЂС‚Р°
     D3D11_VIEWPORT viewport = {};
     viewport.TopLeftX = 0;
     viewport.TopLeftY = 0;
@@ -743,7 +763,7 @@ void window_profiling::create_window()
     g_menu.change_res_x = this->window_size.x;
     g_menu.change_res_y = this->window_size.y;
 
-    // Инициализация ImGui
+    // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ ImGui
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGui_ImplWin32_Init(hwnd);
@@ -808,7 +828,6 @@ void window_profiling::create_window()
 
     InitFFmpeg("123.mkv");
 
-
     while (msg.message != WM_QUIT) 
     {
         if (PeekMessage(&msg, NULL, 0U, 0U, PM_REMOVE)) {
@@ -824,21 +843,23 @@ void window_profiling::create_window()
         int random_y = distrib(gen);
 
         FLOAT clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-        // Очистка экрана
+        // РћС‡РёСЃС‚РєР° СЌРєСЂР°РЅР°
         g_pd3dDeviceContext->ClearRenderTargetView(g_pRenderTargetView, clearColor);
 
-        // Начало нового кадра ImGui
+        // РќР°С‡Р°Р»Рѕ РЅРѕРІРѕРіРѕ РєР°РґСЂР° ImGui
         ImGui_ImplDX11_NewFrame();
         ImGui_ImplWin32_NewFrame();
         UpdateTexture(g_pd3dDevice, g_pd3dDeviceContext);
         ImGui::NewFrame();
 
-        // Рендеринг интерфейса
+        // Р РµРЅРґРµСЂРёРЅРі РёРЅС‚РµСЂС„РµР№СЃР°
         g_menu.render(*this);
 
         ApplyVHSLinesEffect(ImGui::GetForegroundDrawList(), ImVec2(window_size.x, window_size.y));
 
         ID3D11Texture2D* texture;
+
+        ImGui::GetForegroundDrawList()->AddRectFilled(ImVec2(0, 0), ImVec2(window_size.x, window_size.y), ImColor(30, 30, 255, 8));
 
         ImGui::GetForegroundDrawList()->AddImage(
             (ImTextureID)Noise,
@@ -851,38 +872,37 @@ void window_profiling::create_window()
             (ImTextureID)Tv,
             ImVec2(0, 0),
             ImVec2(this->window_size.x, this->window_size.y),
-            ImVec2(0, 0), ImVec2(1, 1), ImColor(128, 255, 128, 14)
+            ImVec2(0, 0), ImVec2(1, 1), ImColor(100, 200, 150, 15)
         );
 
         ImGui::GetForegroundDrawList()->AddImage(
             (ImTextureID)Color_Diss,
             ImVec2(0, 0),
             ImVec2(this->window_size.x, this->window_size.y),
-            ImVec2(0, 0), ImVec2(1, 1), ImColor(255, 255, 255, 4)
+            ImVec2(0, 0), ImVec2(1, 1), ImColor(255, 255, 255, 7)
         );
 
         ImGui::GetForegroundDrawList()->AddImage(
             (ImTextureID)Additional_Noise,
             ImVec2(0, 0),
             ImVec2(this->window_size.x, this->window_size.y),
-            ImVec2(0, 0), ImVec2(1, 1), ImColor(255, 255, 255, 6)
+            ImVec2(0, 0), ImVec2(1, 1), ImColor(255, 255, 255, 5)
         );
-
 
         ImGui::EndFrame();
         ImGui::Render();
 
-
-        // Рендеринг ImGui
+        // Р РµРЅРґРµСЂРёРЅРі ImGui
         ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
-        // Обновление экрана
+
+        // РћР±РЅРѕРІР»РµРЅРёРµ СЌРєСЂР°РЅР°
         g_pSwapChain->Present(1, 0);
 
 
     }
 
-    // Освобождение ресурсов
+    // РћСЃРІРѕР±РѕР¶РґРµРЅРёРµ СЂРµСЃСѓСЂСЃРѕРІ
     this->unload_textures();
     ImGui_ImplDX11_Shutdown();
     ImGui_ImplWin32_Shutdown();

@@ -97,6 +97,7 @@ public:
 	ID3D11ShaderResourceView* Additional_Noise;           // Текстура для RGB линий
 	ID3D11ShaderResourceView* Color_Diss;           // Текстура для RGB линий
 	ID3D11ShaderResourceView* Logo;
+	ID3D11ShaderResourceView* Grid;
 
 
 private:
