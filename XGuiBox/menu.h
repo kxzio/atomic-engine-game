@@ -1,5 +1,6 @@
 #pragma once
 #include "resources/window_profiling/window.h"
+
 enum buildings
 {
 	AIRCRAFT_FACTORY = 1, SHIPYARD, MISSILE_DEFENSE,
@@ -18,6 +19,12 @@ public:
 	float capital_inflow_ratio = 100.f;
 };
 
+struct war_property
+{
+	int amount_of_jets;
+	int amount_of_bombers;
+};
+
 class player
 {
 public:
@@ -31,6 +38,8 @@ public:
 	bool ready_to_play = false;
 
 	econimics economics;
+
+	war_property war_property; //doesnt sending to update systm
 };
 
 class menu

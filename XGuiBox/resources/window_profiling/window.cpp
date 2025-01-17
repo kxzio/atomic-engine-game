@@ -784,7 +784,7 @@ void window_profiling::create_window()
             {
             case 0:
             {
-                if (i == 2 || i == 3)
+                if (i == 9 || i == 9)
                     cfg.FontBuilderFlags = ImGuiFreeTypeBuilderFlags_LightHinting;
                 else
                     cfg.FontBuilderFlags = ImGuiFreeTypeBuilderFlags_Monochrome | ImGuiFreeTypeBuilderFlags_MonoHinting;
@@ -862,17 +862,17 @@ void window_profiling::create_window()
         ImGui::GetForegroundDrawList()->AddRectFilled(ImVec2(0, 0), ImVec2(window_size.x, window_size.y), ImColor(30, 30, 255, 8));
 
         ImGui::GetForegroundDrawList()->AddImage(
+            (ImTextureID)g_window.Tv,
+            ImVec2(0, 0),
+            ImVec2(this->window_size.x, this->window_size.y),
+            ImVec2(0, 0), ImVec2(1, 1), ImColor(100, 200, 150, 9)
+        );
+
+        ImGui::GetForegroundDrawList()->AddImage(
             (ImTextureID)Noise,
             ImVec2(0, 0),
             ImVec2(this->window_size.x, this->window_size.y + random_y),
             ImVec2(0, 0), ImVec2(1, 1), ImColor(128, 128, 128, 45)
-        );
-
-        ImGui::GetForegroundDrawList()->AddImage(
-            (ImTextureID)Tv,
-            ImVec2(0, 0),
-            ImVec2(this->window_size.x, this->window_size.y),
-            ImVec2(0, 0), ImVec2(1, 1), ImColor(100, 200, 150, 15)
         );
 
         ImGui::GetForegroundDrawList()->AddImage(

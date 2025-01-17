@@ -103,17 +103,30 @@ struct ConvexMathOperations
 };
 inline ConvexMathOperations g_convex_math;
 
+enum selecting_type
+{
+    NOT_SELECTED,
+    MULTIPLE_SELECTED,
+    SOLO_SELECTED
+};
 struct map_objects
 {
     std::string name;
 
     ImVec2 pos;
 
-    bool selected = false;
+    selecting_type selected = NOT_SELECTED;
 
     bool hovered = false;
 };
 
+struct AIR_FACTORY_SYSTEM_HEART
+{
+    int old_tick_for_jets;
+    int goal_amount_of_jets;
+    int old_tick_for_bombers;
+    int goal_amount_of_bombers;
+};
 class building : public map_objects
 {
 public:
@@ -125,6 +138,10 @@ public:
     int endurance;
 
     bool size_converted_to_map;
+
+
+    //HEARTS
+    AIR_FACTORY_SYSTEM_HEART air_factory_heart;
 };
 
 struct city : public map_objects
@@ -178,6 +195,9 @@ public:
 
     //selector
     ImRect selector_zone;
+
+    //menus
+    ImRect opened_menu_size;
 
     //cycles
     void process_and_sync_game_cycle(std::vector <country_data>* countries, int player_id, float animated_map_scale, int hovered_country_id);
