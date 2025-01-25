@@ -122,11 +122,24 @@ struct map_objects
 
 struct AIR_FACTORY_SYSTEM_HEART
 {
-    int old_tick_for_jets;
-    int goal_amount_of_jets;
-    int old_tick_for_bombers;
-    int goal_amount_of_bombers;
+    int old_tick_for_jets = 0;
+    int goal_amount_of_jets = 0;
+    int old_tick_for_bombers = 0;
+    int goal_amount_of_bombers = 0;
 };
+struct SHIPYARD_SYSTEM_HEART
+{
+    int old_tick_for_boat1 = 0;
+    int goal_amount_of_boat1 = 0;
+    int old_tick_for_boat2 = 0;
+    int goal_amount_of_boat2 = 0;
+    int old_tick_for_boat3 = 0;
+    int goal_amount_of_boat3 = 0;
+    int old_tick_for_boat4 = 0;
+    int goal_amount_of_boat4 = 0;
+
+};
+
 class building : public map_objects
 {
 public:
@@ -142,6 +155,7 @@ public:
 
     //HEARTS
     AIR_FACTORY_SYSTEM_HEART air_factory_heart;
+    SHIPYARD_SYSTEM_HEART    shipyard_heart;
 };
 
 struct city : public map_objects
@@ -182,6 +196,19 @@ struct country_data
 
 };
 
+struct nuclear_strike_target
+{
+    int GETTER_country_id;
+    int GETTER_city_id;
+    int GETTER_building_id;
+    
+    int SENDER_country_id;
+    int SENDER_building_id;
+
+    int last_global_tick;
+    int step_of_bomb;
+    ImVec2 bomb_pos;
+};
 class map_processing
 {
 public:
@@ -198,13 +225,16 @@ public:
 
     //menus
     ImRect opened_menu_size;
+    bool selection_for_nuclear_strike;
+    int current_striking_building_id; // BUILDING THAT STRIKES
+    std::vector < nuclear_strike_target > air_strike_targets;
 
     //cycles
     void process_and_sync_game_cycle(std::vector <country_data>* countries, int player_id, float animated_map_scale, int hovered_country_id);
 
     void process_map(window_profiling window, int screen_size_x, int screen_size_y, int player_id);
 
-    void render_map_and_process_hitboxes(window_profiling window, std::vector <country_data>* countries, float animated_map_scale, int* hovered_id, ImVec2 cursor_pos, ImVec2 map_pos, int player_id);
+    void render_map_and_process_hitboxes(window_profiling window, std::vector <country_data>* countries, float animated_map_scale, int* hovered_id, ImVec2 cursor_pos, ImVec2 map_pos, int player_id, int function_count);
 
     //tick and events
     bool tick_started;

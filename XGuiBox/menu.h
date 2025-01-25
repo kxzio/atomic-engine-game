@@ -23,6 +23,12 @@ struct war_property
 {
 	int amount_of_jets;
 	int amount_of_bombers;
+
+	int submarine_count;
+	int carrier_count;
+	int destroyer_count;
+	int cruiser_count;
+
 };
 
 class player
@@ -86,6 +92,8 @@ public:
 	void client_send_building(int building_id, int country_id);
 	void server_send_building(int building_id, int country_id);
 
+	void client_send_nuclear_targets();
+	void server_send_nuclear_targets();
 
 	std::string game_cycle_messages;
 };

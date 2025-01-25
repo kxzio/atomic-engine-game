@@ -329,7 +329,7 @@ namespace server_client_space
             auto& buildings = countries[country_id].buildings;
             for (auto& existing_building : buildings)
             {
-                if (existing_building.name == new_building.name && existing_building.pos.x == new_building.pos.x)
+                if (existing_building.name == new_building.name && existing_building.pos.x == new_building.pos.x && existing_building.pos.y == new_building.pos.y)
                 {
                     existing_building = new_building; // Обновление здания
                     return true;
@@ -338,6 +338,83 @@ namespace server_client_space
 
             // Если здание с таким именем и позицией не найдено, добавляем новое
             buildings.push_back(new_building);
+            return true;
+        }
+
+        // Функция для сериализации вектора объектов nuclear_strike_target в строку
+        std::string serialize_targets(const std::vector<nuclear_strike_target>& targets) {
+            std::ostringstream oss;
+            for (const auto& target : targets) {
+                oss << target.GETTER_country_id << ","
+                    << target.GETTER_city_id << ","
+                    << target.GETTER_building_id << ","
+                    << target.SENDER_country_id << ","
+                    << target.SENDER_building_id << ";";
+            }
+            return oss.str();
+        }
+
+        // Функция для десериализации вектора объектов nuclear_strike_target из строки
+        bool deserialize_targets(std::vector<nuclear_strike_target>& targets, const std::string& data) {
+            std::istringstream iss(data);
+            std::string segment;
+
+            std::vector<nuclear_strike_target> new_targets;
+
+            // Разделение строки на сегменты по `;`
+            while (std::getline(iss, segment, ';')) {
+                if (segment.empty()) continue;
+
+                nuclear_strike_target target;
+                std::istringstream segment_stream(segment);
+                std::string field;
+
+                if (std::getline(segment_stream, field, ',')) target.GETTER_country_id = std::stoi(field);
+                else return false;
+                if (std::getline(segment_stream, field, ',')) target.GETTER_city_id = std::stoi(field);
+                else return false;
+                if (std::getline(segment_stream, field, ',')) target.GETTER_building_id = std::stoi(field);
+                else return false;
+                if (std::getline(segment_stream, field, ',')) target.SENDER_country_id = std::stoi(field);
+                else return false;
+                if (std::getline(segment_stream, field, ',')) target.SENDER_building_id = std::stoi(field);
+                else return false;
+
+                new_targets.push_back(target);
+            }
+
+            // Проверка наличия элементов в оригинальном векторе и их обновление или удаление
+            auto it = targets.begin();
+            while (it != targets.end()) {
+                auto found = std::find_if(new_targets.begin(), new_targets.end(), [&it](const nuclear_strike_target& t) {
+                    return t.GETTER_country_id == it->GETTER_country_id &&
+                        t.GETTER_city_id == it->GETTER_city_id &&
+                        t.GETTER_building_id == it->GETTER_building_id;
+                    });
+
+                if (found != new_targets.end()) {
+                    it->SENDER_country_id = found->SENDER_country_id;
+                    it->SENDER_building_id = found->SENDER_building_id; // Обновление существующего элемента
+                    ++it;
+                }
+                else {
+                    it = targets.erase(it); // Удаление элемента, если он не найден в новых данных
+                }
+            }
+
+            // Добавление новых элементов, которых не было в оригинальном векторе
+            for (const auto& target : new_targets) {
+                auto found = std::find_if(targets.begin(), targets.end(), [&target](const nuclear_strike_target& t) {
+                    return t.GETTER_country_id == target.GETTER_country_id &&
+                        t.GETTER_city_id == target.GETTER_city_id &&
+                        t.GETTER_building_id == target.GETTER_building_id;
+                    });
+
+                if (found == targets.end()) {
+                    targets.push_back(target); // Добавление нового элемента
+                }
+            }
+
             return true;
         }
 
@@ -470,6 +547,11 @@ private:
                 {
                     std::string players_data = message.erase(0, 26);
                     server_client_space::server_client_menu_information::deserialize_building(g_map.countries, players_data);
+                }
+                else if (server_client_space::IsRequest(message, "CLASS.MAP.UPDATE_NUCLEAR_TARGETS:"))
+                {
+                    std::string players_data = message.erase(0, 33);
+                    server_client_space::server_client_menu_information::deserialize_targets(g_map.air_strike_targets, players_data);
                 }
                 else if (server_client_space::IsRequest(message, "CLASS.PLAYERS_VECTOR:"))
                 {
@@ -628,6 +710,11 @@ private:
                     std::string players_data = message.erase(0, 26);
                     server_client_space::server_client_menu_information::deserialize_building(g_map.countries, players_data);
                 }
+                else if (server_client_space::IsRequest(message, "CLASS.MAP.UPDATE_NUCLEAR_TARGETS:"))
+                {
+                    std::string players_data = message.erase(0, 33);
+                    server_client_space::server_client_menu_information::deserialize_targets(g_map.air_strike_targets, players_data);
+                }
                 else if (server_client_space::IsRequest(message, "CLASS.PLAYERS_VECTOR:"))
                 {
                     std::string players_data = message.erase(0, 21);
@@ -737,6 +824,17 @@ void socket_control::server_send_building(int building_id, int country_id)
     server->send_message(serialized_data);
 }
 
+void socket_control::client_send_nuclear_targets()
+{
+    std::string serialized_data = "CLASS.MAP.UPDATE_NUCLEAR_TARGETS:" + server_client_space::server_client_menu_information::serialize_targets(g_map.air_strike_targets);
+    client->send_message(serialized_data);
+}
+void socket_control::server_send_nuclear_targets()
+{
+    std::string serialized_data = "CLASS.MAP.UPDATE_NUCLEAR_TARGETS:" + server_client_space::server_client_menu_information::serialize_targets(g_map.air_strike_targets);
+    server->send_message(serialized_data);
+}
+
 void menu::render(window_profiling window) 
 {
     if (!game_sound_system::fmod_init)
@@ -756,6 +854,7 @@ void menu::render(window_profiling window)
     ImGui::GetStyle().Colors[ImGuiCol_FrameBgActive]    = ImColor(0, 0, 0);
     ImGui::GetStyle().Colors[ImGuiCol_Border]           = ImColor(79, 255, 69, 70);
     ImGui::GetStyle().Colors[ImGuiCol_Separator]        = ImColor(79, 255, 69, 130);
+    ImGui::GetStyle().Colors[ImGuiCol_SliderGrab] = ImColor(79, 255, 69, 130);
     ImGui::GetStyle().Colors[ImGuiCol_ChildBg]          = ImColor(5, 5, 5, 255);
     ImGui::GetStyle().Colors[ImGuiCol_CheckMark]        = ImColor(79, 255, 69, 130);
     ImGui::GetStyle().Colors[ImGuiCol_ScrollbarGrab]    = ImColor(79, 255, 69, 130);
