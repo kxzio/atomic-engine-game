@@ -118,6 +118,21 @@ struct map_objects
     selecting_type selected = NOT_SELECTED;
 
     bool hovered = false;
+
+    bool highlighted = false;
+};
+struct nuclear_strike_target
+{
+    int GETTER_country_id;
+    int GETTER_city_id;
+    int GETTER_building_id;
+
+    int SENDER_country_id;
+    int SENDER_building_id;
+
+    int last_global_tick = 0;
+    int step_of_bomb;
+    ImVec2 bomb_pos;
 };
 
 struct AIR_FACTORY_SYSTEM_HEART
@@ -139,6 +154,12 @@ struct SHIPYARD_SYSTEM_HEART
     int goal_amount_of_boat4 = 0;
 
 };
+struct MISSILE_SILO_HEART
+{
+    int old_tick_for_reload = 0;
+    bool ready_to_shot;
+    std::vector < nuclear_strike_target > strike_queue;
+};
 
 class building : public map_objects
 {
@@ -156,6 +177,7 @@ public:
     //HEARTS
     AIR_FACTORY_SYSTEM_HEART air_factory_heart;
     SHIPYARD_SYSTEM_HEART    shipyard_heart;
+    MISSILE_SILO_HEART       missile_silo_heart;
 };
 
 struct city : public map_objects
@@ -196,19 +218,6 @@ struct country_data
 
 };
 
-struct nuclear_strike_target
-{
-    int GETTER_country_id;
-    int GETTER_city_id;
-    int GETTER_building_id;
-    
-    int SENDER_country_id;
-    int SENDER_building_id;
-
-    int last_global_tick;
-    int step_of_bomb;
-    ImVec2 bomb_pos;
-};
 class map_processing
 {
 public:

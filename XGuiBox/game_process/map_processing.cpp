@@ -18,7 +18,7 @@ std::vector<ImVec2> GetTrajectoryPoints(ImVec2 start, ImVec2 end, float height, 
     std::vector<ImVec2> points;
 
     // Количество сегментов для отрисовки дуги
-    const int num_segments = 20;
+    const int num_segments = segments;
 
     // Вычисление точек дуги
     for (int i = 0; i <= num_segments; ++i) {
@@ -31,11 +31,53 @@ std::vector<ImVec2> GetTrajectoryPoints(ImVec2 start, ImVec2 end, float height, 
     return points;
 }
 
-void DrawTrajectoryArc(ImDrawList* draw_list, ImVec2 start, ImVec2 end, float height, ImU32 color, float thickness) {
+ImVec2 GetTrajectoryOnePoint(ImVec2 start, ImVec2 end, int id, float height, int segments = 20)
+{
+    // Количество сегментов для отрисовки дуги
+    const int num_segments = segments;
 
-    auto points = GetTrajectoryPoints(start, end, height);
+    float t = (float)id / (float)num_segments;
+    float x = start.x + t * (end.x - start.x);
+    float y = start.y + t * (end.y - start.y) - height * sin(t * IM_PI);
+
+    return ImVec2(x, y);
+}
+
+void DrawTrajectoryArc(ImDrawList* draw_list, ImVec2 start, ImVec2 end, ImVec2 bombpos, float height, ImU32 color, float thickness) {
+
+    auto points = GetTrajectoryPoints(start, end, height, 200);
     // Отрисовка дуги
-    draw_list->AddPolyline(points.data(), points.size(), color, false, thickness);
+
+    bool direction_right;
+
+    if (start.x < end.x)
+        direction_right = true;
+    else
+        direction_right = false;
+
+    // Находим точку, до которой дошла цель
+    int num_segments = points.size();
+    int target_segment = 0;
+    for (int i = 0; i < num_segments; ++i) 
+    {
+        if (direction_right)
+        {
+            if (points[i].x >= bombpos.x) {
+                target_segment = i;
+                break;
+            }
+        }
+        else
+        {
+            if (points[i].x <= bombpos.x) {
+                target_segment = i;
+                break;
+            }
+
+        }
+    }
+
+    draw_list->AddPolyline(points.data() + target_segment, num_segments - target_segment, color, false, thickness);
 }
 void process_object_selections(bool city, int current_country, int player_id, std::vector <country_data>* countries, map_objects* object, float animated_map_scale, ImVec2 map_pos)
 {
@@ -49,10 +91,14 @@ void process_object_selections(bool city, int current_country, int player_id, st
 
     bool single_select = false;
 
-    if (IsPointInImRect(ImVec2(g_map.cursor_pos.x, g_map.cursor_pos.y), g_map.opened_menu_size))
+    if (g_map.cursor_pos.x > g_map.opened_menu_size.Min.x && g_map.cursor_pos.x < g_map.opened_menu_size.Max.x)
     {
-        return;
+        if (g_map.cursor_pos.y > g_map.opened_menu_size.Min.y && g_map.cursor_pos.y < g_map.opened_menu_size.Max.y)
+        {
+            return;
+        }
     }
+
     if (current_country == g_menu.players[player_id].control_region || g_map.selection_for_nuclear_strike)
     {
         if (g_map.selector_zone.GetSize().x == 0)
@@ -81,15 +127,9 @@ void process_object_selections(bool city, int current_country, int player_id, st
                                     if (countries->at(current_country).cities.at(cityi).selected == SOLO_SELECTED)
                                     {
                                         id = cityi;
-                                        g_map.air_strike_targets.push_back({ current_country, id, -1, g_menu.players[player_id].control_region, g_map.current_striking_building_id });
+                                        countries->at(g_menu.players[player_id].control_region).buildings[g_map.current_striking_building_id].missile_silo_heart.strike_queue.push_back({ current_country, id, -1, g_menu.players[player_id].control_region, g_map.current_striking_building_id });
                                         g_map.selection_for_nuclear_strike = false;
 
-                                        if (g_socket_control.player_role == g_socket_control.player_role_enum::SERVER)
-                                        {
-                                            g_socket_control.server_send_nuclear_targets();
-                                        }
-                                        else
-                                            g_socket_control.client_send_nuclear_targets();
                                     }
                                 }
                             }
@@ -100,15 +140,9 @@ void process_object_selections(bool city, int current_country, int player_id, st
                                     if (countries->at(current_country).buildings.at(build).selected == SOLO_SELECTED)
                                     {
                                         id = build;
-                                        g_map.air_strike_targets.push_back({ current_country, -1, id, g_menu.players[player_id].control_region, g_map.current_striking_building_id });
+                                        countries->at(g_menu.players[player_id].control_region).buildings[g_map.current_striking_building_id].missile_silo_heart.strike_queue.push_back({ current_country, -1, id, g_menu.players[player_id].control_region, g_map.current_striking_building_id });
                                         g_map.selection_for_nuclear_strike = false;
 
-                                        if (g_socket_control.player_role == g_socket_control.player_role_enum::SERVER)
-                                        {
-                                            g_socket_control.server_send_nuclear_targets();
-                                        }
-                                        else
-                                            g_socket_control.client_send_nuclear_targets();
                                     }
                                 }
                             }
@@ -141,6 +175,7 @@ void process_object_selections(bool city, int current_country, int player_id, st
     {
         object->hovered = false;
         object->selected = NOT_SELECTED;
+        g_map.opened_menu_size = ImRect(ImVec2(0, 0), ImVec2(0, 0));
     }
 
     if (object->selected)
@@ -521,6 +556,11 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
                 if (!countries->at(i).cities[city_id].selected)
                     ImGui::GetBackgroundDrawList()->AddText(g_xgui.fonts[3].font_addr, 17, ImVec2(posx + data.cities[city_id].pos.x * animated_map_scale - textsize_for_city.x / 2, posy + data.cities[city_id].pos.y * animated_map_scale - 25), ImColor(data.color.Value.x, data.color.Value.y, data.color.Value.z, alpha_for_city_text / 255.f), data.cities[city_id].name.c_str());
 
+                if (countries->at(i).cities[city_id].highlighted)
+                {
+                    ImGui::GetForegroundDrawList()->AddCircle(ImVec2(posx + data.cities[city_id].pos.x * animated_map_scale, posy + data.cities[city_id].pos.y * animated_map_scale ), 15.f * animated_map_scale, ImColor(255, 255, 0), 0, 2);
+                }
+
                 process_object_selections(true, i, player_id, countries, &countries->at(i).cities[city_id], animated_map_scale, map_pos);
         
                 if (countries->at(i).cities[city_id].selected != NOT_SELECTED)
@@ -528,50 +568,6 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
                     ImGui::GetBackgroundDrawList()->AddText(g_xgui.fonts[3].font_addr, 17, ImVec2(posx + data.cities[city_id].pos.x * animated_map_scale - textsize_for_city.x / 2, posy + data.cities[city_id].pos.y * animated_map_scale - 25), ImColor(1.f, 1.f, 1.f, alpha_for_city_text / 255.f), data.cities[city_id].name.c_str());
                 }
 
-
-                if (!air_strike_targets.empty())
-                {
-                    for (int targets = 0; targets < air_strike_targets.size(); targets++)
-                    {
-                        if (air_strike_targets[targets].GETTER_city_id != -1)
-                        {
-                            if (air_strike_targets[targets].GETTER_city_id == city_id && air_strike_targets[targets].GETTER_country_id == i)
-                            {
-                                auto start_pos = countries->at(air_strike_targets[targets].SENDER_country_id).buildings[air_strike_targets[targets].SENDER_building_id].pos;
-
-                                auto pos = ImVec2(countries->at(air_strike_targets[targets].SENDER_country_id).position.x * animated_map_scale - (countries->at(air_strike_targets[targets].SENDER_country_id).size.x * animated_map_scale * map_scale2) / 2 + map_pos.x * animated_map_scale,
-                                    countries->at(air_strike_targets[targets].SENDER_country_id).position.y * animated_map_scale - (countries->at(air_strike_targets[targets].SENDER_country_id).size.y * animated_map_scale * map_scale2) / 2 + map_pos.y * animated_map_scale);
-
-                                ImVec2 final_pos = ImVec2(pos.x + countries->at(air_strike_targets[targets].SENDER_country_id).buildings[air_strike_targets[targets].SENDER_building_id].pos.x * animated_map_scale, pos.y + countries->at(air_strike_targets[targets].SENDER_country_id).buildings[air_strike_targets[targets].SENDER_building_id].pos.y * animated_map_scale);
-
-                                DrawTrajectoryArc(ImGui::GetForegroundDrawList(), final_pos, ImVec2(posx + data.cities[city_id].pos.x * animated_map_scale, posy + data.cities[city_id].pos.y * animated_map_scale), 240.f * animated_map_scale, ImColor(255, 255, 255), 1.f);
-
-                                auto points = GetTrajectoryPoints(final_pos, ImVec2(posx + data.cities[city_id].pos.x * animated_map_scale, posy + data.cities[city_id].pos.y * animated_map_scale), 240.f * animated_map_scale, 50);
-
-                                if (air_strike_targets[targets].step_of_bomb == points.size())
-                                {
-                                    air_strike_targets.erase(air_strike_targets.begin() + targets);
-                                    if (g_socket_control.player_role == g_socket_control.player_role_enum::SERVER)
-                                    {
-                                        g_socket_control.server_send_nuclear_targets();
-                                    }
-                                    else
-                                        g_socket_control.client_send_nuclear_targets();
-                                }
-                                if (air_strike_targets[targets].last_global_tick != global_tick)
-                                {
-                                    air_strike_targets[targets].step_of_bomb++;
-                                    air_strike_targets[targets].last_global_tick = global_tick;
-                                }
-                                air_strike_targets[targets].bomb_pos = points[air_strike_targets[targets].step_of_bomb];
-
-                                ImGui::GetBackgroundDrawList()->AddCircleFilled(air_strike_targets[targets].bomb_pos, 3 * animated_map_scale, ImColor(255, 0, 0));
-
-
-                            }
-                        }
-                    }
-                }
             }
 
         }
@@ -604,50 +600,9 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
 
                     process_object_selections(false, i, player_id, countries, &countries->at(i).buildings[buildings_id], animated_map_scale, map_pos);
                     
-
-                    if (!air_strike_targets.empty())
+                    if (countries->at(i).buildings[buildings_id].highlighted)
                     {
-                        for (int targets = 0; targets < air_strike_targets.size(); targets++)
-                        {
-                            if (air_strike_targets[targets].GETTER_building_id != -1)
-                            {
-                                if (air_strike_targets[targets].GETTER_building_id == buildings_id && air_strike_targets[targets].GETTER_country_id == i)
-                                {
-                                    auto start_pos = countries->at(air_strike_targets[targets].SENDER_country_id).buildings[air_strike_targets[targets].SENDER_building_id].pos;
-
-                                    auto pos = ImVec2(countries->at(air_strike_targets[targets].SENDER_country_id).position.x * animated_map_scale - (countries->at(air_strike_targets[targets].SENDER_country_id).size.x * animated_map_scale * map_scale2) / 2 + map_pos.x * animated_map_scale,
-                                        countries->at(air_strike_targets[targets].SENDER_country_id).position.y * animated_map_scale - (countries->at(air_strike_targets[targets].SENDER_country_id).size.y * animated_map_scale * map_scale2) / 2 + map_pos.y * animated_map_scale);
-
-                                    ImVec2 final_pos_of_enemy = ImVec2(pos.x + countries->at(air_strike_targets[targets].SENDER_country_id).buildings[air_strike_targets[targets].SENDER_building_id].pos.x * animated_map_scale, pos.y + countries->at(air_strike_targets[targets].SENDER_country_id).buildings[air_strike_targets[targets].SENDER_building_id].pos.y * animated_map_scale);
-
-                                    DrawTrajectoryArc(ImGui::GetForegroundDrawList(), final_pos_of_enemy, final_pos, 240.f * animated_map_scale, ImColor(255, 255, 255), 1.f);
-
-                                    auto points = GetTrajectoryPoints(final_pos_of_enemy, final_pos, 240.f * animated_map_scale, 50);
-
-                                    if (air_strike_targets[targets].step_of_bomb == points.size())
-                                    {
-                                        air_strike_targets.erase(air_strike_targets.begin() + targets);
-                                        if (g_socket_control.player_role == g_socket_control.player_role_enum::SERVER)
-                                        {
-                                            g_socket_control.server_send_nuclear_targets();
-                                        }
-                                        else
-                                            g_socket_control.client_send_nuclear_targets();
-                                    }
-                                    if (air_strike_targets[targets].last_global_tick != global_tick)
-                                    {
-                                        air_strike_targets[targets].step_of_bomb++;
-                                        air_strike_targets[targets].last_global_tick = global_tick;
-                                    }
-                                    air_strike_targets[targets].bomb_pos = points[air_strike_targets[targets].step_of_bomb];
-
-                                    ImGui::GetBackgroundDrawList()->AddCircleFilled(air_strike_targets[targets].bomb_pos, 3 * animated_map_scale, ImColor(255, 0, 0));
-
-
-
-                                }
-                            }
-                        }
+                        ImGui::GetForegroundDrawList()->AddCircle(ImVec2(final_pos), 15.f * animated_map_scale, ImColor(255, 255, 0), 0, 2);
                     }
 
                     if (i != g_menu.players[player_id].control_region)
@@ -797,12 +752,134 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
 
                                         case MISSILE_SILO:
                                         {
-                                            if (ImGui::Button("LAUNCH MISSILE", ImVec2(280, 40)))
+
                                             {
-                                                countries->at(i).buildings[buildings_id].selected = NOT_SELECTED;
-                                                selection_for_nuclear_strike = true;
-                                                current_striking_building_id = buildings_id;
+                                                float min = 0; float max = 1;
+                                                float progress = (global_tick - countries->at(i).buildings[buildings_id].missile_silo_heart.old_tick_for_reload) / 35.f;
+                                                ImGui::SliderScalarForProgress("Launch progress [1]", ImGuiDataType_Float, &progress, &min, &max);
                                             }
+
+                                            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.5f);
+                                            ImGui::PushStyleColor(ImGuiCol_Text, countries->at(i).buildings[buildings_id].missile_silo_heart.ready_to_shot ? ImVec4(ImColor(30, 255, 47)) : ImVec4(ImColor(255, 30, 30)));
+
+                                            ImGui::NewLine();
+                                            ImGui::CenteredText(countries->at(i).buildings[buildings_id].missile_silo_heart.ready_to_shot ? "[ READY ]" : "[ RELOADING ]");
+                                            ImGui::NewLine();
+                                            ImGui::PopStyleColor();
+
+                                            if (ImGui::Button("LAUNCH MISSILE", ImVec2(330, 45)))
+                                            {
+                                                //if (countries->at(i).buildings[buildings_id].missile_silo_heart.ready_to_shot)
+                                                {
+                                                    countries->at(i).buildings[buildings_id].selected = NOT_SELECTED;
+                                                    selection_for_nuclear_strike = true;
+                                                    current_striking_building_id = buildings_id;
+                                                }
+
+                                            }
+
+                                            ImGui::NewLine();
+
+                                            auto* vector = &countries->at(i).buildings[buildings_id].missile_silo_heart.strike_queue;
+                                            {
+                                                ImGui::BeginListBox("Queue", ImVec2(330, 120));
+                                                {
+                                                    for (int i = 0; i < vector->size(); i++)
+                                                    {
+                                                        if (vector->at(i).SENDER_building_id == buildings_id)
+                                                        {
+                                                            std::stringstream ss;
+
+                                                            if (vector->at(i).GETTER_city_id != -1)
+                                                                ss << i + 1 << ". " << countries->at(vector->at(i).GETTER_country_id).name << " - " << countries->at(vector->at(i).GETTER_country_id).cities[vector->at(i).GETTER_city_id].name;
+                                                            else
+                                                                ss << i + 1 << ". " << countries->at(vector->at(i).GETTER_country_id).name << " - " << countries->at(vector->at(i).GETTER_country_id).buildings[vector->at(i).GETTER_building_id].name;
+
+                                                            if (ImGui::BeginDragDropTarget())
+                                                            {
+                                                                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("DND_ITEM"))
+                                                                {
+                                                                    int payload_idx = *(const int*)payload->Data;
+                                                                    if (payload_idx != i)
+                                                                    {
+                                                                        // Перемещаем элемент в списке
+                                                                        auto temp = vector->at(payload_idx);
+                                                                        vector->erase(vector->begin() + payload_idx);
+                                                                        vector->insert(vector->begin() + i, temp);
+                                                                    }
+                                                                }
+                                                                ImGui::EndDragDropTarget();
+                                                            }
+
+                                                            ImGui::PushStyleColor(ImGuiCol_Text, i == 0 ? ImVec4(ImColor(79, 255, 69)) : ImVec4(ImColor(255, 255, 255, 110)));
+
+                                                            ImGui::Selectable(ss.str().c_str());
+
+                                                            if (vector->at(i).GETTER_city_id != -1)
+                                                            {
+                                                                if (ImGui::IsItemHovered())
+                                                                {
+                                                                    countries->at(vector->at(i).GETTER_country_id).cities[vector->at(i).GETTER_city_id].highlighted = true;
+                                                                }
+                                                                else
+                                                                    countries->at(vector->at(i).GETTER_country_id).cities[vector->at(i).GETTER_city_id].highlighted = false;
+
+                                                            }
+                                                            else
+                                                            {
+                                                                if (ImGui::IsItemHovered())
+                                                                {
+                                                                    countries->at(vector->at(i).GETTER_country_id).buildings[vector->at(i).GETTER_building_id].highlighted = true;
+                                                                }
+                                                                else
+                                                                    countries->at(vector->at(i).GETTER_country_id).buildings[vector->at(i).GETTER_building_id].highlighted = false;
+                                                            }
+
+                                                            ImGui::PopStyleColor();
+                                                            if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
+                                                                ImGui::SetDragDropPayload("DND_ITEM", &i, sizeof(int));
+                                                                ImGui::Text("%s", ss.str().c_str());
+                                                                ImGui::EndDragDropSource();
+                                                            }
+
+
+   
+
+                                                            if (ImGui::BeginDragDropTarget()) 
+                                                            {
+                                                                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("DND_ITEM")) 
+                                                                {
+                                                                    int payload_idx = *(const int*)payload->Data;
+                                                                    if (payload_idx != i) 
+                                                                    {
+                                                                        // Перемещаем элемент в списке
+                                                                        auto temp = vector->at(payload_idx);
+                                                                        vector->erase(vector->begin() + payload_idx);
+                                                                        vector->insert(vector->begin() + i, temp);
+                                                                    }
+                                                                }
+                                                                ImGui::EndDragDropTarget();
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                ImGui::EndListBox();
+
+                                                ImGui::Button("Delete target", ImVec2(330, 25));
+                                                if (ImGui::BeginDragDropTarget())
+                                                {
+                                                    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("DND_ITEM"))
+                                                    {
+                                                        int payload_idx = *(const int*)payload->Data;
+                                                        {
+                                                            vector->erase(vector->begin() + payload_idx);
+                                                        }
+                                                    }
+                                                    ImGui::EndDragDropTarget();
+                                                }
+                                            }
+
+                                            ImGui::PopStyleVar();
                                         }
                                         break;
 
@@ -880,6 +957,33 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
 
                                 case MISSILE_SILO :
                                 {
+
+                                    if (countries->at(i).buildings[buildings_id].missile_silo_heart.ready_to_shot && !countries->at(i).buildings[buildings_id].missile_silo_heart.strike_queue.empty())
+                                    {
+                                            if (countries->at(i).buildings[buildings_id].missile_silo_heart.ready_to_shot)
+                                            {
+                                                air_strike_targets.push_back(countries->at(i).buildings[buildings_id].missile_silo_heart.strike_queue[0]);
+                                                countries->at(i).buildings[buildings_id].missile_silo_heart.old_tick_for_reload = global_tick;
+                                                countries->at(i).buildings[buildings_id].missile_silo_heart.strike_queue.erase(countries->at(i).buildings[buildings_id].missile_silo_heart.strike_queue.begin());
+                                                countries->at(i).buildings[buildings_id].missile_silo_heart.ready_to_shot = false;
+
+                                                if (g_socket_control.player_role == g_socket_control.player_role_enum::SERVER)
+                                                {
+                                                    g_socket_control.server_send_nuclear_targets();
+                                                }
+                                                else
+                                                    g_socket_control.client_send_nuclear_targets();
+                                            }
+                                        
+                                    }
+
+                                    if (global_tick > countries->at(i).buildings[buildings_id].missile_silo_heart.old_tick_for_reload + 35)
+                                    {
+                                        countries->at(i).buildings[buildings_id].missile_silo_heart.ready_to_shot = true;
+                                    }
+                                    else
+                                        countries->at(i).buildings[buildings_id].missile_silo_heart.ready_to_shot = false;
+
                                     if (selection_for_nuclear_strike)
                                     {
                                         ImGui::GetBackgroundDrawList()->AddText(g_xgui.fonts[2].font_addr, 25, ImVec2(screen_x / 2, 150), ImColor(255, 255, 255), "Choose Target!");
@@ -896,6 +1000,110 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
 
             }
         }
+
+        //nuclear rockets
+        if (!air_strike_targets.empty())
+        {
+            for (int targets = 0; targets < air_strike_targets.size(); targets++)
+            {
+                if (air_strike_targets[targets].GETTER_city_id != -1)
+                {
+                    if (true)
+                    {
+                        auto start_pos = countries->at(air_strike_targets[targets].SENDER_country_id).buildings[air_strike_targets[targets].SENDER_building_id].pos;
+
+                        auto pos = ImVec2(countries->at(air_strike_targets[targets].SENDER_country_id).position.x * animated_map_scale - (countries->at(air_strike_targets[targets].SENDER_country_id).size.x * animated_map_scale * map_scale2) / 2 + map_pos.x * animated_map_scale,
+                            countries->at(air_strike_targets[targets].SENDER_country_id).position.y * animated_map_scale - (countries->at(air_strike_targets[targets].SENDER_country_id).size.y * animated_map_scale * map_scale2) / 2 + map_pos.y * animated_map_scale);
+
+                        ImVec2 final_pos = ImVec2(pos.x + countries->at(air_strike_targets[targets].SENDER_country_id).buildings[air_strike_targets[targets].SENDER_building_id].pos.x * animated_map_scale, pos.y + countries->at(air_strike_targets[targets].SENDER_country_id).buildings[air_strike_targets[targets].SENDER_building_id].pos.y * animated_map_scale);
+
+                        //bomb sending and pos
+                        if (g_socket_control.player_role == g_socket_control.player_role_enum::SERVER && function_count == 1)
+                        {
+                            if (air_strike_targets[targets].step_of_bomb == 200) // segments
+                            {
+                                air_strike_targets.erase(air_strike_targets.begin() + targets);
+                            }
+
+                            if (air_strike_targets[targets].last_global_tick + 1 < global_tick)
+                            {
+                                air_strike_targets[targets].step_of_bomb++;
+                                air_strike_targets[targets].last_global_tick = global_tick;
+                            }
+
+                        }
+
+                        auto posx = countries->at(air_strike_targets[targets].GETTER_country_id).position.x * animated_map_scale - (countries->at(air_strike_targets[targets].GETTER_country_id).size.x * animated_map_scale * map_scale2) / 2 + map_pos.x * animated_map_scale;
+                        auto posy = countries->at(air_strike_targets[targets].GETTER_country_id).position.y * animated_map_scale - (countries->at(air_strike_targets[targets].GETTER_country_id).size.y * animated_map_scale * map_scale2) / 2 + map_pos.y * animated_map_scale;
+
+                        auto point = GetTrajectoryOnePoint(final_pos, ImVec2(posx + countries->at(air_strike_targets[targets].GETTER_country_id).cities[air_strike_targets[targets].GETTER_city_id].pos.x * animated_map_scale, posy + countries->at(air_strike_targets[targets].GETTER_country_id).cities[air_strike_targets[targets].GETTER_city_id].pos.y * animated_map_scale), air_strike_targets[targets].step_of_bomb, 140.f * animated_map_scale, 200);
+
+                        air_strike_targets[targets].bomb_pos = point;
+
+                        DrawTrajectoryArc(ImGui::GetForegroundDrawList(), final_pos, ImVec2(posx + countries->at(air_strike_targets[targets].GETTER_country_id).cities[air_strike_targets[targets].GETTER_city_id].pos.x * animated_map_scale, posy + countries->at(air_strike_targets[targets].GETTER_country_id).cities[air_strike_targets[targets].GETTER_city_id].pos.y * animated_map_scale), air_strike_targets[targets].bomb_pos, 140.f * animated_map_scale, ImColor(255, 255, 255, 210), 1.f);
+
+                        ImGui::GetForegroundDrawList()->AddCircleFilled(air_strike_targets[targets].bomb_pos, 3 * animated_map_scale, ImColor(255, 0, 0));
+
+
+                    }
+                }
+
+                else if (air_strike_targets[targets].GETTER_building_id != -1)
+                {
+                    if (true)
+                    {
+                        auto start_pos = countries->at(air_strike_targets[targets].SENDER_country_id).buildings[air_strike_targets[targets].SENDER_building_id].pos;
+
+                        auto pos = ImVec2(countries->at(air_strike_targets[targets].SENDER_country_id).position.x * animated_map_scale - (countries->at(air_strike_targets[targets].SENDER_country_id).size.x * animated_map_scale * map_scale2) / 2 + map_pos.x * animated_map_scale,
+                            countries->at(air_strike_targets[targets].SENDER_country_id).position.y * animated_map_scale - (countries->at(air_strike_targets[targets].SENDER_country_id).size.y * animated_map_scale * map_scale2) / 2 + map_pos.y * animated_map_scale);
+
+                        ImVec2 final_pos = ImVec2(pos.x + countries->at(air_strike_targets[targets].SENDER_country_id).buildings[air_strike_targets[targets].SENDER_building_id].pos.x * animated_map_scale, pos.y + countries->at(air_strike_targets[targets].SENDER_country_id).buildings[air_strike_targets[targets].SENDER_building_id].pos.y * animated_map_scale);
+
+                        //bomb sending and pos
+                        if (g_socket_control.player_role == g_socket_control.player_role_enum::SERVER && function_count == 1)
+                        {
+                            if (air_strike_targets[targets].step_of_bomb == 200) // segments
+                            {
+                                air_strike_targets.erase(air_strike_targets.begin() + targets);
+                            }
+
+                            if (air_strike_targets[targets].last_global_tick + 1 < global_tick)
+                            {
+                                air_strike_targets[targets].step_of_bomb++;
+                                air_strike_targets[targets].last_global_tick = global_tick;
+                            }
+
+                        }
+
+                        auto posx = countries->at(air_strike_targets[targets].GETTER_country_id).position.x * animated_map_scale - (countries->at(air_strike_targets[targets].GETTER_country_id).size.x * animated_map_scale * map_scale2) / 2 + map_pos.x * animated_map_scale;
+                        auto posy = countries->at(air_strike_targets[targets].GETTER_country_id).position.y * animated_map_scale - (countries->at(air_strike_targets[targets].GETTER_country_id).size.y * animated_map_scale * map_scale2) / 2 + map_pos.y * animated_map_scale;
+
+                        auto pos_of_building = ImVec2(posx + countries->at(air_strike_targets[targets].GETTER_country_id).buildings[air_strike_targets[targets].GETTER_building_id].pos.x * animated_map_scale, posy + countries->at(air_strike_targets[targets].GETTER_country_id).buildings[air_strike_targets[targets].GETTER_building_id].pos.y * animated_map_scale);
+                        auto point = GetTrajectoryOnePoint(final_pos, pos_of_building, air_strike_targets[targets].step_of_bomb, 140.f * animated_map_scale, 200);
+
+                        air_strike_targets[targets].bomb_pos = point;
+
+                        DrawTrajectoryArc(ImGui::GetForegroundDrawList(), final_pos, pos_of_building, air_strike_targets[targets].bomb_pos, 140.f * animated_map_scale, ImColor(255, 255, 255, 210), 1.f);
+
+                        ImGui::GetForegroundDrawList()->AddCircleFilled(air_strike_targets[targets].bomb_pos, 3 * animated_map_scale, ImColor(255, 0, 0));
+
+
+                    }
+                }
+            }
+        }
+
+        if (g_socket_control.player_role == g_socket_control.player_role_enum::SERVER && function_count == 1)
+        {
+            static int update_targets_tick;
+            if (update_targets_tick != global_tick)
+            {
+                update_targets_tick = global_tick;
+                g_socket_control.server_send_nuclear_targets();
+            }
+        }
+
+
 
     }
 }
@@ -1783,26 +1991,37 @@ void map_processing::process_and_sync_game_cycle(std::vector <country_data>* cou
 
     //selector
     {
-        static int old_cursor_pos_x, old_cursor_pos_y;
-        if (ImGui::IsMouseDown(0))
+        bool should_selector = true;
+        if (g_map.cursor_pos.x > g_map.opened_menu_size.Min.x && g_map.cursor_pos.x < g_map.opened_menu_size.Max.x)
         {
-            if (old_cursor_pos_x == 0 && old_cursor_pos_y == 0)
+            if (g_map.cursor_pos.y > g_map.opened_menu_size.Min.y && g_map.cursor_pos.y < g_map.opened_menu_size.Max.y)
             {
-                old_cursor_pos_x = cursor_pos.x;
-                old_cursor_pos_y = cursor_pos.y;
-            }
-
-            if (old_cursor_pos_x != cursor_pos.x && old_cursor_pos_y != cursor_pos.y)
-            {
-                selector_zone = ImRect(ImVec2(old_cursor_pos_x, old_cursor_pos_y), ImVec2(cursor_pos.x, cursor_pos.y));
-                ImGui::GetForegroundDrawList()->AddRect(selector_zone.Min, selector_zone.Max, ImColor(79, 255, 69, 130));
+                should_selector = false;
             }
         }
-        else if (ImGui::IsMouseReleased(0))
+        if (should_selector)
         {
-            selector_zone = ImRect(ImVec2(0, 0), ImVec2(0, 0));
-            old_cursor_pos_x = 0;
-            old_cursor_pos_y = 0;
+            static int old_cursor_pos_x, old_cursor_pos_y;
+            if (ImGui::IsMouseDown(0))
+            {
+                if (old_cursor_pos_x == 0 && old_cursor_pos_y == 0)
+                {
+                    old_cursor_pos_x = cursor_pos.x;
+                    old_cursor_pos_y = cursor_pos.y;
+                }
+
+                if (old_cursor_pos_x != cursor_pos.x && old_cursor_pos_y != cursor_pos.y)
+                {
+                    selector_zone = ImRect(ImVec2(old_cursor_pos_x, old_cursor_pos_y), ImVec2(cursor_pos.x, cursor_pos.y));
+                    ImGui::GetForegroundDrawList()->AddRect(selector_zone.Min, selector_zone.Max, ImColor(79, 255, 69, 130));
+                }
+            }
+            else if (ImGui::IsMouseReleased(0))
+            {
+                selector_zone = ImRect(ImVec2(0, 0), ImVec2(0, 0));
+                old_cursor_pos_x = 0;
+                old_cursor_pos_y = 0;
+            }
         }
     }
 }

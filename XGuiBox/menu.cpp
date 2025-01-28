@@ -349,6 +349,7 @@ namespace server_client_space
                     << target.GETTER_city_id << ","
                     << target.GETTER_building_id << ","
                     << target.SENDER_country_id << ","
+                    << target.step_of_bomb << ","
                     << target.SENDER_building_id << ";";
             }
             return oss.str();
@@ -377,6 +378,8 @@ namespace server_client_space
                 else return false;
                 if (std::getline(segment_stream, field, ',')) target.SENDER_country_id = std::stoi(field);
                 else return false;
+                if (std::getline(segment_stream, field, ',')) target.step_of_bomb = std::stoi(field);
+                else return false;
                 if (std::getline(segment_stream, field, ',')) target.SENDER_building_id = std::stoi(field);
                 else return false;
 
@@ -387,14 +390,16 @@ namespace server_client_space
             auto it = targets.begin();
             while (it != targets.end()) {
                 auto found = std::find_if(new_targets.begin(), new_targets.end(), [&it](const nuclear_strike_target& t) {
-                    return t.GETTER_country_id == it->GETTER_country_id &&
+                    return 
+                        t.GETTER_country_id == it->GETTER_country_id &&
                         t.GETTER_city_id == it->GETTER_city_id &&
                         t.GETTER_building_id == it->GETTER_building_id;
                     });
 
                 if (found != new_targets.end()) {
                     it->SENDER_country_id = found->SENDER_country_id;
-                    it->SENDER_building_id = found->SENDER_building_id; // Обновление существующего элемента
+                    it->SENDER_building_id = found->SENDER_building_id;
+                    it->step_of_bomb = found->step_of_bomb;
                     ++it;
                 }
                 else {
@@ -405,7 +410,8 @@ namespace server_client_space
             // Добавление новых элементов, которых не было в оригинальном векторе
             for (const auto& target : new_targets) {
                 auto found = std::find_if(targets.begin(), targets.end(), [&target](const nuclear_strike_target& t) {
-                    return t.GETTER_country_id == target.GETTER_country_id &&
+                    return 
+                        t.GETTER_country_id == target.GETTER_country_id &&
                         t.GETTER_city_id == target.GETTER_city_id &&
                         t.GETTER_building_id == target.GETTER_building_id;
                     });
@@ -692,6 +698,7 @@ private:
         boost::asio::async_read_until(socket_, *buffer, "\n", [this, buffer](boost::system::error_code ec, std::size_t) {
             if (!ec)
             {
+
                 std::istream     is(buffer.get());
                 std::string      message;
                 std::getline(is, message);
@@ -855,7 +862,7 @@ void menu::render(window_profiling window)
     ImGui::GetStyle().Colors[ImGuiCol_Border]           = ImColor(79, 255, 69, 70);
     ImGui::GetStyle().Colors[ImGuiCol_Separator]        = ImColor(79, 255, 69, 130);
     ImGui::GetStyle().Colors[ImGuiCol_SliderGrab] = ImColor(79, 255, 69, 130);
-    ImGui::GetStyle().Colors[ImGuiCol_ChildBg]          = ImColor(5, 5, 5, 255);
+    ImGui::GetStyle().Colors[ImGuiCol_ChildBg]          = ImColor(5, 5, 5, 0);
     ImGui::GetStyle().Colors[ImGuiCol_CheckMark]        = ImColor(79, 255, 69, 130);
     ImGui::GetStyle().Colors[ImGuiCol_ScrollbarGrab]    = ImColor(79, 255, 69, 130);
     ImGui::GetStyle().Colors[ImGuiCol_Header] = ImColor(0, 0, 0, 200);

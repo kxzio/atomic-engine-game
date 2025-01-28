@@ -269,7 +269,12 @@ void ImGui::Text(const char* fmt, ...)
     TextV(fmt, args);
     va_end(args);
 }
-
+void ImGui::CenteredText(const char* text) {
+    ImVec2 window_size = ImGui::GetWindowSize();
+    ImVec2 text_size = ImGui::CalcTextSize(text);
+    ImGui::SetCursorPosX((window_size.x - text_size.x) * 0.5f); // Вычисляем смещение по оси X
+    ImGui::Text("%s", text);
+}
 bool ImGui::AnimatedText(const char* fmt, float speed)
 {
     char ch;
