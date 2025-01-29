@@ -348,6 +348,7 @@ namespace server_client_space
                 oss << target.GETTER_country_id << ","
                     << target.GETTER_city_id << ","
                     << target.GETTER_building_id << ","
+                    << target.GETTER_rocket << ","
                     << target.SENDER_country_id << ","
                     << target.step_of_bomb << ","
                     << target.SENDER_building_id << ";";
@@ -376,6 +377,8 @@ namespace server_client_space
                 else return false;
                 if (std::getline(segment_stream, field, ',')) target.GETTER_building_id = std::stoi(field);
                 else return false;
+                if (std::getline(segment_stream, field, ',')) target.GETTER_rocket = std::stoi(field);
+                else return false;
                 if (std::getline(segment_stream, field, ',')) target.SENDER_country_id = std::stoi(field);
                 else return false;
                 if (std::getline(segment_stream, field, ',')) target.step_of_bomb = std::stoi(field);
@@ -393,6 +396,7 @@ namespace server_client_space
                     return 
                         t.GETTER_country_id == it->GETTER_country_id &&
                         t.GETTER_city_id == it->GETTER_city_id &&
+                        t.GETTER_rocket == it->GETTER_rocket &&
                         t.GETTER_building_id == it->GETTER_building_id;
                     });
 
@@ -413,6 +417,7 @@ namespace server_client_space
                     return 
                         t.GETTER_country_id == target.GETTER_country_id &&
                         t.GETTER_city_id == target.GETTER_city_id &&
+                        t.GETTER_rocket == target.GETTER_rocket &&
                         t.GETTER_building_id == target.GETTER_building_id;
                     });
 

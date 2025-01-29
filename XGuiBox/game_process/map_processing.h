@@ -126,13 +126,19 @@ struct nuclear_strike_target
     int GETTER_country_id;
     int GETTER_city_id;
     int GETTER_building_id;
+    int GETTER_rocket;
 
     int SENDER_country_id;
     int SENDER_building_id;
 
     int last_global_tick = 0;
-    int step_of_bomb;
+    int step_of_bomb = 0;
     ImVec2 bomb_pos;
+
+
+    //for PVO
+    bool rocket_targeted[2] = { false, false };//because we have 2 maps
+    ImVec2 targeted_pos[2] = { ImVec2(0, 0), ImVec2(0, 0)}; //because we have 2 maps
 };
 
 struct AIR_FACTORY_SYSTEM_HEART
@@ -160,7 +166,14 @@ struct MISSILE_SILO_HEART
     bool ready_to_shot;
     std::vector < nuclear_strike_target > strike_queue;
 };
+struct MISSILE_DEFENSE_HEART
+{
+    int old_tick_for_reload = 0;
+    bool ready_to_shot;
 
+    bool rocket_targeted;
+    ImVec2 targeted_tocket_pos;
+};
 class building : public map_objects
 {
 public:
@@ -178,6 +191,7 @@ public:
     AIR_FACTORY_SYSTEM_HEART air_factory_heart;
     SHIPYARD_SYSTEM_HEART    shipyard_heart;
     MISSILE_SILO_HEART       missile_silo_heart;
+    MISSILE_DEFENSE_HEART    missile_defense_heart;
 };
 
 struct city : public map_objects
