@@ -344,8 +344,10 @@ namespace server_client_space
         // Функция для сериализации вектора объектов nuclear_strike_target в строку
         std::string serialize_targets(const std::vector<nuclear_strike_target>& targets) {
             std::ostringstream oss;
-            for (const auto& target : targets) {
-                oss << target.GETTER_country_id << ","
+            for (const auto& target : targets) 
+            {
+                oss << target.unique_id << ","
+                    << target.GETTER_country_id << ","
                     << target.GETTER_city_id << ","
                     << target.GETTER_building_id << ","
                     << target.GETTER_rocket << ","
@@ -371,6 +373,8 @@ namespace server_client_space
                 std::istringstream segment_stream(segment);
                 std::string field;
 
+                if (std::getline(segment_stream, field, ',')) target.unique_id = std::stoi(field);
+                else return false;
                 if (std::getline(segment_stream, field, ',')) target.GETTER_country_id = std::stoi(field);
                 else return false;
                 if (std::getline(segment_stream, field, ',')) target.GETTER_city_id = std::stoi(field);
@@ -394,6 +398,7 @@ namespace server_client_space
             while (it != targets.end()) {
                 auto found = std::find_if(new_targets.begin(), new_targets.end(), [&it](const nuclear_strike_target& t) {
                     return 
+                        t.unique_id == it->unique_id &&
                         t.GETTER_country_id == it->GETTER_country_id &&
                         t.GETTER_city_id == it->GETTER_city_id &&
                         t.GETTER_rocket == it->GETTER_rocket &&
@@ -415,6 +420,7 @@ namespace server_client_space
             for (const auto& target : new_targets) {
                 auto found = std::find_if(targets.begin(), targets.end(), [&target](const nuclear_strike_target& t) {
                     return 
+                        t.unique_id == target.unique_id &&
                         t.GETTER_country_id == target.GETTER_country_id &&
                         t.GETTER_city_id == target.GETTER_city_id &&
                         t.GETTER_rocket == target.GETTER_rocket &&

@@ -123,6 +123,7 @@ struct map_objects
 };
 struct nuclear_strike_target
 {
+    int unique_id;
     int GETTER_country_id;
     int GETTER_city_id;
     int GETTER_building_id;

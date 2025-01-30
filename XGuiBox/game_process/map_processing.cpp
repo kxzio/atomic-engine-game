@@ -1,5 +1,22 @@
 #include "map_processing.h"
 #include <sstream>
+#include <chrono>
+#include <random>
+
+int generateUniqueInt() {
+    auto now = std::chrono::high_resolution_clock::now();
+    auto duration = now.time_since_epoch();
+    auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+
+    static std::mt19937_64 rng(millis);
+    std::uniform_int_distribution<int> dist(0, 10000);
+
+    int random_part = dist(rng);
+    int unique_id = static_cast<int>(millis % 100000000) + random_part;
+
+    return unique_id;
+}
+
 
 static float map_scale2 = 0.240010;
 
@@ -201,6 +218,7 @@ void process_object_selections(bool city, int current_country, int player_id, st
                                         id = cityi;
 
                                         nuclear_strike_target new_target;
+                                        new_target.unique_id = generateUniqueInt();
                                         new_target.GETTER_country_id  = current_country;
                                         new_target.GETTER_city_id     = id;
                                         new_target.GETTER_building_id = -1;
@@ -223,6 +241,7 @@ void process_object_selections(bool city, int current_country, int player_id, st
                                         id = build;
 
                                         nuclear_strike_target new_target;
+                                        new_target.unique_id = generateUniqueInt();
                                         new_target.GETTER_country_id = current_country;
                                         new_target.GETTER_city_id = -1;
                                         new_target.GETTER_building_id = id;
@@ -685,12 +704,15 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
                                 if (air_strike_targets[targets].step_of_bomb == 200) // segments
                                 {
                                     air_strike_targets.erase(air_strike_targets.begin() + targets);
+                                    g_socket_control.server_send_nuclear_targets();
                                 }
 
-                                if (air_strike_targets[targets].last_global_tick + 1 < global_tick)
+                                if (air_strike_targets[targets].last_global_tick < global_tick)
                                 {
                                     air_strike_targets[targets].step_of_bomb++;
                                     air_strike_targets[targets].last_global_tick = global_tick;
+
+                                    g_socket_control.server_send_nuclear_targets();
                                 }
 
                             }
@@ -723,15 +745,20 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
                             //bomb sending and pos
                             if (g_socket_control.player_role == g_socket_control.player_role_enum::SERVER && function_count == 1)
                             {
-                                if (air_strike_targets[targets].step_of_bomb == 200) // segments
+                                if (air_strike_targets[targets].step_of_bomb == 600) // segments
                                 {
                                     air_strike_targets.erase(air_strike_targets.begin() + targets);
+                                    g_socket_control.server_send_nuclear_targets();
                                 }
 
-                                if (air_strike_targets[targets].last_global_tick + 1 < global_tick)
+                                if (air_strike_targets[targets].last_global_tick < global_tick)
                                 {
-                                    air_strike_targets[targets].step_of_bomb++;
-                                    air_strike_targets[targets].last_global_tick = global_tick;
+                                   air_strike_targets[targets].step_of_bomb++;
+                                   g_socket_control.server_send_nuclear_targets();
+
+                                   if (air_strike_targets[targets].last_global_tick < global_tick + 3)
+                                       air_strike_targets[targets].last_global_tick = global_tick;
+                                    
                                 }
 
                             }
@@ -740,7 +767,7 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
                             auto posy = countries->at(air_strike_targets[targets].GETTER_country_id).position.y * animated_map_scale - (countries->at(air_strike_targets[targets].GETTER_country_id).size.y * animated_map_scale * map_scale2) / 2 + map_pos.y * animated_map_scale;
 
                             auto pos_of_building = ImVec2(posx + countries->at(air_strike_targets[targets].GETTER_country_id).buildings[air_strike_targets[targets].GETTER_building_id].pos.x * animated_map_scale, posy + countries->at(air_strike_targets[targets].GETTER_country_id).buildings[air_strike_targets[targets].GETTER_building_id].pos.y * animated_map_scale);
-                            auto point = GetTrajectoryOnePoint(final_pos, pos_of_building, air_strike_targets[targets].step_of_bomb, 140.f * animated_map_scale, 200);
+                            auto point = GetTrajectoryOnePoint(final_pos, pos_of_building, air_strike_targets[targets].step_of_bomb, 140.f * animated_map_scale, 600);
 
                             air_strike_targets[targets].bomb_pos = point;
 
@@ -756,6 +783,7 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
                     {
                         if (air_strike_targets[air_strike_targets[targets].GETTER_rocket].GETTER_rocket == -1)
                         {
+                         
                             auto start_pos = countries->at(air_strike_targets[targets].SENDER_country_id).buildings[air_strike_targets[targets].SENDER_building_id].pos;
 
                             auto pos = ImVec2(countries->at(air_strike_targets[targets].SENDER_country_id).position.x * animated_map_scale - (countries->at(air_strike_targets[targets].SENDER_country_id).size.x * animated_map_scale * map_scale2) / 2 + map_pos.x * animated_map_scale,
@@ -765,36 +793,49 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
 
                              //PVO
                             {
-                                if (!air_strike_targets[targets].rocket_targeted[0] && function_count == 1)
-                                {
-                                    air_strike_targets[targets].targeted_pos[0] = ImVec2(air_strike_targets[air_strike_targets[targets].GETTER_rocket].bomb_pos);
-                                    air_strike_targets[targets].rocket_targeted[0] = true;
-                                }
-                                if (!air_strike_targets[targets].rocket_targeted[1] && function_count == 2)
-                                {
-                                    air_strike_targets[targets].targeted_pos[1] = ImVec2(air_strike_targets[air_strike_targets[targets].GETTER_rocket].bomb_pos);
-                                    air_strike_targets[targets].rocket_targeted[1] = true;
-                                }
+
+                                auto bomb_pos = air_strike_targets[air_strike_targets[targets].GETTER_rocket].bomb_pos;
+                                auto target_point = GetTrajectoryStrightOnePoint(final_pos, bomb_pos, air_strike_targets[targets].step_of_bomb, 200);
+
+                                auto hit = target_point.x == bomb_pos.x && target_point.y == bomb_pos.y;
 
                                 //bomb sending and pos
                                 if (g_socket_control.player_role == g_socket_control.player_role_enum::SERVER && function_count == 1)
                                 {
-                                    if (air_strike_targets[targets].step_of_bomb == 50) // segments
+                                    if (air_strike_targets[targets].step_of_bomb > 200)
                                     {
                                         air_strike_targets.erase(air_strike_targets.begin() + targets);
+                                    }
+                                    else if (hit) // segments
+                                    {
+                                        g_socket_control.server_send_nuclear_targets();
+
+                                        if (hit)
+                                        {
+                                            std::srand(static_cast<unsigned int>(std::time(0)));
+                                            int random_number = std::rand() % 11;
+
+                                            if (random_number % 4 == 0)
+                                            {
+                                                //ROCKET DESTROYED
+                                                air_strike_targets.erase(air_strike_targets.begin() + air_strike_targets[targets].GETTER_rocket);
+                                                air_strike_targets.erase(air_strike_targets.begin() + targets);
+                                                g_socket_control.server_send_nuclear_targets();
+                                            }
+                                        }
                                     }
 
                                     if (air_strike_targets[targets].last_global_tick < global_tick)
                                     {
                                         air_strike_targets[targets].step_of_bomb++;
-                                        air_strike_targets[targets].last_global_tick = global_tick;
+                                        air_strike_targets[targets].last_global_tick = (global_tick - air_strike_targets[targets].last_global_tick) / 2;
+                                        g_socket_control.server_send_nuclear_targets();
                                     }
 
                                 }
-
-                                auto point = GetTrajectoryStrightOnePoint(final_pos, air_strike_targets[targets].targeted_pos[function_count - 1], air_strike_targets[targets].step_of_bomb, 50);
-
-                                air_strike_targets[targets].bomb_pos = point;
+                                
+                                air_strike_targets[targets].bomb_pos = ImVec2(target_point);
+                                DrawTrajectoryStrightArc(ImGui::GetForegroundDrawList(), final_pos, bomb_pos, air_strike_targets[targets].bomb_pos, ImColor(255, 255, 40, 150), 200);
 
                                 ImGui::GetForegroundDrawList()->AddCircleFilled(air_strike_targets[targets].bomb_pos, 1 * animated_map_scale, ImColor(255, 190, 0));
                             }
@@ -804,15 +845,7 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
                 }
             }
 
-            if (g_socket_control.player_role == g_socket_control.player_role_enum::SERVER && function_count == 1)
-            {
-                static int update_targets_tick;
-                if (update_targets_tick != global_tick)
-                {
-                    update_targets_tick = global_tick;
-                    g_socket_control.server_send_nuclear_targets();
-                }
-            }
+
         }
 
         //buildings
@@ -1257,8 +1290,8 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
                                             if (air_strike_targets[rockets_id].GETTER_rocket != -1)
                                                 continue;
 
-                                            auto pos2 = ImVec2(countries->at(air_strike_targets[rockets_id].SENDER_country_id).position.x * animated_map_scale - (countries->at(air_strike_targets[rockets_id].SENDER_country_id).size.x * animated_map_scale * map_scale2) / 2 + map_pos.x * animated_map_scale,
-                                                countries->at(air_strike_targets[rockets_id].SENDER_country_id).position.y * animated_map_scale - (countries->at(air_strike_targets[rockets_id].SENDER_country_id).size.y * animated_map_scale * map_scale2) / 2 + map_pos.y * animated_map_scale);
+                                            auto pos2 = ImVec2(countries->at(air_strike_targets[rockets_id].GETTER_country_id).position.x * animated_map_scale - (countries->at(air_strike_targets[rockets_id].GETTER_country_id).size.x * animated_map_scale * map_scale2) / 2 + map_pos.x * animated_map_scale,
+                                                countries->at(air_strike_targets[rockets_id].GETTER_country_id).position.y * animated_map_scale - (countries->at(air_strike_targets[rockets_id].GETTER_country_id).size.y * animated_map_scale * map_scale2) / 2 + map_pos.y * animated_map_scale);
 
                                             auto bombpos = ImVec2(air_strike_targets[rockets_id].bomb_pos.x - pos2.x, air_strike_targets[rockets_id].bomb_pos.y - pos2.y);
 
@@ -1274,11 +1307,12 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
 
                                             ImGui::GetBackgroundDrawList()->AddText(g_xgui.fonts[2].font_addr, 25, ImVec2(screen_x / 2, 250), ImColor(255, 255, 255),  std::to_string(distance).c_str());
 
-                                            if (distance < 50)
+                                            if (distance < 50 && air_strike_targets[rockets_id].SENDER_country_id != g_menu.players[player_id].control_region)
                                             {
                                                 if (countries->at(i).buildings[buildings_id].missile_defense_heart.ready_to_shot)
                                                 {
                                                     nuclear_strike_target new_target;
+                                                    new_target.unique_id = generateUniqueInt();
                                                     new_target.GETTER_country_id = air_strike_targets[rockets_id].SENDER_country_id;
                                                     new_target.GETTER_city_id = -1;
                                                     new_target.GETTER_building_id = -1;
@@ -1867,7 +1901,7 @@ void game_event_timer()
     while (true)
     {
         process_events();
-        std::this_thread::sleep_for(std::chrono::milliseconds(100)); //TODO : change it to 1 second in release version
+        std::this_thread::sleep_for(std::chrono::milliseconds(700)); //TODO : change it to 1 second in release version
         g_map.global_tick++;
     }
 }
