@@ -95,6 +95,9 @@ public:
 	void client_send_nuclear_targets();
 	void server_send_nuclear_targets();
 
+	void server_update_bomb_step(int unique_id);
+	void client_update_bomb_step(int unique_id);
+
 	std::string game_cycle_messages;
 };
 inline socket_control g_socket_control;

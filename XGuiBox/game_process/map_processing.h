@@ -123,7 +123,7 @@ struct map_objects
 };
 struct nuclear_strike_target
 {
-    int unique_id;
+    int unique_id = 0;
     int GETTER_country_id;
     int GETTER_city_id;
     int GETTER_building_id;
@@ -137,9 +137,7 @@ struct nuclear_strike_target
     ImVec2 bomb_pos;
 
 
-    //for PVO
-    bool rocket_targeted[2] = { false, false };//because we have 2 maps
-    ImVec2 targeted_pos[2] = { ImVec2(0, 0), ImVec2(0, 0)}; //because we have 2 maps
+    float distance_between_targets;
 };
 
 struct AIR_FACTORY_SYSTEM_HEART

@@ -435,6 +435,48 @@ namespace server_client_space
             return true;
         }
 
+        // Функция для сериализации вектора объектов nuclear_strike_target в строку
+        std::string serialize_bomb_step(const std::vector<nuclear_strike_target>& targets, int id) 
+        {
+            std::ostringstream oss;
+
+            oss << id << ","
+                << targets[id].step_of_bomb << ";";
+            
+            return oss.str();
+        }
+
+        bool deserialize_bomb_step(std::vector<nuclear_strike_target>& targets, const std::string& data) 
+        {
+            std::istringstream iss(data);
+            std::string segment;
+
+            nuclear_strike_target target;
+
+            int id = 0;
+
+            // Разделение строки на сегменты по `;`
+            while (std::getline(iss, segment, ';')) {
+                if (segment.empty()) continue;
+
+                std::istringstream segment_stream(segment);
+                std::string field;
+
+                if (std::getline(segment_stream, field, ','))  id = std::stoi(field);
+                else return false;
+                if (std::getline(segment_stream, field, ',')) target.step_of_bomb = std::stoi(field);
+                else return false;
+
+            }
+            
+            if (targets[id].unique_id != 0)
+            {
+                targets[id].step_of_bomb = target.step_of_bomb;
+            }
+
+            return true;
+        }
+
 
         player find_player_by_nickname(std::string nickname)
         {
@@ -574,6 +616,11 @@ private:
                 {
                     std::string players_data = message.erase(0, 21);
                     g_menu.players = server_client_space::server_client_menu_information::deserialize_vector_players(players_data);
+                }
+                else if (server_client_space::IsRequest(message, "CLASS.MAP.BOMBSTEP:")) //
+                {
+                    std::string players_data = message.erase(0, 19);
+                    server_client_space::server_client_menu_information::deserialize_bomb_step(g_map.air_strike_targets, players_data);
                 }
                 else if (server_client_space::IsRequest(message, "USER.JOIN:"))
                 {
@@ -728,6 +775,11 @@ private:
                     std::string players_data = message.erase(0, 26);
                     server_client_space::server_client_menu_information::deserialize_building(g_map.countries, players_data);
                 }
+                else if (server_client_space::IsRequest(message, "CLASS.MAP.BOMBSTEP:")) //
+                {
+                    std::string players_data = message.erase(0, 19);
+                    server_client_space::server_client_menu_information::deserialize_bomb_step(g_map.air_strike_targets, players_data);
+                }
                 else if (server_client_space::IsRequest(message, "CLASS.MAP.UPDATE_NUCLEAR_TARGETS:"))
                 {
                     std::string players_data = message.erase(0, 33);
@@ -850,6 +902,12 @@ void socket_control::client_send_nuclear_targets()
 void socket_control::server_send_nuclear_targets()
 {
     std::string serialized_data = "CLASS.MAP.UPDATE_NUCLEAR_TARGETS:" + server_client_space::server_client_menu_information::serialize_targets(g_map.air_strike_targets);
+    server->send_message(serialized_data);
+}
+
+void socket_control::server_update_bomb_step(int unique_id)
+{
+    std::string serialized_data = "CLASS.MAP.BOMBSTEP:" + server_client_space::server_client_menu_information::serialize_bomb_step(g_map.air_strike_targets, unique_id);
     server->send_message(serialized_data);
 }
 
