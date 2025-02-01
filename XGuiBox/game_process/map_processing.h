@@ -137,7 +137,7 @@ struct nuclear_strike_target
     ImVec2 bomb_pos;
 
 
-    float distance_between_targets;
+    int segments;
 };
 
 struct AIR_FACTORY_SYSTEM_HEART

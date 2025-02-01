@@ -20,6 +20,13 @@ int generateUniqueInt()
 
 static float map_scale2 = 0.240010;
 
+float CalculateSegments(ImVec2 start, ImVec2 end, float animated_map_scale)
+{
+    float distance = (std::sqrt((end.x - start.x) * (end.x - start.x) + (end.y - start.y) * (end.y - start.y))) / animated_map_scale;
+
+    return distance;
+}
+
 bool IsPointInImRect(const ImVec2& point, const ImRect& rect) {
     ImVec2 min = rect.Min;
     ImVec2 max = rect.Max;
@@ -51,8 +58,6 @@ std::vector<ImVec2> GetTrajectoryPoints(ImVec2 start, ImVec2 end, float height, 
 ImVec2 GetTrajectoryOnePoint(ImVec2 start, ImVec2 end, int id, float height, int segments)
 {
 
-
-    // Вычисляем динамическое количество сегментов
     int num_segments = segments;
 
     // Вычисляем позицию точки на дугообразной траектории
@@ -60,17 +65,16 @@ ImVec2 GetTrajectoryOnePoint(ImVec2 start, ImVec2 end, int id, float height, int
     float x = start.x + t * (end.x - start.x);
     float y = start.y + t * (end.y - start.y) - height * sin(t * IM_PI); // Дуга через синус
 
+
     return ImVec2(x, y);
 }
 
-std::vector<ImVec2> GetTrajectoryStrightPoints(ImVec2 start, ImVec2 end, int segments = 20)
-{
+std::vector<ImVec2> GetTrajectoryStrightPoints(ImVec2 start, ImVec2 end, int s) {
+
+    int num_segments = 200;
     std::vector<ImVec2> points;
 
-    // Количество сегментов для отрисовки прямой линии
-    const int num_segments = segments;
-
-    // Вычисление точек на прямой линии
+    // Вычисление точек на прямой линии     
     for (int i = 0; i <= num_segments; ++i) {
         float t = (float)i / (float)num_segments;
         float x = start.x + t * (end.x - start.x);
@@ -85,7 +89,6 @@ ImVec2 GetTrajectoryStrightOnePoint(ImVec2 start, ImVec2 end, int id, int segmen
 {
     int num_segments = segments;
 
-    // Вычисляем позицию точки на траектории
     float t = (float)id / (float)num_segments;
     float x = start.x + t * (end.x - start.x);
     float y = start.y + t * (end.y - start.y);
@@ -720,9 +723,17 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
                             //int segments_num = air_strike_targets[targets].distance_between_targets;
 
                             //bomb sending and pos
+
+                            if (function_count == 1)
+                                air_strike_targets[targets].segments = CalculateSegments(final_pos, target, animated_map_scale);
+                            
+                            auto point = GetTrajectoryOnePoint(final_pos, target, air_strike_targets[targets].step_of_bomb, 140.f * animated_map_scale, air_strike_targets[targets].segments);
+
+                            air_strike_targets[targets].bomb_pos = point;
+
                             if (g_socket_control.player_role == g_socket_control.player_role_enum::SERVER && function_count == 1)
                             {
-                                if (air_strike_targets[targets].step_of_bomb > 200) // segments
+                                if (air_strike_targets[targets].step_of_bomb > air_strike_targets[targets].segments) // segments
                                 {
                                     auto bomb_ptr = std::find_if(air_strike_targets.begin(), air_strike_targets.end(), [&](nuclear_strike_target target)
                                         {
@@ -731,6 +742,7 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
                                     air_strike_targets.erase(bomb_ptr);
 
                                     is_going_to_update_targets = true;
+                                    continue;
                                 }
 
                                 if (air_strike_targets[targets].last_global_tick < global_tick)
@@ -748,10 +760,6 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
                             //ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[2].font_addr, 17.f, ImVec2(20, 80), ImColor(255, 255, 255), std::to_string(striking_building_pos.x).c_str());
                             //ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[2].font_addr, 17.f, ImVec2(20, 110), ImColor(255, 255, 255), std::to_string(striking_building_pos.y).c_str());
                             //ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[2].font_addr, 17.f, ImVec2(20, 270), ImColor(255, 255, 255), std::to_string(air_strike_targets[targets].distance_between_targets).c_str());
-
-                            auto point = GetTrajectoryOnePoint(final_pos, target, air_strike_targets[targets].step_of_bomb, 140.f * animated_map_scale, 200);
-
-                            air_strike_targets[targets].bomb_pos = point;
 
                             DrawTrajectoryArc(ImGui::GetForegroundDrawList(), final_pos, ImVec2(posx + countries->at(air_strike_targets[targets].GETTER_country_id).cities[air_strike_targets[targets].GETTER_city_id].pos.x * animated_map_scale, posy + countries->at(air_strike_targets[targets].GETTER_country_id).cities[air_strike_targets[targets].GETTER_city_id].pos.y * animated_map_scale), air_strike_targets[targets].bomb_pos, 140.f * animated_map_scale, ImColor(255, 255, 255, 210), 200);
 
@@ -772,9 +780,23 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
                             ImVec2 final_pos = ImVec2(pos.x + countries->at(air_strike_targets[targets].SENDER_country_id).buildings[air_strike_targets[targets].SENDER_building_id].pos.x * animated_map_scale, pos.y + countries->at(air_strike_targets[targets].SENDER_country_id).buildings[air_strike_targets[targets].SENDER_building_id].pos.y * animated_map_scale);
 
                             //bomb sending and pos
+
+                            auto posx = countries->at(air_strike_targets[targets].GETTER_country_id).position.x * animated_map_scale - (countries->at(air_strike_targets[targets].GETTER_country_id).size.x * animated_map_scale * map_scale2) / 2 + map_pos.x * animated_map_scale;
+                            auto posy = countries->at(air_strike_targets[targets].GETTER_country_id).position.y * animated_map_scale - (countries->at(air_strike_targets[targets].GETTER_country_id).size.y * animated_map_scale * map_scale2) / 2 + map_pos.y * animated_map_scale;
+
+                            auto pos_of_building = ImVec2(posx + countries->at(air_strike_targets[targets].GETTER_country_id).buildings[air_strike_targets[targets].GETTER_building_id].pos.x * animated_map_scale, posy + countries->at(air_strike_targets[targets].GETTER_country_id).buildings[air_strike_targets[targets].GETTER_building_id].pos.y * animated_map_scale);
+
+                            if (function_count == 1)
+                                air_strike_targets[targets].segments = CalculateSegments(final_pos, pos_of_building, animated_map_scale);
+
+                            auto point = GetTrajectoryOnePoint(final_pos, pos_of_building, air_strike_targets[targets].step_of_bomb, 140.f * animated_map_scale, air_strike_targets[targets].segments);
+
+                            air_strike_targets[targets].bomb_pos = point;
+
+
                             if (g_socket_control.player_role == g_socket_control.player_role_enum::SERVER && function_count == 1)
                             {
-                                if (air_strike_targets[targets].step_of_bomb == 200) // segments
+                                if (air_strike_targets[targets].step_of_bomb > air_strike_targets[targets].segments) // segments
                                 {
                                     auto bomb_ptr = std::find_if(air_strike_targets.begin(), air_strike_targets.end(), [&](nuclear_strike_target target)
                                         {
@@ -783,6 +805,7 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
                                     air_strike_targets.erase(bomb_ptr);
 
                                     is_going_to_update_targets = true;
+                                    continue;
                                 }
 
                                 if (air_strike_targets[targets].last_global_tick < global_tick)
@@ -796,14 +819,6 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
                                 }
 
                             }
-
-                            auto posx = countries->at(air_strike_targets[targets].GETTER_country_id).position.x * animated_map_scale - (countries->at(air_strike_targets[targets].GETTER_country_id).size.x * animated_map_scale * map_scale2) / 2 + map_pos.x * animated_map_scale;
-                            auto posy = countries->at(air_strike_targets[targets].GETTER_country_id).position.y * animated_map_scale - (countries->at(air_strike_targets[targets].GETTER_country_id).size.y * animated_map_scale * map_scale2) / 2 + map_pos.y * animated_map_scale;
-
-                            auto pos_of_building = ImVec2(posx + countries->at(air_strike_targets[targets].GETTER_country_id).buildings[air_strike_targets[targets].GETTER_building_id].pos.x * animated_map_scale, posy + countries->at(air_strike_targets[targets].GETTER_country_id).buildings[air_strike_targets[targets].GETTER_building_id].pos.y * animated_map_scale);
-                            auto point = GetTrajectoryOnePoint(final_pos, pos_of_building, air_strike_targets[targets].step_of_bomb, 140.f * animated_map_scale, 200);
-
-                            air_strike_targets[targets].bomb_pos = point;
 
                             DrawTrajectoryArc(ImGui::GetForegroundDrawList(), final_pos, pos_of_building, air_strike_targets[targets].bomb_pos, 140.f * animated_map_scale, ImColor(255, 255, 255, 210), 200);
 
@@ -829,11 +844,24 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
 
                             ImVec2 final_pos = ImVec2(pos.x + countries->at(air_strike_targets[targets].SENDER_country_id).buildings[air_strike_targets[targets].SENDER_building_id].pos.x * animated_map_scale, pos.y + countries->at(air_strike_targets[targets].SENDER_country_id).buildings[air_strike_targets[targets].SENDER_building_id].pos.y * animated_map_scale);
 
+                            auto pointed_bomb_ptr3 = std::find_if(air_strike_targets.begin(), air_strike_targets.end(), [&](nuclear_strike_target target)
+                                {
+                                    return target.unique_id == air_strike_targets[targets].GETTER_rocket;
+                                });
+
+                            auto bomb_pos = pointed_bomb_ptr3->bomb_pos;
+
+                            if (function_count == 1)
+                                air_strike_targets[targets].segments = CalculateSegments(final_pos, bomb_pos, animated_map_scale);
+
+                            auto target_point = GetTrajectoryStrightOnePoint(final_pos, bomb_pos, air_strike_targets[targets].step_of_bomb, air_strike_targets[targets].segments);
+
+                            air_strike_targets[targets].bomb_pos = ImVec2(target_point);
 
                             //bomb sending and pos
                             if (g_socket_control.player_role == g_socket_control.player_role_enum::SERVER && function_count == 1)
                             {
-                                if (air_strike_targets[targets].step_of_bomb > 157) // segments
+                                if (air_strike_targets[targets].step_of_bomb > air_strike_targets[targets].segments) // segments
                                 {
 
                                     if (true)
@@ -877,11 +905,6 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
                                     }
                                 }
 
-                            }
-
-
-                             //PVO
-                            {
                                 if (air_strike_targets[targets].last_global_tick < global_tick)
                                 {
                                     air_strike_targets[targets].step_of_bomb++;
@@ -889,15 +912,11 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
                                     is_going_to_update_targets = true;
                                 }
 
-                                auto pointed_bomb_ptr3 = std::find_if(air_strike_targets.begin(), air_strike_targets.end(), [&](nuclear_strike_target target)
-                                    {
-                                        return target.unique_id == air_strike_targets[targets].GETTER_rocket;
-                                    });
+                            }
 
-                                auto bomb_pos = pointed_bomb_ptr3->bomb_pos;
-                                auto target_point = GetTrajectoryStrightOnePoint(final_pos, bomb_pos, air_strike_targets[targets].step_of_bomb, 160);
 
-                                air_strike_targets[targets].bomb_pos = ImVec2(target_point);
+                             //PVO
+                            {
 
                                 DrawTrajectoryStrightArc(ImGui::GetForegroundDrawList(), final_pos, bomb_pos, air_strike_targets[targets].bomb_pos, ImColor(255, 255, 40, 150), 200);
 
@@ -959,7 +978,6 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
                         continue;
 
                     //NEXT PART OF CODE SHOULD BE PROCESSED ONLY BY ONE FUNCTION "render_map_and_process. secondary function for double map should ignore this code"
-
 
                     //first function called
                     if (function_count == 1)
@@ -1362,12 +1380,14 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
                                             auto pos2 = ImVec2(countries->at(air_strike_targets[rockets_id].GETTER_country_id).position.x * animated_map_scale - (countries->at(air_strike_targets[rockets_id].GETTER_country_id).size.x * animated_map_scale * map_scale2) / 2 + map_pos.x * animated_map_scale,
                                                 countries->at(air_strike_targets[rockets_id].GETTER_country_id).position.y * animated_map_scale - (countries->at(air_strike_targets[rockets_id].GETTER_country_id).size.y * animated_map_scale * map_scale2) / 2 + map_pos.y * animated_map_scale);
 
-                                            auto bombpos = ImVec2(air_strike_targets[rockets_id].bomb_pos.x - pos2.x, air_strike_targets[rockets_id].bomb_pos.y - pos2.y);
+                                            auto bombpos = ImVec2(air_strike_targets[rockets_id].bomb_pos.x, air_strike_targets[rockets_id].bomb_pos.y);
 
-                                            auto buildpos = ImVec2(final_pos.x - pos.x, final_pos.y - pos.y);
+                                            auto buildpos = ImVec2(final_pos.x, final_pos.y);
 
                                             float distance = CalculateDistance(bombpos, buildpos) / animated_map_scale;
                                             
+                                            ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[2].font_addr, 17.f, ImVec2(15, 15), ImColor(255, 255, 255), std::to_string(distance).c_str());
+
 
                                             if (distance < 50 && air_strike_targets[rockets_id].SENDER_country_id != g_menu.players[player_id].control_region)
                                             {
