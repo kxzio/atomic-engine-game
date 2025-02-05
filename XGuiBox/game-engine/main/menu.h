@@ -1,5 +1,5 @@
 #pragma once
-#include "resources/window_profiling/window.h"
+#include "../resources/window_profiling/window.h"
 
 enum buildings
 {

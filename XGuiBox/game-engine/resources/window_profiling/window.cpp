@@ -5,14 +5,12 @@
 #include <fstream>
 #include "../../misc/instruments.h"
 #include "../../xguibox/xgui.h"
-#include "../../menu.h"
+#include "../../main/menu.h"
 #include "../imgui_resource/imgui_freetype.h"
-#include "../planet_menu.h"
-#include "../noise.h"
-#include "../RGB_LINES.h"
-#include "../USA.h"
-#include "../Turk.h"
-#include "../tv.h"
+#include "../byte/planet_menu.h"
+#include "../byte/noise.h"
+#include "../byte/RGB_LINES.h"
+#include "../byte/tv.h"
 #include <algorithm>
 #include <objbase.h> 
 
@@ -42,8 +40,8 @@ extern "C"
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "bcrypt.lib")
 
-#include "../nanosvg.h"
-#include "../nanosvgrast.h"
+#include "../byte/nanosvg.h"
+#include "../byte/nanosvgrast.h"
 #include <shellapi.h>
 
 #define D3D11_ERROR_DEFERRED_CONTEXT_MAP_WITHOUT_INITIAL_DISCARD 0

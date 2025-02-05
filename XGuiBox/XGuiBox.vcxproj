@@ -77,9 +77,9 @@
     <ExternalIncludePath>C:\Users\sasha\OneDrive\Documents\ffmpeg lib\ffmpeg-4.3.1-win64-dev\lib;C:\Users\sasha\Downloads\DirectXTex-oct2024\DirectXTex-oct2024\WICTextureLoader;C:\Users\sasha\Downloads\DirectXTex-oct2024\DirectXTex-oct2024\DirectXTex;C:\Users\sasha\OneDrive\Documents\sdk\sdk\Lib\x64;$(ExternalIncludePath)</ExternalIncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <ExecutablePath>C:\Users\sasha\OneDrive\Documents\ffmpeg lib\ffmpeg-4.3.1-win64-dev\include;C:\Users\sasha\source\repos\XGuiBox\XGuiBox\resources\freetype\release dll\win64;C:\Users\sasha\OneDrive\Documents\sdk\sdk\Include;$(ExecutablePath)</ExecutablePath>
-    <IncludePath>C:\Users\sasha\OneDrive\Documents\ffmpeg lib\ffmpeg-4.3.1-win64-dev\include;C:\Users\sasha\Downloads\DirectXTex-oct2024\DirectXTex-oct2024\WICTextureLoader;C:\Users\sasha\Downloads\DirectXTex-oct2024\DirectXTex-oct2024\DirectXTex;C:\Users\sasha\OneDrive\Documents\sdk\sdk\Include;C:\Users\sasha\source\repos\XGuiBox\XGuiBox\resources\freetype\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Users\sasha\OneDrive\Documents\ffmpeg lib\ffmpeg-4.3.1-win64-dev\lib;C:\Users\sasha\OneDrive\Documents\sdk\sdk\Lib\x64;C:\Users\sasha\source\repos\XGuiBox\XGuiBox\resources\freetype\release dll\win64;$(LibraryPath)</LibraryPath>
+    <ExecutablePath>C:\Users\sasha\OneDrive\Documents\ffmpeg lib\ffmpeg-4.3.1-win64-dev\include;C:\Users\sasha\source\repos\XGuiBox\XGuiBox\game-engine\resources\freetype\release dll\win64;C:\Users\sasha\OneDrive\Documents\sdk\sdk\Include;$(ExecutablePath)</ExecutablePath>
+    <IncludePath>C:\Users\sasha\OneDrive\Documents\ffmpeg lib\ffmpeg-4.3.1-win64-dev\include;C:\Users\sasha\Downloads\DirectXTex-oct2024\DirectXTex-oct2024\WICTextureLoader;C:\Users\sasha\Downloads\DirectXTex-oct2024\DirectXTex-oct2024\DirectXTex;C:\Users\sasha\OneDrive\Documents\sdk\sdk\Include;C:\Users\sasha\source\repos\XGuiBox\XGuiBox\game-engine\resources\freetype\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Users\sasha\OneDrive\Documents\ffmpeg lib\ffmpeg-4.3.1-win64-dev\lib;C:\Users\sasha\OneDrive\Documents\sdk\sdk\Lib\x64;C:\Users\sasha\source\repos\XGuiBox\XGuiBox\game-engine\resources\freetype\release dll\win64;$(LibraryPath)</LibraryPath>
     <ExternalIncludePath>C:\Users\sasha\OneDrive\Documents\ffmpeg lib\ffmpeg-4.3.1-win64-dev\lib;C:\Users\sasha\Downloads\DirectXTex-oct2024\DirectXTex-oct2024\WICTextureLoader;C:\Users\sasha\Downloads\DirectXTex-oct2024\DirectXTex-oct2024\DirectXTex;C:\Users\sasha\OneDrive\Documents\sdk\sdk\Lib\x64;$(ExternalIncludePath)</ExternalIncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -141,7 +141,7 @@ bcrypt.lib;fmod_vc.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
-      <AdditionalIncludeDirectories>C:\Users\sasha\OneDrive\Documents\FMOD API\FMOD Studio API Windows\api\core\inc;C:\Users\sasha\OneDrive\Documents\ffmpeg lib\ffmpeg-4.3.1-win64-dev\include;C:\Users\sasha\OneDrive\Documents\boost\boost_1_86_0;C:\Users\sasha\source\repos\XGuiBox\XGuiBox\resources\freetype\release dll\win64;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\sasha\OneDrive\Documents\FMOD API\FMOD Studio API Windows\api\core\inc;C:\Users\sasha\OneDrive\Documents\ffmpeg lib\ffmpeg-4.3.1-win64-dev\include;C:\Users\sasha\OneDrive\Documents\boost\boost_1_86_0;C:\Users\sasha\source\repos\XGuiBox\XGuiBox\game-engine\resources\freetype\release dll\win64;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -157,56 +157,65 @@ bcrypt.lib;fmod_vc.lib;d3d11.lib;dxguid.lib;d3dx11.lib;DirectXTex.lib;%(Addition
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="game_process\map_processing.cpp" />
-    <ClCompile Include="menu.cpp" />
-    <ClCompile Include="resources\imgui_resource\imgui.cpp" />
-    <ClCompile Include="resources\imgui_resource\imgui_demo.cpp" />
-    <ClCompile Include="resources\imgui_resource\imgui_draw.cpp" />
-    <ClCompile Include="resources\imgui_resource\imgui_freetype.cpp" />
-    <ClCompile Include="resources\imgui_resource\imgui_impl_dx11.cpp" />
-    <ClCompile Include="resources\imgui_resource\imgui_impl_dx9.cpp" />
-    <ClCompile Include="resources\imgui_resource\imgui_impl_win32.cpp" />
-    <ClCompile Include="resources\imgui_resource\imgui_tables.cpp" />
-    <ClCompile Include="resources\imgui_resource\imgui_widgets.cpp" />
-    <ClCompile Include="resources\window_profiling\window.cpp" />
-    <ClCompile Include="XGuiBox.cpp" />
-    <ClCompile Include="xguibox\xgui.cpp" />
+    <ClCompile Include="game-engine\game_process\map_processing.cpp" />
+    <ClCompile Include="game-engine\game_process\structs\country_struct.h" />
+    <ClCompile Include="game-engine\main\menu.cpp" />
+    <ClCompile Include="game-engine\resources\imgui_resource\imgui.cpp" />
+    <ClCompile Include="game-engine\resources\imgui_resource\imgui_demo.cpp" />
+    <ClCompile Include="game-engine\resources\imgui_resource\imgui_draw.cpp" />
+    <ClCompile Include="game-engine\resources\imgui_resource\imgui_freetype.cpp" />
+    <ClCompile Include="game-engine\resources\imgui_resource\imgui_impl_dx11.cpp" />
+    <ClCompile Include="game-engine\resources\imgui_resource\imgui_impl_dx9.cpp" />
+    <ClCompile Include="game-engine\resources\imgui_resource\imgui_impl_win32.cpp" />
+    <ClCompile Include="game-engine\resources\imgui_resource\imgui_tables.cpp" />
+    <ClCompile Include="game-engine\resources\imgui_resource\imgui_widgets.cpp" />
+    <ClCompile Include="game-engine\resources\window_profiling\window.cpp" />
+    <ClCompile Include="game-engine\main\XGuiBox.cpp" />
+    <ClCompile Include="game-engine\xguibox\xgui.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="game_process\map_processing.h" />
-    <ClInclude Include="menu.h" />
-    <ClInclude Include="misc\instruments.h" />
-    <ClInclude Include="resources\imgui_resource\imconfig.h" />
-    <ClInclude Include="resources\imgui_resource\imgui.h" />
-    <ClInclude Include="resources\imgui_resource\imgui_freetype.h" />
-    <ClInclude Include="resources\imgui_resource\imgui_impl_dx11.h" />
-    <ClInclude Include="resources\imgui_resource\imgui_impl_dx9.h" />
-    <ClInclude Include="resources\imgui_resource\imgui_impl_win32.h" />
-    <ClInclude Include="resources\imgui_resource\imgui_internal.h" />
-    <ClInclude Include="resources\imgui_resource\imstb_rectpack.h" />
-    <ClInclude Include="resources\imgui_resource\imstb_textedit.h" />
-    <ClInclude Include="resources\imgui_resource\imstb_truetype.h" />
-    <ClInclude Include="resources\imgui_resource\stb_image.h" />
-    <ClInclude Include="resources\nanosvg.h" />
-    <ClInclude Include="resources\nanosvgrast.h" />
-    <ClInclude Include="resources\noise.h" />
-    <ClInclude Include="resources\OpenSans-Bold.h" />
-    <ClInclude Include="resources\planet_menu.h" />
-    <ClInclude Include="resources\RGB_LINES.h" />
-    <ClInclude Include="resources\tv.h" />
-    <ClInclude Include="resources\window_profiling\window.h" />
-    <ClInclude Include="server-client.h" />
-    <ClInclude Include="xguibox\font_modulation_class.h" />
-    <ClInclude Include="xguibox\frameflags.h" />
-    <ClInclude Include="xguibox\xgui.h" />
+    <ClInclude Include="game-engine\game_process\buildings\buildings.h" />
+    <ClInclude Include="game-engine\game_process\country-cities\city.h" />
+    <ClInclude Include="game-engine\game_process\map_helper.h" />
+    <ClInclude Include="game-engine\game_process\map_processing.h" />
+    <ClInclude Include="game-engine\game_process\rockets\rockets.h" />
+    <ClInclude Include="game-engine\game_process\structs\basic_object_struct.h" />
+    <ClInclude Include="game-engine\game_process\structs\building_struct.h" />
+    <ClInclude Include="game-engine\game_process\structs\city_struct.h" />
+    <ClInclude Include="game-engine\game_process\structs\rocket_struct.h" />
+    <ClInclude Include="game-engine\main\menu.h" />
+    <ClInclude Include="game-engine\misc\instruments.h" />
+    <ClInclude Include="game-engine\resources\imgui_resource\imconfig.h" />
+    <ClInclude Include="game-engine\resources\imgui_resource\imgui.h" />
+    <ClInclude Include="game-engine\resources\imgui_resource\imgui_freetype.h" />
+    <ClInclude Include="game-engine\resources\imgui_resource\imgui_impl_dx11.h" />
+    <ClInclude Include="game-engine\resources\imgui_resource\imgui_impl_dx9.h" />
+    <ClInclude Include="game-engine\resources\imgui_resource\imgui_impl_win32.h" />
+    <ClInclude Include="game-engine\resources\imgui_resource\imgui_internal.h" />
+    <ClInclude Include="game-engine\resources\imgui_resource\imstb_rectpack.h" />
+    <ClInclude Include="game-engine\resources\imgui_resource\imstb_textedit.h" />
+    <ClInclude Include="game-engine\resources\imgui_resource\imstb_truetype.h" />
+    <ClInclude Include="game-engine\resources\imgui_resource\stb_image.h" />
+    <ClInclude Include="game-engine\resources\byte\nanosvg.h" />
+    <ClInclude Include="game-engine\resources\byte\nanosvgrast.h" />
+    <ClInclude Include="game-engine\resources\byte\noise.h" />
+    <ClInclude Include="game-engine\resources\byte\OpenSans-Bold.h" />
+    <ClInclude Include="game-engine\resources\byte\planet_menu.h" />
+    <ClInclude Include="game-engine\resources\byte\RGB_LINES.h" />
+    <ClInclude Include="game-engine\resources\byte\tv.h" />
+    <ClInclude Include="game-engine\resources\window_profiling\window.h" />
+    <ClInclude Include="game-engine\tools\tools.h" />
+    <ClInclude Include="game-engine\xguibox\font_modulation_class.h" />
+    <ClInclude Include="game-engine\xguibox\frameflags.h" />
+    <ClInclude Include="game-engine\xguibox\xgui.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="resources\freetype\release dll\win32\freetype.dll" />
-    <None Include="resources\freetype\release dll\win64\freetype.dll" />
+    <None Include="game-engine\resources\freetype\release dll\win32\freetype.dll" />
+    <None Include="game-engine\resources\freetype\release dll\win64\freetype.dll" />
   </ItemGroup>
   <ItemGroup>
-    <Library Include="resources\freetype\release dll\win32\freetype.lib" />
-    <Library Include="resources\freetype\release dll\win64\freetype.lib" />
+    <Library Include="game-engine\resources\freetype\release dll\win32\freetype.lib" />
+    <Library Include="game-engine\resources\freetype\release dll\win64\freetype.lib" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

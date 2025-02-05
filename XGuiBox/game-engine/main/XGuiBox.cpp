@@ -1,16 +1,17 @@
 ﻿//XGUIBOX - v 0.01
 
 //GUI RESOURCES
-#include "resources/imgui_resource/imgui.h"
-#include "resources/imgui_resource/imgui_impl_dx9.h"
-#include "resources/imgui_resource/imgui_impl_win32.h"
+#include "../resources/imgui_resource/imgui.h"
+#include "../resources/imgui_resource/imgui_impl_dx9.h"
+#include "../resources/imgui_resource/imgui_impl_win32.h"
 #include <dinput.h>
 #include <tchar.h>
 #include <d3d9.h>
 
-#include "resources/window_profiling/window.h"
-#include "xguibox/xgui.h"
-#include "resources/OpenSans-Bold.h"
+#include "../resources/window_profiling/window.h"
+#include "../xguibox/xgui.h"
+#include "../resources/byte/OpenSans-Bold.h"
+
 #pragma comment(lib, "d3d9.lib")
 #pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup")
 

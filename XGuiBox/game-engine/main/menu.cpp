@@ -23,11 +23,11 @@
 
 #include "menu.h"
 
-#include "resources/imgui_resource/imgui.h"
-#include "resources/window_profiling/window.h"
-#include "resources/imgui_resource/imgui_internal.h"
-#include "game_process/map_processing.h"
-#include "../XGuiBox/xguibox/xgui.h"
+#include "../resources/imgui_resource/imgui.h"
+#include "../resources/window_profiling/window.h"
+#include "../resources/imgui_resource/imgui_internal.h"
+#include "../game_process/map_processing.h"
+#include "../xguibox/xgui.h"
 
 #include <fmod.hpp>
 
