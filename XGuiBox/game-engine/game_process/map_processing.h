@@ -12,6 +12,7 @@
 #include <fstream>
 
 #include "structs/country_struct.h"
+#include "units/units_class.h"
 
 
 #define WIN32_LEAN_AND_MEAN
@@ -42,6 +43,9 @@ public:
     bool selection_for_nuclear_strike;
     int current_striking_building_id; // BUILDING THAT STRIKES
     std::vector < nuclear_strike_target > air_strike_targets;
+    
+    //units
+    std::vector < units_base > units;
 
     //cycles
     void process_and_sync_game_cycle(std::vector <country_data>* countries, int player_id, float animated_map_scale, int hovered_country_id);

@@ -159,6 +159,7 @@ bcrypt.lib;fmod_vc.lib;d3d11.lib;dxguid.lib;d3dx11.lib;DirectXTex.lib;%(Addition
   <ItemGroup>
     <ClCompile Include="game-engine\game_process\map_processing.cpp" />
     <ClCompile Include="game-engine\game_process\structs\country_struct.h" />
+    <ClCompile Include="game-engine\game_process\units\units_class.h" />
     <ClCompile Include="game-engine\main\menu.cpp" />
     <ClCompile Include="game-engine\resources\imgui_resource\imgui.cpp" />
     <ClCompile Include="game-engine\resources\imgui_resource\imgui_demo.cpp" />
@@ -183,6 +184,7 @@ bcrypt.lib;fmod_vc.lib;d3d11.lib;dxguid.lib;d3dx11.lib;DirectXTex.lib;%(Addition
     <ClInclude Include="game-engine\game_process\structs\building_struct.h" />
     <ClInclude Include="game-engine\game_process\structs\city_struct.h" />
     <ClInclude Include="game-engine\game_process\structs\rocket_struct.h" />
+    <ClInclude Include="game-engine\game_process\units\warships.h" />
     <ClInclude Include="game-engine\main\menu.h" />
     <ClInclude Include="game-engine\misc\instruments.h" />
     <ClInclude Include="game-engine\resources\imgui_resource\imconfig.h" />

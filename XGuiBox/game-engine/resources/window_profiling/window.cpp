@@ -126,7 +126,7 @@ bool InitFFmpeg(const char* filename) {
     videoHeight = codecContext->height;
 
     // Инициализация структур для кадров
-    frame = av_frame_alloc();
+    frame     = av_frame_alloc();
     frameRGBA = av_frame_alloc();
 
     // Настройка SWS контекста
@@ -863,7 +863,7 @@ void window_profiling::create_window()
             (ImTextureID)g_window.Tv,
             ImVec2(0, 0),
             ImVec2(this->window_size.x, this->window_size.y),
-            ImVec2(0, 0), ImVec2(1, 1), ImColor(100, 200, 150, 9)
+            ImVec2(0, 0), ImVec2(1, 1), ImColor(100, 0, 150, 9)
         );
 
         ImGui::GetForegroundDrawList()->AddImage(
@@ -884,7 +884,7 @@ void window_profiling::create_window()
             (ImTextureID)Additional_Noise,
             ImVec2(0, 0),
             ImVec2(this->window_size.x, this->window_size.y),
-            ImVec2(0, 0), ImVec2(1, 1), ImColor(255, 255, 255, 5)
+            ImVec2(0, 0), ImVec2(1, 1), ImColor(255, 0, 255, 5)
         );
 
         ImGui::EndFrame();

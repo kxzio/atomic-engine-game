@@ -7,6 +7,7 @@
 #include "buildings/../country-cities/city.h"
 #include "rockets/rockets.h"
 #include "map_helper.h"
+#include "units/warships.h"
 
 void map_processing::process_object_selections(bool city, int current_country, int player_id, std::vector <country_data>* countries, map_objects* object, float animated_map_scale, ImVec2 map_pos)
 {
@@ -147,7 +148,7 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
             map_pos.y * animated_map_scale + 550 * animated_map_scale),
         ImVec2(0, 0),
         ImVec2(1, 1),
-        ImColor(100, 100, 100, 90)
+        ImColor(100, 100, 150, 90)
     );
 
     {
@@ -167,10 +168,12 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
 
             //processing buildings
             g_building_processing. process_buildings          (i, window, countries, animated_map_scale, hovered_id, cursor_pos, map_pos, player_id, function_count);
-
+            
         }
         g_rocket_processing.       process_rockets            (0, window, countries, animated_map_scale, hovered_id, cursor_pos, map_pos, player_id, function_count);
 
+        //process warships
+        g_warships.process_warships(0, window, countries, animated_map_scale, hovered_id, cursor_pos, map_pos, player_id, function_count);
 
 
     }

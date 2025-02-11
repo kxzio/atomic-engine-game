@@ -60,6 +60,9 @@
     <ClCompile Include="game-engine\game_process\structs\country_struct.h">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
+    <ClCompile Include="game-engine\game_process\units\units_class.h">
+      <Filter>Исходные файлы</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="game-engine\resources\imgui_resource\imconfig.h">
@@ -162,6 +165,9 @@
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
     <ClInclude Include="game-engine\game_process\structs\basic_object_struct.h">
+      <Filter>Файлы заголовков</Filter>
+    </ClInclude>
+    <ClInclude Include="game-engine\game_process\units\warships.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
   </ItemGroup>

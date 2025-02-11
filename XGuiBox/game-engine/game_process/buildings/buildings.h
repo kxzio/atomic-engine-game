@@ -327,6 +327,22 @@ public:
                                 }
                                 ImGui::End();
                             }
+
+                            if (countries->at(i).buildings[buildings_id].building_type == SHIPYARD)
+                            {
+                                if (ImGui::IsMouseDown(1))
+                                {
+                                    units_base new_unit;
+
+                                    new_unit.unique_id = g_tools.generate_unique_int();
+                                    new_unit.warship = true;
+                                    new_unit.airplane = false;
+                                    new_unit.owner_country_id = i;
+                                    new_unit.owner_building_id = buildings_id;
+
+                                    g_map.units.push_back(new_unit);
+                                }
+                            }
                         }
 
                         switch (countries->at(i).buildings[buildings_id].building_type)
