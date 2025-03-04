@@ -12,6 +12,8 @@ public:
 
 	int  unique_id;
 
+	ImVec2 spawn_pos     = ImVec2();
+	ImVec2 converted_spawn_pos = ImVec2();
 	ImVec2 position      = ImVec2();
 	ImVec2 move_offset   = ImVec2();
 	ImVec2 target_pos    = ImVec2();
@@ -20,6 +22,7 @@ public:
 	int old_tick;
 
 	bool   pos_converted_to_map = false;
+	bool   spawnpos_converted_to_map = false;
 
 	bool hovered;
 	bool selected;

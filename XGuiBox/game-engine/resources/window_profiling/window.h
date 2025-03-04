@@ -17,6 +17,8 @@ class window_profiling
 {
 public:
 
+	ImVec2 window_size, window_pos;
+
 	ID3D11Device* g_pd3dDevice = NULL;
 	// Создание устройства DirectX 11 и контекста
 	DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
@@ -102,7 +104,6 @@ public:
 
 private:
 
-	ImVec2 window_size, window_pos;
 
 	int type_of_window;
 

@@ -441,6 +441,58 @@ void map_processing::process_and_sync_game_cycle(std::vector <country_data>* cou
 
     bool is_server = g_socket_control.player_role == g_socket_control.player_role_enum::SERVER;
 
+    //drag n drop
+    {
+        int flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
+            | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoNavInputs | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoDecoration;
+        ImGui::SetNextWindowPos(ImVec2(0, 0));
+        ImGui::SetNextWindowSize(g_window.window_size);
+        ImGui::Begin("Drag n Drop For Ships And Air Ships", (bool*)1, flags);
+        {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(ImColor(0, 0, 0, 0)));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(ImColor(0, 0, 0, 0)));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(ImColor(0, 0, 0, 0)));
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(ImColor(0, 0, 0, 0)));
+
+            ImGui::SetCursorPos(ImVec2(0, 0));
+            ImGui::Button("DNDSS", g_window.window_size);
+            if (ImGui::BeginDragDropTarget())
+            {
+                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("DND_ITEM2"))
+                {
+                    int payload_idx = *(const int*)payload->Data;
+                    {
+                        int player_region = g_menu.players[player_id].control_region;
+                        int buildings_id = countries->at(player_region).what_building_is_dragging;
+
+                        countries->at(player_region).buildings[buildings_id].shipyard_heart.carriers.erase(countries->at(player_region).buildings[buildings_id].shipyard_heart.carriers.begin() + payload_idx);
+                        g_menu.players[player_id].war_property.carrier_count--;
+                        countries->at(player_region).what_building_is_dragging = 0;
+
+                        //spawn boat
+                        units_base new_unit;
+
+                        new_unit.unique_id = g_tools.generate_unique_int();
+                        new_unit.warship = true;
+                        new_unit.airplane = false;
+                        new_unit.owner_country_id = player_region;
+                        new_unit.owner_building_id = buildings_id;
+                        new_unit.spawn_pos = ImVec2(cursor_pos.x, cursor_pos.y);
+
+                        g_map.units.push_back(new_unit);
+                    }
+                }
+                ImGui::EndDragDropTarget();
+            }
+
+            ImGui::PopStyleColor();
+            ImGui::PopStyleColor();
+            ImGui::PopStyleColor();
+            ImGui::PopStyleColor();
+
+        }
+        ImGui::End();
+    }
     //timer visual
     {
         auto textsize = g_xgui.fonts[2].font_addr->CalcTextSizeA(17, FLT_MAX, -1.f, g_tools.convert_tick_to_timer().c_str());

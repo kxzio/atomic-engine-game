@@ -22,6 +22,13 @@ struct SHIPYARD_SYSTEM_HEART
     int old_tick_for_boat4 = 0;
     int goal_amount_of_boat4 = 0;
 
+
+    //listbox of boats
+    std::vector< std::string > carriers;
+    std::vector< std::string > cruisers;
+    std::vector< std::string > destroyers;
+    std::vector< std::string > submarines;
+
 };
 struct MISSILE_SILO_HEART
 {
@@ -56,4 +63,6 @@ public:
     SHIPYARD_SYSTEM_HEART    shipyard_heart;
     MISSILE_SILO_HEART       missile_silo_heart;
     MISSILE_DEFENSE_HEART    missile_defense_heart;
+
+
 };

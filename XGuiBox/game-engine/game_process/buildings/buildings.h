@@ -184,9 +184,54 @@ public:
                                             ImGui::SliderScalarForProgress("Building progress [4]", ImGuiDataType_Float, &progress, &min, &max);
                                         }
 
+
+                                        //list of boats
                                         ImGui::NewLine();
 
-                                        ImGui::NewLine();
+
+                                        for (int q = 0; q < g_menu.players[player_id].war_property.carrier_count; q++)
+                                            if (countries->at(i).buildings[buildings_id].shipyard_heart.carriers.size() != g_menu.players[player_id].war_property.carrier_count) 
+                                                countries->at(i).buildings[buildings_id].shipyard_heart.carriers.push_back(std::string("Carrier" + std::to_string(g_menu.players[player_id].war_property.carrier_count)) );
+
+                                        for (int q = 0; q < g_menu.players[player_id].war_property.cruiser_count; q++)
+                                            if (countries->at(i).buildings[buildings_id].shipyard_heart.cruisers.size() != g_menu.players[player_id].war_property.cruiser_count)
+                                            countries->at(i).buildings[buildings_id].shipyard_heart.cruisers.push_back(std::string("Cruiser" + std::to_string(g_menu.players[player_id].war_property.cruiser_count)));
+
+                                        for (int q = 0; q < g_menu.players[player_id].war_property.destroyer_count; q++)
+                                            if (countries->at(i).buildings[buildings_id].shipyard_heart.destroyers.size() != g_menu.players[player_id].war_property.destroyer_count)
+                                            countries->at(i).buildings[buildings_id].shipyard_heart.destroyers.push_back(std::string("Destroyer" + std::to_string(g_menu.players[player_id].war_property.destroyer_count)));
+
+                                        for (int q = 0; q < g_menu.players[player_id].war_property.submarine_count; q++)
+                                            if (countries->at(i).buildings[buildings_id].shipyard_heart.submarines.size() != g_menu.players[player_id].war_property.submarine_count)
+                                            countries->at(i).buildings[buildings_id].shipyard_heart.submarines.push_back(std::string("Submarine" + std::to_string(g_menu.players[player_id].war_property.submarine_count)));
+                                        
+
+                                        {
+                                            
+                                            ImGui::BeginListBox("Queue", ImVec2(330, 120));
+                                            {
+                                                if (!countries->at(i).buildings[buildings_id].shipyard_heart.carriers.empty())
+                                                for (int i5 = 0; i5 < countries->at(i).buildings[buildings_id].shipyard_heart.carriers.size(); i5++)
+                                                {
+                                                    if (!countries->at(i).buildings[buildings_id].shipyard_heart.carriers.at(i5).empty())
+                                                    {
+
+                                                        ImGui::Selectable(countries->at(i).buildings[buildings_id].shipyard_heart.carriers.at(i5).c_str());
+
+                                                        if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
+                                                            ImGui::SetDragDropPayload("DND_ITEM2", &i5, sizeof(int));
+                                                            countries->at(i).what_building_is_dragging = buildings_id;
+                                                            ImGui::Text("%s", countries->at(i).buildings[buildings_id].shipyard_heart.carriers.at(i5).c_str());
+                                                            ImGui::EndDragDropSource();
+                                                        }
+
+                                                    }
+                                                }
+                                            }
+                                            ImGui::EndListBox();
+
+
+                                        }
 
                                     }
                                     break;
@@ -340,6 +385,8 @@ public:
                                         ImGui::CenteredText(countries->at(i).buildings[buildings_id].missile_defense_heart.ready_to_shot ? "[ READY ]" : "[ RELOADING ]");
                                         ImGui::NewLine();
                                         ImGui::PopStyleColor();
+
+
                                         ImGui::PopStyleVar();
                                     }
                                     break;
@@ -348,21 +395,6 @@ public:
                                 ImGui::End();
                             }
 
-                            if (countries->at(i).buildings[buildings_id].building_type == SHIPYARD)
-                            {
-                                if (ImGui::IsMouseClicked(1))
-                                {
-                                    units_base new_unit;
-
-                                    new_unit.unique_id = g_tools.generate_unique_int();
-                                    new_unit.warship = true;
-                                    new_unit.airplane = false;
-                                    new_unit.owner_country_id = i;
-                                    new_unit.owner_building_id = buildings_id;
-
-                                    g_map.units.push_back(new_unit);
-                                }
-                            }
                         }
 
                         switch (countries->at(i).buildings[buildings_id].building_type)
@@ -427,6 +459,8 @@ public:
                                         g_menu.players[player_id].war_property.cruiser_count++;
                                     }
                                 }
+
+
 
                             }
                             break;

@@ -1,27 +1,88 @@
-Texture2D g_Texture : register(t0);
-SamplerState g_Sampler : register(s0);
-
-float2 g_NoiseScale = float2(0.5, 0.5); // Масштаб шума
-float g_ScanlineIntensity = 0.8f; // Интенсивность сканирования
-float g_Time; // Время для динамических эффектов
-
-// Шум для VHS
-float GetNoise(float2 uv)
+// Вершинный шейдер
+struct VS_INPUT
 {
-    return frac(sin(dot(uv * 10.0f, float2(12.9898, 78.233))) * 43758.5453);
+    float4 position : POSITION;
+    float2 texcoord : TEXCOORD0;
+};
+
+struct PS_INPUT
+{
+    float4 position : SV_POSITION;
+    float2 texcoord : TEXCOORD0;
+};
+
+cbuffer ViewProjectionBuffer : register(b0)
+{
+    matrix viewProjection;
+};
+
+PS_INPUT VS_Main(VS_INPUT input)
+{
+    PS_INPUT output;
+    output.position = mul(input.position, viewProjection); // Преобразование в мировое пространство
+    output.texcoord = input.texcoord;
+    return output;
 }
 
-float4 main(float2 uv : TEXCOORD) : SV_Target
+// Пиксельный шейдер для эффекта Bloom
+Texture2D g_Texture : register(t0); // Основная текстура сцены
+SamplerState g_Sampler : register(s0); // Самплер для текстуры
+
+// Для фильтрации ярких пикселей
+float BloomThreshold = 0.5f; // Порог для яркости
+float BloomIntensity = 500.5f; // Интенсивность Bloom эффекта
+
+float4 PS_Main(PS_INPUT input) : SV_Target
 {
-    float4 color = g_Texture.Sample(g_Sampler, uv);
+    // Получаем цвет из текстуры
+    float4 color = g_Texture.Sample(g_Sampler, input.texcoord);
 
-    // Добавляем шум
-    float noise = GetNoise(uv * g_NoiseScale);
-    color.rgb = lerp(color.rgb, color.rgb + noise * 0.1f, 0.5f); // Линейная интерполяция для шума
-
-    // Добавляем сканирование (горизонтальные полосы)
-    float scanline = sin(uv.y * 100.0f) * g_ScanlineIntensity; // Увеличиваем частоту полос
-    color.rgb *= 1.0f - scanline;
+    // Применяем порог для выделения ярких участков
+    if (color.r < BloomThreshold && color.g < BloomThreshold && color.b < BloomThreshold)
+    {
+        color.rgb = float3(0.0f, 0.0f, 0.0f); // Отключаем ненужные пиксели
+    }
+    else
+    {
+        color.rgb *= BloomIntensity; // Усиливаем яркость
+    }
 
     return color;
+}
+
+// Простой шейдер размытия для эффекта Bloom
+Texture2D g_BloomTexture : register(t1); // Текстура с яркими участками для Bloom
+SamplerState g_SamplerBloom : register(s1); // Самплер для Bloom текстуры
+
+// Размытие изображения
+float4 PS_Bloom(PS_INPUT input) : SV_Target
+{
+    float4 bloomColor = g_BloomTexture.Sample(g_SamplerBloom, input.texcoord);
+
+    // Применяем простое размытие
+    bloomColor.rgb = bloomColor.rgb * 0.5f; // Модификация для эффекта свечения
+
+    return bloomColor;
+}
+
+// Основной шейдер, который применяет Bloom и размывает изображение
+technique BloomEffect
+{
+    pass P0
+    {
+        // Вершинный шейдер
+        SetVertexShader(CompileShader(vs_4_0, VS_Main()));
+
+        // Пиксельный шейдер для Bloom эффекта
+        SetPixelShader(CompileShader(ps_4_0, PS_Main()));
+    }
+
+    pass P1
+    {
+        // Вершинный шейдер
+        SetVertexShader(CompileShader(vs_4_0, VS_Main()));
+
+        // Пиксельный шейдер для размытия
+        SetPixelShader(CompileShader(ps_4_0, PS_Bloom()));
+    }
 }

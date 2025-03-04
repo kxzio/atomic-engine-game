@@ -119,4 +119,9 @@ struct country_data
     std::vector<ImVec2> convex_hull_screen_coords;
 
 
+    //boat map dragging;
+    int what_type_of_boat_are_we_dragging;
+    int what_building_is_dragging;
+
+
 };
