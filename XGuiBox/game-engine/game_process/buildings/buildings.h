@@ -39,7 +39,7 @@ public:
 
                 if ((countries->at(i).buildings[buildings_id].selected != NOT_SELECTED && countries->at(i).buildings[buildings_id].building_type == MISSILE_DEFENSE && countries->at(i).buildings[buildings_id].progress_of_building == 105))
                 {
-                    ImGui::GetForegroundDrawList()->AddCircle(ImVec2(final_pos), 50.f * animated_map_scale, ImColor(255, 255, 0), 0, 2);
+                    ImGui::GetForegroundDrawList()->AddCircle(ImVec2(final_pos), 70.f * animated_map_scale, ImColor(255, 255, 0), 0, 2);
                 }
 
                 if (countries->at(i).buildings[buildings_id].highlighted)
@@ -62,7 +62,7 @@ public:
 
                         if (old_game_tick != g_map.global_tick)
                         {
-                            countries->at(i).buildings[buildings_id].progress_of_building += 10;
+                            countries->at(i).buildings[buildings_id].progress_of_building += 1;
                             old_game_tick = g_map.global_tick;
                         }
 
@@ -105,7 +105,7 @@ public:
 
                                         {
                                             float min = 0; float max = 1;
-                                            float progress = (g_map.global_tick - countries->at(i).buildings[buildings_id].air_factory_heart.old_tick_for_jets) / 10.f;
+                                            float progress = (g_map.global_tick - countries->at(i).buildings[buildings_id].air_factory_heart.old_tick_for_jets) / 100.f;
                                             ImGui::SliderScalarForProgress("Building progress [Jets]", ImGuiDataType_Float, &progress, &min, &max);
                                         }
 
@@ -119,7 +119,7 @@ public:
 
                                         {
                                             float min = 0; float max = 1;
-                                            float progress = (g_map.global_tick - countries->at(i).buildings[buildings_id].air_factory_heart.old_tick_for_bombers) / 20.f;
+                                            float progress = (g_map.global_tick - countries->at(i).buildings[buildings_id].air_factory_heart.old_tick_for_bombers) / 200.f;
                                             ImGui::SliderScalarForProgress("Building progress [Bombers]", ImGuiDataType_Float, &progress, &min, &max);
                                         }
 
@@ -138,7 +138,7 @@ public:
 
                                         {
                                             float min = 0; float max = 1;
-                                            float progress = (g_map.global_tick - countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat1) / 20.f;
+                                            float progress = (g_map.global_tick - countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat1) / 200.f;
                                             ImGui::SliderScalarForProgress("Building progress [1]", ImGuiDataType_Float, &progress, &min, &max);
                                         }
 
@@ -152,7 +152,7 @@ public:
 
                                         {
                                             float min = 0; float max = 1;
-                                            float progress = (g_map.global_tick - countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat2) / 20.f;
+                                            float progress = (g_map.global_tick - countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat2) / 200.f;
                                             ImGui::SliderScalarForProgress("Building progress [2]", ImGuiDataType_Float, &progress, &min, &max);
                                         }
 
@@ -166,7 +166,7 @@ public:
 
                                         {
                                             float min = 0; float max = 1;
-                                            float progress = (g_map.global_tick - countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat3) / 20.f;
+                                            float progress = (g_map.global_tick - countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat3) / 200.f;
                                             ImGui::SliderScalarForProgress("Building progress [3]", ImGuiDataType_Float, &progress, &min, &max);
                                         }
 
@@ -180,7 +180,7 @@ public:
 
                                         {
                                             float min = 0; float max = 1;
-                                            float progress = (g_map.global_tick - countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat4) / 20.f;
+                                            float progress = (g_map.global_tick - countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat4) / 200.f;
                                             ImGui::SliderScalarForProgress("Building progress [4]", ImGuiDataType_Float, &progress, &min, &max);
                                         }
 
@@ -196,7 +196,7 @@ public:
 
                                         {
                                             float min = 0; float max = 1;
-                                            float progress = (g_map.global_tick - countries->at(i).buildings[buildings_id].missile_silo_heart.old_tick_for_reload) / 35.f;
+                                            float progress = (g_map.global_tick - countries->at(i).buildings[buildings_id].missile_silo_heart.old_tick_for_reload) / 350.f;
                                             ImGui::SliderScalarForProgress("Launch progress [1]", ImGuiDataType_Float, &progress, &min, &max);
                                         }
 
@@ -324,13 +324,33 @@ public:
                                     }
                                     break;
 
+                                    case MISSILE_DEFENSE:
+                                    {
+
+                                        {
+                                            float min = 0; float max = 1;
+                                            float progress = (g_map.global_tick - countries->at(i).buildings[buildings_id].missile_defense_heart.old_tick_for_reload) / 50.f;
+                                            ImGui::SliderScalarForProgress("Launch progress [1]", ImGuiDataType_Float, &progress, &min, &max);
+                                        }
+
+                                        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.5f);
+                                        ImGui::PushStyleColor(ImGuiCol_Text, countries->at(i).buildings[buildings_id].missile_defense_heart.ready_to_shot ? ImVec4(ImColor(30, 255, 47)) : ImVec4(ImColor(255, 30, 30)));
+
+                                        ImGui::NewLine();
+                                        ImGui::CenteredText(countries->at(i).buildings[buildings_id].missile_defense_heart.ready_to_shot ? "[ READY ]" : "[ RELOADING ]");
+                                        ImGui::NewLine();
+                                        ImGui::PopStyleColor();
+                                        ImGui::PopStyleVar();
+                                    }
+                                    break;
+
                                 }
                                 ImGui::End();
                             }
 
                             if (countries->at(i).buildings[buildings_id].building_type == SHIPYARD)
                             {
-                                if (ImGui::IsMouseDown(1))
+                                if (ImGui::IsMouseClicked(1))
                                 {
                                     units_base new_unit;
 
@@ -351,7 +371,7 @@ public:
                             {
                                 if (countries->at(i).buildings[buildings_id].air_factory_heart.goal_amount_of_jets > g_menu.players[player_id].war_property.amount_of_jets)
                                 {
-                                    if (g_map.global_tick > countries->at(i).buildings[buildings_id].air_factory_heart.old_tick_for_jets + 10)
+                                    if (g_map.global_tick > countries->at(i).buildings[buildings_id].air_factory_heart.old_tick_for_jets + 100)
                                     {
                                         countries->at(i).buildings[buildings_id].air_factory_heart.old_tick_for_jets = g_map.global_tick;
                                         g_menu.players[player_id].war_property.amount_of_jets++;
@@ -360,7 +380,7 @@ public:
 
                                 if (countries->at(i).buildings[buildings_id].air_factory_heart.goal_amount_of_bombers > g_menu.players[player_id].war_property.amount_of_bombers)
                                 {
-                                    if (g_map.global_tick > countries->at(i).buildings[buildings_id].air_factory_heart.old_tick_for_bombers + 20)
+                                    if (g_map.global_tick > countries->at(i).buildings[buildings_id].air_factory_heart.old_tick_for_bombers + 200)
                                     {
                                         countries->at(i).buildings[buildings_id].air_factory_heart.old_tick_for_bombers = g_map.global_tick;
                                         g_menu.players[player_id].war_property.amount_of_bombers++;
@@ -374,7 +394,7 @@ public:
                             {
                                 if (countries->at(i).buildings[buildings_id].shipyard_heart.goal_amount_of_boat1 > g_menu.players[player_id].war_property.submarine_count)
                                 {
-                                    if (g_map.global_tick > countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat1 + 20)
+                                    if (g_map.global_tick > countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat1 + 200)
                                     {
                                         countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat1 = g_map.global_tick;
                                         g_menu.players[player_id].war_property.submarine_count++;
@@ -383,7 +403,7 @@ public:
 
                                 if (countries->at(i).buildings[buildings_id].shipyard_heart.goal_amount_of_boat2 > g_menu.players[player_id].war_property.carrier_count)
                                 {
-                                    if (g_map.global_tick > countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat2 + 20)
+                                    if (g_map.global_tick > countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat2 + 200)
                                     {
                                         countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat2 = g_map.global_tick;
                                         g_menu.players[player_id].war_property.carrier_count++;
@@ -392,7 +412,7 @@ public:
 
                                 if (countries->at(i).buildings[buildings_id].shipyard_heart.goal_amount_of_boat3 > g_menu.players[player_id].war_property.destroyer_count)
                                 {
-                                    if (g_map.global_tick > countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat3 + 20)
+                                    if (g_map.global_tick > countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat3 + 200)
                                     {
                                         countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat3 = g_map.global_tick;
                                         g_menu.players[player_id].war_property.destroyer_count++;
@@ -401,7 +421,7 @@ public:
 
                                 if (countries->at(i).buildings[buildings_id].shipyard_heart.goal_amount_of_boat4 > g_menu.players[player_id].war_property.cruiser_count)
                                 {
-                                    if (g_map.global_tick > countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat4 + 20)
+                                    if (g_map.global_tick > countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat4 + 200)
                                     {
                                         countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat4 = g_map.global_tick;
                                         g_menu.players[player_id].war_property.cruiser_count++;
@@ -433,7 +453,7 @@ public:
 
                                 }
 
-                                if (g_map.global_tick > countries->at(i).buildings[buildings_id].missile_silo_heart.old_tick_for_reload + 35)
+                                if (g_map.global_tick > countries->at(i).buildings[buildings_id].missile_silo_heart.old_tick_for_reload + 350)
                                 {
                                     countries->at(i).buildings[buildings_id].missile_silo_heart.ready_to_shot = true;
                                 }
@@ -451,7 +471,7 @@ public:
                             case MISSILE_DEFENSE:
                             {
 
-                                if (g_map.global_tick > countries->at(i).buildings[buildings_id].missile_defense_heart.old_tick_for_reload + 5)
+                                if (g_map.global_tick > countries->at(i).buildings[buildings_id].missile_defense_heart.old_tick_for_reload + 50)
                                 {
                                     countries->at(i).buildings[buildings_id].missile_defense_heart.ready_to_shot = true;
                                 }
@@ -469,16 +489,16 @@ public:
                                         auto pos2 = ImVec2(countries->at(g_map.air_strike_targets[rockets_id].GETTER_country_id).position.x * animated_map_scale - (countries->at(g_map.air_strike_targets[rockets_id].GETTER_country_id).size.x * animated_map_scale * g_map.map_scale2) / 2 + map_pos.x * animated_map_scale,
                                             countries->at(g_map.air_strike_targets[rockets_id].GETTER_country_id).position.y * animated_map_scale - (countries->at(g_map.air_strike_targets[rockets_id].GETTER_country_id).size.y * animated_map_scale * g_map.map_scale2) / 2 + map_pos.y * animated_map_scale);
 
-                                        auto bombpos = ImVec2(g_map.air_strike_targets[rockets_id].bomb_pos.x, g_map.air_strike_targets[rockets_id].bomb_pos.y);
+                                        ImVec2 bombpos = ImVec2(g_map.air_strike_targets[rockets_id].bomb_pos_map1.x, g_map.air_strike_targets[rockets_id].bomb_pos_map1.y);
 
                                         auto buildpos = ImVec2(final_pos.x, final_pos.y);
 
                                         float distance = g_tools.calculate_distance(bombpos, buildpos) / animated_map_scale;
 
-                                        ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[2].font_addr, 17.f, ImVec2(15, 15), ImColor(255, 255, 255), std::to_string(distance).c_str());
+                                        ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[2].font_addr, 17.f, ImVec2(15, 40), ImColor(255, 255, 255), std::to_string(distance).c_str());
 
 
-                                        if (distance < 50 && g_map.air_strike_targets[rockets_id].SENDER_country_id != g_menu.players[player_id].control_region)
+                                        if (distance < 70 && g_map.air_strike_targets[rockets_id].SENDER_country_id != g_menu.players[player_id].control_region)
                                         {
                                             if (countries->at(i).buildings[buildings_id].missile_defense_heart.ready_to_shot)
                                             {

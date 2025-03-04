@@ -40,17 +40,27 @@ public:
 
                         auto point = g_tools.get_trajectory_one_point(final_pos, target, g_map.air_strike_targets[targets].step_of_bomb, 140.f * animated_map_scale, g_map.air_strike_targets[targets].segments);
 
-                        g_map.air_strike_targets[targets].bomb_pos = point;
+                        if (function_count == 1) g_map.air_strike_targets[targets].bomb_pos_map1 = point; else g_map.air_strike_targets[targets].bomb_pos_map2 = point;
 
                         //DRAWING
-                        g_tools.draw_trajectory_arc(ImGui::GetForegroundDrawList(), final_pos, ImVec2(posx + countries->at(g_map.air_strike_targets[targets].GETTER_country_id).cities[g_map.air_strike_targets[targets].GETTER_city_id].pos.x * animated_map_scale, posy + countries->at(g_map.air_strike_targets[targets].GETTER_country_id).cities[g_map.air_strike_targets[targets].GETTER_city_id].pos.y * animated_map_scale), g_map.air_strike_targets[targets].bomb_pos, 140.f * animated_map_scale, ImColor(255, 255, 255, 210), 200);
+                        if (function_count == 1)
+                        {
+                            g_tools.draw_trajectory_arc(ImGui::GetForegroundDrawList(), final_pos, ImVec2(posx + countries->at(g_map.air_strike_targets[targets].GETTER_country_id).cities[g_map.air_strike_targets[targets].GETTER_city_id].pos.x * animated_map_scale, posy + countries->at(g_map.air_strike_targets[targets].GETTER_country_id).cities[g_map.air_strike_targets[targets].GETTER_city_id].pos.y * animated_map_scale),
+                                g_map.air_strike_targets[targets].bomb_pos_map1, 140.f * animated_map_scale, ImColor(255, 255, 255, 210), 200);
+                            ImGui::GetForegroundDrawList()->AddCircleFilled(g_map.air_strike_targets[targets].bomb_pos_map1, 3 * animated_map_scale, ImColor(255, 0, 0));
+                        }
+                        else {
+                            g_tools.draw_trajectory_arc(ImGui::GetForegroundDrawList(), final_pos, ImVec2(posx + countries->at(g_map.air_strike_targets[targets].GETTER_country_id).cities[g_map.air_strike_targets[targets].GETTER_city_id].pos.x * animated_map_scale, posy + countries->at(g_map.air_strike_targets[targets].GETTER_country_id).cities[g_map.air_strike_targets[targets].GETTER_city_id].pos.y * animated_map_scale),
+                                g_map.air_strike_targets[targets].bomb_pos_map2, 140.f * animated_map_scale, ImColor(255, 255, 255, 210), 200);
+                            ImGui::GetForegroundDrawList()->AddCircleFilled(g_map.air_strike_targets[targets].bomb_pos_map2, 3 * animated_map_scale, ImColor(255, 0, 0));
 
-                        ImGui::GetForegroundDrawList()->AddCircleFilled(g_map.air_strike_targets[targets].bomb_pos, 3 * animated_map_scale, ImColor(255, 0, 0));
+                        }
+
 
                         //UPDATING
                         if (g_socket_control.player_role == g_socket_control.player_role_enum::SERVER && function_count == 1)
                         {
-                            if (g_map.air_strike_targets[targets].step_of_bomb > g_map.air_strike_targets[targets].segments) // segments
+                            if (g_map.air_strike_targets[targets].step_of_bomb >= g_map.air_strike_targets[targets].segments) // segments
                             {
                                 auto bomb_ptr = std::find_if(g_map.air_strike_targets.begin(), g_map.air_strike_targets.end(), [&](nuclear_strike_target target)
                                     {
@@ -98,17 +108,26 @@ public:
 
                         auto point = g_tools.get_trajectory_one_point(final_pos, pos_of_building, g_map.air_strike_targets[targets].step_of_bomb, 140.f * animated_map_scale, g_map.air_strike_targets[targets].segments);
 
-                        g_map.air_strike_targets[targets].bomb_pos = point;
+                        if (function_count == 1) g_map.air_strike_targets[targets].bomb_pos_map1 = point; else g_map.air_strike_targets[targets].bomb_pos_map2 = point;
 
                         //DRAWING
-                        g_tools.draw_trajectory_arc(ImGui::GetForegroundDrawList(), final_pos, pos_of_building, g_map.air_strike_targets[targets].bomb_pos, 140.f * animated_map_scale, ImColor(255, 255, 255, 210), 200);
+                        if (function_count == 1)
+                        {
+                            g_tools.draw_trajectory_arc(ImGui::GetForegroundDrawList(), final_pos, pos_of_building, 
+                                g_map.air_strike_targets[targets].bomb_pos_map1, 140.f * animated_map_scale, ImColor(255, 255, 255, 210), 200);
+                            ImGui::GetForegroundDrawList()->AddCircleFilled(g_map.air_strike_targets[targets].bomb_pos_map1, 3 * animated_map_scale, ImColor(255, 0, 0));
+                        }
+                        else {
+                            g_tools.draw_trajectory_arc(ImGui::GetForegroundDrawList(), final_pos, pos_of_building,
+                                g_map.air_strike_targets[targets].bomb_pos_map2, 140.f * animated_map_scale, ImColor(255, 255, 255, 210), 200);
+                            ImGui::GetForegroundDrawList()->AddCircleFilled(g_map.air_strike_targets[targets].bomb_pos_map2, 3 * animated_map_scale, ImColor(255, 0, 0));
 
-                        ImGui::GetForegroundDrawList()->AddCircleFilled(g_map.air_strike_targets[targets].bomb_pos, 3 * animated_map_scale, ImColor(255, 0, 0));
+                        }
 
                         //UPDATING
                         if (g_socket_control.player_role == g_socket_control.player_role_enum::SERVER && function_count == 1)
                         {
-                            if (g_map.air_strike_targets[targets].step_of_bomb > g_map.air_strike_targets[targets].segments) // segments
+                            if (g_map.air_strike_targets[targets].step_of_bomb >= g_map.air_strike_targets[targets].segments) // segments
                             {
                                 auto bomb_ptr = std::find_if(g_map.air_strike_targets.begin(), g_map.air_strike_targets.end(), [&](nuclear_strike_target target)
                                     {
@@ -158,24 +177,38 @@ public:
                                 return target.unique_id == g_map.air_strike_targets[targets].GETTER_rocket;
                             });
 
-                        auto bomb_pos = pointed_bomb_ptr3->bomb_pos;
+
+                        ImVec2 bomb_pos = ImVec2(0, 0);
+                        if (function_count == 1)
+                            bomb_pos = pointed_bomb_ptr3->bomb_pos_map1;
+                        else
+                            bomb_pos = pointed_bomb_ptr3->bomb_pos_map2;
 
                         if (function_count == 1)
                             g_map.air_strike_targets[targets].segments = g_tools.calculate_segments(final_pos, bomb_pos, animated_map_scale);
 
                         auto target_point = g_tools.get_trajectory_stright_one_point(final_pos, bomb_pos, g_map.air_strike_targets[targets].step_of_bomb, g_map.air_strike_targets[targets].segments);
 
-                        g_map.air_strike_targets[targets].bomb_pos = ImVec2(target_point);
+                        if (function_count == 1) g_map.air_strike_targets[targets].bomb_pos_map1 = target_point; else g_map.air_strike_targets[targets].bomb_pos_map2 = target_point;
 
                         //DRAWING
-                        g_tools.draw_trajectory_stright_arc(ImGui::GetForegroundDrawList(), final_pos, bomb_pos, g_map.air_strike_targets[targets].bomb_pos, ImColor(255, 255, 40, 150), 200);
+                        if (function_count == 1)
+                        {
+                            g_tools.draw_trajectory_stright_arc(ImGui::GetForegroundDrawList(), final_pos, bomb_pos,
+                                g_map.air_strike_targets[targets].bomb_pos_map1, ImColor(255, 255, 40, 150), 200);
+                            ImGui::GetForegroundDrawList()->AddCircleFilled(g_map.air_strike_targets[targets].bomb_pos_map1, 0.5 * animated_map_scale, ImColor(255, 190, 0));
+                        }
+                        else {
+                            g_tools.draw_trajectory_stright_arc(ImGui::GetForegroundDrawList(), final_pos, bomb_pos,
+                                g_map.air_strike_targets[targets].bomb_pos_map2, ImColor(255, 255, 40, 150), 200);
+                            ImGui::GetForegroundDrawList()->AddCircleFilled(g_map.air_strike_targets[targets].bomb_pos_map2, 0.5 * animated_map_scale, ImColor(255, 190, 0));
 
-                        ImGui::GetForegroundDrawList()->AddCircleFilled(g_map.air_strike_targets[targets].bomb_pos, 1 * animated_map_scale, ImColor(255, 190, 0));
+                        }
 
                         //UPDATING
                         if (g_socket_control.player_role == g_socket_control.player_role_enum::SERVER && function_count == 1)
                         {
-                            if (g_map.air_strike_targets[targets].step_of_bomb > g_map.air_strike_targets[targets].segments) // segments
+                            if (g_map.air_strike_targets[targets].step_of_bomb >= g_map.air_strike_targets[targets].segments) // segments
                             {
 
                                 if (true)

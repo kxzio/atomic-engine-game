@@ -14,8 +14,9 @@ struct nuclear_strike_target
 
     int last_global_tick = 0;
     int step_of_bomb = 0;
-    ImVec2 bomb_pos;
 
+    ImVec2 bomb_pos_map1;
+    ImVec2 bomb_pos_map2;
 
     int segments;
 };

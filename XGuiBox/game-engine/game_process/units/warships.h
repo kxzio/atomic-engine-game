@@ -22,7 +22,7 @@ public:
 
 			g_map.units[i].position = final_pos;
 
-			if (ImGui::IsMouseClicked(1))
+			if (ImGui::IsMouseClicked(1) && g_map.units[i].selected)
 			{
 				g_map.units[i].stored_cursor = cursor_pos;
 				g_map.units[i].pos_converted_to_map = false;
@@ -37,8 +37,6 @@ public:
 			}
 
 			ImVec2 final_pos2 = ImVec2(pos.x + g_map.units[i].target_pos.x * animated_map_scale, pos.y + g_map.units[i].target_pos.y * animated_map_scale);
-
-			float distance = g_tools.calculate_distance(g_map.units[i].position, final_pos2);
 
 			if (g_map.units[i].target_pos.x != 0 && g_map.units[i].target_pos.y != 0)
 			{

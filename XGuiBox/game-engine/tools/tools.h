@@ -135,7 +135,7 @@ public:
     {
         float distance = (std::sqrt((end.x - start.x) * (end.x - start.x) + (end.y - start.y) * (end.y - start.y))) / animated_map_scale;
 
-        return distance;
+        return distance * 4;
     }
 
     std::vector<ImVec2> get_trajectory_points(ImVec2 start, ImVec2 end, float height, int segments = 20)
