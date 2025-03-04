@@ -32,7 +32,7 @@ public:
         return buffer;
     }
 
-    std::string convert_tick_to_timer()
+    std::string convert_tick_to_timer(int tick_duration_ms = 15)
     {
         static int game_length;
 
@@ -40,36 +40,23 @@ public:
         {
             game_length = 30;
         }
-        if (g_menu.selected_game_mode == 1)
+        else if (g_menu.selected_game_mode == 1)
         {
             game_length = 45;
         }
 
-        int seconds;
-        int minutes;
+        int total_game_time_sec = ((game_length / 5) * (g_map.game_events + 1)) * 60;
+        int elapsed_time_sec = (g_map.global_tick * tick_duration_ms) / 1000;
+        int remaining_time_sec = (((total_game_time_sec - elapsed_time_sec) > (0)) ? (total_game_time_sec - elapsed_time_sec) : (0));
 
-        minutes = ((((game_length / 5) * (g_map.game_events + 1)) * 60) - g_map.global_tick) / 60;
-        minutes = std::clamp(minutes, 0, 5);
+        int minutes = remaining_time_sec / 60;
+        int seconds = remaining_time_sec % 60;
 
-        seconds = ((((game_length / 5) * (g_map.game_events + 1)) * 60) - g_map.global_tick - (minutes * 60));
-        seconds = std::clamp(seconds, 0, 60);
+        std::string minutes_string = (minutes < 10 ? "0" : "") + std::to_string(minutes);
+        std::string seconds_string = (seconds < 10 ? "0" : "") + std::to_string(seconds);
 
-        std::string minutes_string = std::to_string(minutes);
-        if (minutes_string.length() < 2)
-        {
-            minutes_string.insert(minutes_string.begin(), '0');
-        }
-        std::string seconds_string = std::to_string(seconds);
-        if (seconds_string.length() < 2)
-        {
-            seconds_string.insert(seconds_string.begin(), '0');
-        }
-
-        std::string time = minutes_string + ":" + seconds_string;
-
-        return time;
+        return minutes_string + ":" + seconds_string;
     }
-
 
     //main tools
     void read_convex_file(const std::string& input_filename, std::vector<country_data>& countries)

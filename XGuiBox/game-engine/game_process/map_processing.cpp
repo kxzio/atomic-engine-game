@@ -134,6 +134,60 @@ void map_processing::process_object_selections(bool city, int current_country, i
     }
 }
 
+void map_processing::process_unit_selections(units_base* unit, float animated_map_scale)
+{
+    bool single_select = false;
+
+    if (g_map.cursor_pos.x > g_map.opened_menu_size.Min.x && g_map.cursor_pos.x < g_map.opened_menu_size.Max.x)
+    {
+        if (g_map.cursor_pos.y > g_map.opened_menu_size.Min.y && g_map.cursor_pos.y < g_map.opened_menu_size.Max.y)
+        {
+            return;
+        }
+    }
+
+    if (g_map.selector_zone.GetSize().x == 0)
+    {
+        if (g_tools.is_point_in_rect(unit->position, ImRect(ImVec2(g_map.cursor_pos.x - 5 * animated_map_scale, g_map.cursor_pos.y - 5 * animated_map_scale), ImVec2(g_map.cursor_pos.x + 5 * animated_map_scale, g_map.cursor_pos.y + 5 * animated_map_scale))))
+        {
+            unit->hovered = true;
+            ImGui::GetForegroundDrawList()->AddRect(ImVec2(unit->position.x - 5 * animated_map_scale, unit->position.y - 5 * animated_map_scale), ImVec2(unit->position.x + 5 * animated_map_scale, unit->position.y + 5 * animated_map_scale), ImColor(255, 255, 255));
+
+            if (ImGui::IsMouseReleased(0))
+            {
+                single_select = true;
+                unit->selected = true;
+            }
+        }
+        else unit->hovered = false;
+    }
+    else
+    {
+        if (g_tools.is_point_in_rect(unit->position, g_map.selector_zone))
+        {
+            unit->hovered = true;
+            ImGui::GetForegroundDrawList()->AddRect(ImVec2(unit->position.x - 5 * animated_map_scale, unit->position.y - 5 * animated_map_scale), ImVec2(unit->position.x + 5 * animated_map_scale, unit->position.y + 5 * animated_map_scale), ImColor(255, 255, 255));
+        }
+    }
+
+    if (unit->hovered || unit->selected)
+    {
+        unit->hovered = false;
+        unit->selected = true;
+    }
+
+    if (ImGui::IsMouseClicked(0) && !single_select)
+    {
+        unit->hovered = false;
+        unit->selected = false;
+    }
+
+    if (unit->selected)
+    {
+        ImGui::GetForegroundDrawList()->AddRect(ImVec2(unit->position.x - 5 * animated_map_scale, unit->position.y - 5 * animated_map_scale), ImVec2(unit->position.x + 5 * animated_map_scale, unit->position.y + 5 * animated_map_scale), ImColor(255, 255, 255));
+    }
+}
+
 void map_processing::render_map_and_process_hitboxes(window_profiling window, std::vector <country_data>* countries, float animated_map_scale, int* hovered_id, ImVec2 cursor_pos, ImVec2 map_pos, int player_id, int function_count)
 {
 
@@ -290,7 +344,7 @@ void map_processing::process_map(window_profiling window, int screen_size_x, int
 }
 
 //game tick and event processing
-void process_events()
+void process_events(int tick_duration_ms  = 15)
 {
     static int game_length;
 
@@ -298,19 +352,21 @@ void process_events()
     {
         game_length = 30;
     }
-    if (g_menu.selected_game_mode == 1)
+    else if (g_menu.selected_game_mode == 1)
     {
         game_length = 45;
     }
 
-    //events switching
-    if (g_map.global_tick > ((game_length / 5) * 60) * 0)       { g_map.game_events = g_map.game_events::PREPARATION_EVENT; }
-    if (g_map.global_tick > ((game_length / 5) * 60) * 1)       { g_map.game_events = g_map.game_events::DOCKYARD_RELEASE ; }
-    if (g_map.global_tick > ((game_length / 5) * 60) * 2)       { g_map.game_events = g_map.game_events::AIRCRAFR_RELEASE ; }
-    if (g_map.global_tick > ((game_length / 5) * 60) * 3)       { g_map.game_events = g_map.game_events::NUCLEAR_DANGER   ; }
-    if (g_map.global_tick > ((game_length / 5) * 60) * 4)       { g_map.game_events = g_map.game_events::ANIHILATION      ; }
-    if (g_map.global_tick > ((game_length / 5) * 60) * 5)       { g_map.game_events = g_map.game_events::GAME_END         ; }
+    int total_game_time_sec = ((game_length / 5) * 60);
+    int elapsed_time_sec = (g_map.global_tick * tick_duration_ms) / 1000;
 
+    // Events switching
+    if (elapsed_time_sec > total_game_time_sec * 0) { g_map.game_events = g_map.game_events::PREPARATION_EVENT; }
+    if (elapsed_time_sec > total_game_time_sec * 1) { g_map.game_events = g_map.game_events::DOCKYARD_RELEASE; }
+    if (elapsed_time_sec > total_game_time_sec * 2) { g_map.game_events = g_map.game_events::AIRCRAFR_RELEASE; }
+    if (elapsed_time_sec > total_game_time_sec * 3) { g_map.game_events = g_map.game_events::NUCLEAR_DANGER; }
+    if (elapsed_time_sec > total_game_time_sec * 4) { g_map.game_events = g_map.game_events::ANIHILATION; }
+    if (elapsed_time_sec > total_game_time_sec * 5) { g_map.game_events = g_map.game_events::GAME_END; }
 }
 
 void game_event_timer()
@@ -318,7 +374,7 @@ void game_event_timer()
     while (true)
     {
         process_events();
-        std::this_thread::sleep_for(std::chrono::milliseconds(100)); //TODO : change it to 1 second in release version
+        std::this_thread::sleep_for(std::chrono::milliseconds(15)); //TODO : change it to 1 second in release version
         g_map.global_tick++;
     }
 }
@@ -549,12 +605,13 @@ void map_processing::process_and_sync_game_cycle(std::vector <country_data>* cou
                     {
                         ImVec4 pixel_color;
                         g_convex_math.GetScreenPixelWithGDI(cursor_pos.x, cursor_pos.y, pixel_color);
+                        float absolute_brightness = (pixel_color.x * 0.2126) + (pixel_color.y * 0.7152) + (pixel_color.z * 0.0722);
 
                         bool color_check;
                         if (should_build_building_id == SHIPYARD)
-                            color_check = pixel_color.y < 0.09;
+                            color_check = absolute_brightness < 0.11;
                         else
-                            color_check = pixel_color.x > 0.03 && pixel_color.y > 0.09 && pixel_color.z > 0.03;
+                            color_check = absolute_brightness > 0.11;
 
                         if (g_menu.players[player_id].economics.capital >= price && color_check && cursor_pos.x > 100 && cursor_pos.y > 100 && cursor_pos.x < screen_x - 100 && cursor_pos.y < screen_y - 100)
                         {

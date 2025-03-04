@@ -20,4 +20,7 @@ public:
 	int old_tick;
 
 	bool   pos_converted_to_map = false;
+
+	bool hovered;
+	bool selected;
 };

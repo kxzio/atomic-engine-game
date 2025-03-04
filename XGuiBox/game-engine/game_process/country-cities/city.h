@@ -231,7 +231,7 @@ public:
         {
             if (*hovered_id == index)
             {
-                data.color = ImColor(int(data.color.Value.x * 255) + 60, int(data.color.Value.y * 255) + 60, int(data.color.Value.z * 255) + 60);
+                data.color = ImColor(int(data.color.Value.x * 255) + 50, int(data.color.Value.y * 255) + 50, int(data.color.Value.z * 255) + 50);
 
                 auto pos = ImVec2(countries->at(index).position.x * animated_map_scale - (countries->at(index).size.x * animated_map_scale * g_map.map_scale2) / 2 + map_pos.x * animated_map_scale,
                     countries->at(index).position.y * animated_map_scale - (countries->at(index).size.y * animated_map_scale * g_map.map_scale2) / 2 + map_pos.y * animated_map_scale);
@@ -263,6 +263,7 @@ public:
             data.color.Value.w = float(alpha_for_city_text / 255.f);
 
             //ImGui::GetForegroundDrawList()->AddRect(ImVec2(posx + data.cities[city_id].city_pos.x * animated_map_scale - 2 * animated_map_scale, posy + data.cities[city_id].city_pos.y * animated_map_scale - 2 * animated_map_scale), ImVec2(posx + data.cities[city_id].city_pos.x * animated_map_scale + 2 * animated_map_scale, posy + data.cities[city_id].city_pos.y * animated_map_scale + 2 * animated_map_scale), ImColor(255, 255, 255, alpha_for_city_text));
+            ImGui::GetBackgroundDrawList()->AddRectFilled(ImVec2(posx + data.cities[city_id].pos.x * animated_map_scale - 1 * animated_map_scale, posy + data.cities[city_id].pos.y * animated_map_scale - 1 * animated_map_scale), ImVec2(posx + data.cities[city_id].pos.x * animated_map_scale + 1 * animated_map_scale, posy + data.cities[city_id].pos.y * animated_map_scale + 1 * animated_map_scale), ImColor(0, 0, 0, alpha_for_city_text));
             ImGui::GetBackgroundDrawList()->AddRectFilled(ImVec2(posx + data.cities[city_id].pos.x * animated_map_scale - 0.5 * animated_map_scale, posy + data.cities[city_id].pos.y * animated_map_scale - 0.5 * animated_map_scale), ImVec2(posx + data.cities[city_id].pos.x * animated_map_scale + 0.5 * animated_map_scale, posy + data.cities[city_id].pos.y * animated_map_scale + 0.5 * animated_map_scale), data.color);
 
             auto textsize_for_city = g_xgui.fonts[3].font_addr->CalcTextSizeA(17, FLT_MAX, -1.f, data.cities[city_id].name.c_str());

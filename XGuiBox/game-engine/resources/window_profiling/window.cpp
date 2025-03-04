@@ -857,13 +857,13 @@ void window_profiling::create_window()
 
         ID3D11Texture2D* texture;
 
-        ImGui::GetForegroundDrawList()->AddRectFilled(ImVec2(0, 0), ImVec2(window_size.x, window_size.y), ImColor(30, 30, 255, 8));
+        ImGui::GetForegroundDrawList()->AddRectFilled(ImVec2(0, 0), ImVec2(window_size.x, window_size.y), ImColor(30, 30, 255, 16));
 
         ImGui::GetForegroundDrawList()->AddImage(
             (ImTextureID)g_window.Tv,
             ImVec2(0, 0),
             ImVec2(this->window_size.x, this->window_size.y),
-            ImVec2(0, 0), ImVec2(1, 1), ImColor(100, 0, 150, 9)
+            ImVec2(0, 0), ImVec2(1, 1), ImColor(100, 0, 150, 12)
         );
 
         ImGui::GetForegroundDrawList()->AddImage(

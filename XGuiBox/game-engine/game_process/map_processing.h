@@ -52,6 +52,8 @@ public:
 
     void process_object_selections(bool city, int current_country, int player_id, std::vector <country_data>* countries, map_objects* object, float animated_map_scale, ImVec2 map_pos);
 
+    void process_unit_selections(units_base* unit, float animated_map_scale);
+
     void process_map(window_profiling window, int screen_size_x, int screen_size_y, int player_id);
 
     void render_map_and_process_hitboxes(window_profiling window, std::vector <country_data>* countries, float animated_map_scale, int* hovered_id, ImVec2 cursor_pos, ImVec2 map_pos, int player_id, int function_count);

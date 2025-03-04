@@ -22,7 +22,7 @@ public:
 
 			g_map.units[i].position = final_pos;
 
-			if (ImGui::IsMouseDown(1))
+			if (ImGui::IsMouseClicked(1))
 			{
 				g_map.units[i].stored_cursor = cursor_pos;
 				g_map.units[i].pos_converted_to_map = false;
@@ -73,6 +73,9 @@ public:
 			ImGui::GetForegroundDrawList()->AddCircleFilled(g_map.units[i].position, 2 * animated_map_scale, ImColor(150, 200, 180), 15);
 
 			ImGui::GetForegroundDrawList()->AddLine(g_map.units[i].position, final_pos2, ImColor(255, 255, 255));
+
+			g_map.process_unit_selections(&g_map.units[i], animated_map_scale);
+
 
 		}
 	}
