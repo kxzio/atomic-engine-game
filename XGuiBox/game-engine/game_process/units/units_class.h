@@ -7,6 +7,8 @@ public:
 	bool warship  = false;
 	bool airplane = false;
 
+	int  class_of_unit = 0;
+
 	int  owner_country_id;
 	int  owner_building_id;
 

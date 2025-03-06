@@ -95,6 +95,14 @@ struct ConvexMathOperations
 
 inline ConvexMathOperations g_convex_math;
 
+enum boats
+{
+    SUBMARINES = 1,
+    AIR_CARRIERS,
+    DESTROYER,
+    CRUISERS
+};
+
 //Main struct
 struct country_data
 {
@@ -117,7 +125,6 @@ struct country_data
     bool hitbox_get = false;
     std::vector<Point>  convex_hull = {};
     std::vector<ImVec2> convex_hull_screen_coords;
-
 
     //boat map dragging;
     int what_type_of_boat_are_we_dragging;

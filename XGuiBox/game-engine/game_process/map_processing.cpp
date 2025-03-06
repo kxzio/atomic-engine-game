@@ -125,6 +125,11 @@ void map_processing::process_object_selections(bool city, int current_country, i
     {
         object->hovered = false;
         object->selected = NOT_SELECTED;
+    }
+
+
+    if (ImGui::IsMouseClicked(0))
+    {
         g_map.opened_menu_size = ImRect(ImVec2(0, 0), ImVec2(0, 0));
     }
 
@@ -150,7 +155,6 @@ void map_processing::process_unit_selections(units_base* unit, float animated_ma
     {
         if (g_tools.is_point_in_rect(unit->position, ImRect(ImVec2(g_map.cursor_pos.x - 5 * animated_map_scale, g_map.cursor_pos.y - 5 * animated_map_scale), ImVec2(g_map.cursor_pos.x + 5 * animated_map_scale, g_map.cursor_pos.y + 5 * animated_map_scale))))
         {
-            unit->hovered = true;
             ImGui::GetForegroundDrawList()->AddRect(ImVec2(unit->position.x - 5 * animated_map_scale, unit->position.y - 5 * animated_map_scale), ImVec2(unit->position.x + 5 * animated_map_scale, unit->position.y + 5 * animated_map_scale), ImColor(255, 255, 255));
 
             if (ImGui::IsMouseReleased(0))
@@ -180,6 +184,11 @@ void map_processing::process_unit_selections(units_base* unit, float animated_ma
     {
         unit->hovered = false;
         unit->selected = false;
+    }
+
+    if (ImGui::IsMouseClicked(0))
+    {
+        g_map.opened_menu_size = ImRect(ImVec2(0, 0), ImVec2(0, 0));
     }
 
     if (unit->selected)
@@ -440,7 +449,7 @@ void map_processing::process_and_sync_game_cycle(std::vector <country_data>* cou
         g_menu.players[player_id].economics.capital = capital_goal_for_animation;
 
     bool is_server = g_socket_control.player_role == g_socket_control.player_role_enum::SERVER;
-
+    
     //drag n drop
     {
         int flags = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove
@@ -465,13 +474,44 @@ void map_processing::process_and_sync_game_cycle(std::vector <country_data>* cou
                         int player_region = g_menu.players[player_id].control_region;
                         int buildings_id = countries->at(player_region).what_building_is_dragging;
 
-                        countries->at(player_region).buildings[buildings_id].shipyard_heart.carriers.erase(countries->at(player_region).buildings[buildings_id].shipyard_heart.carriers.begin() + payload_idx);
-                        g_menu.players[player_id].war_property.carrier_count--;
+                        switch (countries->at(player_region).what_type_of_boat_are_we_dragging)
+                        {
+                            case boats::SUBMARINES: 
+                            {
+                                countries->at(player_region).buildings[buildings_id].shipyard_heart.submarines.erase(countries->at(player_region).buildings[buildings_id].shipyard_heart.submarines.begin() + payload_idx);
+                                g_menu.players[player_id].war_property.submarine_count--;
+                            }		    
+                            break;
+
+                            case boats::AIR_CARRIERS:
+                            {
+                                countries->at(player_region).buildings[buildings_id].shipyard_heart.carriers.erase(countries->at(player_region).buildings[buildings_id].shipyard_heart.carriers.begin() + payload_idx);
+                                g_menu.players[player_id].war_property.carrier_count--;
+                            }
+                            break;
+
+                            case boats::DESTROYER:
+                            {
+                                countries->at(player_region).buildings[buildings_id].shipyard_heart.destroyers.erase(countries->at(player_region).buildings[buildings_id].shipyard_heart.destroyers.begin() + payload_idx);
+                                g_menu.players[player_id].war_property.destroyer_count--;
+                            }
+                            break;
+
+                            case boats::CRUISERS:
+                            {
+                                countries->at(player_region).buildings[buildings_id].shipyard_heart.cruisers.erase(countries->at(player_region).buildings[buildings_id].shipyard_heart.cruisers.begin() + payload_idx);
+                                g_menu.players[player_id].war_property.cruiser_count--;
+                            }
+                            break;
+
+                        }
+
                         countries->at(player_region).what_building_is_dragging = 0;
 
                         //spawn boat
                         units_base new_unit;
 
+                        new_unit.class_of_unit = countries->at(player_region).what_type_of_boat_are_we_dragging;
                         new_unit.unique_id = g_tools.generate_unique_int();
                         new_unit.warship = true;
                         new_unit.airplane = false;
@@ -480,6 +520,7 @@ void map_processing::process_and_sync_game_cycle(std::vector <country_data>* cou
                         new_unit.spawn_pos = ImVec2(cursor_pos.x, cursor_pos.y);
 
                         g_map.units.push_back(new_unit);
+                        g_map.drag_n_drop = false;
                     }
                 }
                 ImGui::EndDragDropTarget();

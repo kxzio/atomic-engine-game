@@ -52,9 +52,11 @@ public:
 
                 //NEXT PART OF CODE SHOULD BE PROCESSED ONLY BY ONE FUNCTION "render_map_and_process. secondary function for double map should ignore this code"
 
+
                 //first function called
                 if (function_count == 1)
                 {
+
                     //building process
                     if (countries->at(i).buildings[buildings_id].progress_of_building != 105)
                     {
@@ -93,7 +95,7 @@ public:
                             ImGui::SetNextWindowPos(ImVec2(0, 0));
                             ImGui::SetNextWindowSize(ImVec2(350, g_map.screen_y));
                             ImGui::GetStyle().Colors[ImGuiCol_WindowBg] = ImColor(0, 0, 0, 210);
-                            ImGui::Begin(countries->at(i).buildings[buildings_id].name.c_str());
+                            ImGui::Begin("Building");
                             {
                                 switch (countries->at(i).buildings[buildings_id].building_type)
                                 {
@@ -132,6 +134,25 @@ public:
 
                                     case SHIPYARD:
                                     {
+                                        for (int q = 0; q < g_menu.players[player_id].war_property.carrier_count; q++)
+                                            if (countries->at(i).buildings[buildings_id].shipyard_heart.carriers.size() != g_menu.players[player_id].war_property.carrier_count)
+                                                countries->at(i).buildings[buildings_id].shipyard_heart.carriers.push_back(std::string("Carrier-" + std::to_string(g_tools.generate_unique_int())));
+
+                                        for (int q = 0; q < g_menu.players[player_id].war_property.cruiser_count; q++)
+                                            if (countries->at(i).buildings[buildings_id].shipyard_heart.cruisers.size() != g_menu.players[player_id].war_property.cruiser_count)
+                                                countries->at(i).buildings[buildings_id].shipyard_heart.cruisers.push_back(std::string("Cruiser-" + std::to_string(g_tools.generate_unique_int())));
+
+                                        for (int q = 0; q < g_menu.players[player_id].war_property.destroyer_count; q++)
+                                            if (countries->at(i).buildings[buildings_id].shipyard_heart.destroyers.size() != g_menu.players[player_id].war_property.destroyer_count)
+                                                countries->at(i).buildings[buildings_id].shipyard_heart.destroyers.push_back(std::string("Destroyer-" + std::to_string(g_tools.generate_unique_int())));
+
+                                        for (int q = 0; q < g_menu.players[player_id].war_property.submarine_count; q++)
+                                            if (countries->at(i).buildings[buildings_id].shipyard_heart.submarines.size() != g_menu.players[player_id].war_property.submarine_count)
+                                                countries->at(i).buildings[buildings_id].shipyard_heart.submarines.push_back(std::string("Submarine-" + std::to_string(g_tools.generate_unique_int())));
+
+                                        if (buildings_id == 0)
+                                            g_map.drag_n_drop = false;
+
                                         ImGui::Text(std::string(std::string("Current amount of Submarines : ") + std::to_string(g_menu.players[player_id].war_property.submarine_count)).c_str());
 
                                         ImGui::SliderInt("Submarines", &countries->at(i).buildings[buildings_id].shipyard_heart.goal_amount_of_boat1, 0, 15);
@@ -143,6 +164,37 @@ public:
                                         }
 
                                         ImGui::NewLine();
+
+                                        {
+                                            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.5f);
+                                            ImGui::BeginListBox("Sumbarines list", ImVec2(330, 120));
+                                            {
+                                                if (!countries->at(i).buildings[buildings_id].shipyard_heart.submarines.empty())
+                                                    for (int i5 = 0; i5 < countries->at(i).buildings[buildings_id].shipyard_heart.submarines.size(); i5++)
+                                                    {
+                                                        if (!countries->at(i).buildings[buildings_id].shipyard_heart.submarines.at(i5).empty())
+                                                        {
+
+                                                            ImGui::Selectable(countries->at(i).buildings[buildings_id].shipyard_heart.submarines.at(i5).c_str());
+
+                                                            if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
+                                                            {
+                                                                g_map.drag_n_drop = true;
+                                                                ImGui::SetDragDropPayload("DND_ITEM2", &i5, sizeof(int));
+                                                                countries->at(i).what_building_is_dragging = buildings_id;
+                                                                countries->at(i).what_type_of_boat_are_we_dragging = boats::SUBMARINES;
+                                                                ImGui::Text("%s", countries->at(i).buildings[buildings_id].shipyard_heart.submarines.at(i5).c_str());
+                                                                ImGui::EndDragDropSource();
+                                                            }
+
+
+                                                        }
+                                                    }
+                                            }
+                                            ImGui::EndListBox();
+                                            ImGui::PopStyleVar();
+
+                                        }
 
                                         ImGui::NewLine();
 
@@ -158,6 +210,37 @@ public:
 
                                         ImGui::NewLine();
 
+                                        {
+                                            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.5f);
+                                            ImGui::BeginListBox("Air Carriers list", ImVec2(330, 120));
+                                            {
+                                                if (!countries->at(i).buildings[buildings_id].shipyard_heart.carriers.empty())
+                                                    for (int i5 = 0; i5 < countries->at(i).buildings[buildings_id].shipyard_heart.carriers.size(); i5++)
+                                                    {
+                                                        if (!countries->at(i).buildings[buildings_id].shipyard_heart.carriers.at(i5).empty())
+                                                        {
+
+                                                            ImGui::Selectable(countries->at(i).buildings[buildings_id].shipyard_heart.carriers.at(i5).c_str());
+
+                                                            if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
+                                                            {
+                                                                g_map.drag_n_drop = true;
+                                                                ImGui::SetDragDropPayload("DND_ITEM2", &i5, sizeof(int));
+                                                                countries->at(i).what_type_of_boat_are_we_dragging = boats::AIR_CARRIERS;
+                                                                countries->at(i).what_building_is_dragging = buildings_id;
+                                                                ImGui::Text("%s", countries->at(i).buildings[buildings_id].shipyard_heart.carriers.at(i5).c_str());
+                                                                ImGui::EndDragDropSource();
+                                                            }
+
+
+                                                        }
+                                                    }
+                                            }
+                                            ImGui::EndListBox();
+                                            ImGui::PopStyleVar();
+
+                                        }
+
                                         ImGui::NewLine();
 
                                         ImGui::Text(std::string(std::string("Current amount of Destroyers : ") + std::to_string(g_menu.players[player_id].war_property.destroyer_count)).c_str());
@@ -171,6 +254,37 @@ public:
                                         }
 
                                         ImGui::NewLine();
+
+                                        {
+                                            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.5f);
+                                            ImGui::BeginListBox("Destroyers list", ImVec2(330, 120));
+                                            {
+                                                if (!countries->at(i).buildings[buildings_id].shipyard_heart.destroyers.empty())
+                                                    for (int i5 = 0; i5 < countries->at(i).buildings[buildings_id].shipyard_heart.destroyers.size(); i5++)
+                                                    {
+                                                        if (!countries->at(i).buildings[buildings_id].shipyard_heart.destroyers.at(i5).empty())
+                                                        {
+
+                                                            ImGui::Selectable(countries->at(i).buildings[buildings_id].shipyard_heart.destroyers.at(i5).c_str());
+
+                                                            if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
+                                                            {
+                                                                g_map.drag_n_drop = true;
+                                                                ImGui::SetDragDropPayload("DND_ITEM2", &i5, sizeof(int));
+                                                                countries->at(i).what_type_of_boat_are_we_dragging = boats::DESTROYER;
+                                                                countries->at(i).what_building_is_dragging = buildings_id;
+                                                                ImGui::Text("%s", countries->at(i).buildings[buildings_id].shipyard_heart.destroyers.at(i5).c_str());
+                                                                ImGui::EndDragDropSource();
+                                                            }
+
+
+                                                        }
+                                                    }
+                                            }
+                                            ImGui::EndListBox();
+                                            ImGui::PopStyleVar();
+
+                                        }
 
                                         ImGui::NewLine();
 
@@ -188,48 +302,34 @@ public:
                                         //list of boats
                                         ImGui::NewLine();
 
-
-                                        for (int q = 0; q < g_menu.players[player_id].war_property.carrier_count; q++)
-                                            if (countries->at(i).buildings[buildings_id].shipyard_heart.carriers.size() != g_menu.players[player_id].war_property.carrier_count) 
-                                                countries->at(i).buildings[buildings_id].shipyard_heart.carriers.push_back(std::string("Carrier" + std::to_string(g_menu.players[player_id].war_property.carrier_count)) );
-
-                                        for (int q = 0; q < g_menu.players[player_id].war_property.cruiser_count; q++)
-                                            if (countries->at(i).buildings[buildings_id].shipyard_heart.cruisers.size() != g_menu.players[player_id].war_property.cruiser_count)
-                                            countries->at(i).buildings[buildings_id].shipyard_heart.cruisers.push_back(std::string("Cruiser" + std::to_string(g_menu.players[player_id].war_property.cruiser_count)));
-
-                                        for (int q = 0; q < g_menu.players[player_id].war_property.destroyer_count; q++)
-                                            if (countries->at(i).buildings[buildings_id].shipyard_heart.destroyers.size() != g_menu.players[player_id].war_property.destroyer_count)
-                                            countries->at(i).buildings[buildings_id].shipyard_heart.destroyers.push_back(std::string("Destroyer" + std::to_string(g_menu.players[player_id].war_property.destroyer_count)));
-
-                                        for (int q = 0; q < g_menu.players[player_id].war_property.submarine_count; q++)
-                                            if (countries->at(i).buildings[buildings_id].shipyard_heart.submarines.size() != g_menu.players[player_id].war_property.submarine_count)
-                                            countries->at(i).buildings[buildings_id].shipyard_heart.submarines.push_back(std::string("Submarine" + std::to_string(g_menu.players[player_id].war_property.submarine_count)));
-                                        
-
                                         {
-                                            
-                                            ImGui::BeginListBox("Queue", ImVec2(330, 120));
+                                            ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.5f);
+                                            ImGui::BeginListBox("Cruisers list", ImVec2(330, 120));
                                             {
-                                                if (!countries->at(i).buildings[buildings_id].shipyard_heart.carriers.empty())
-                                                for (int i5 = 0; i5 < countries->at(i).buildings[buildings_id].shipyard_heart.carriers.size(); i5++)
-                                                {
-                                                    if (!countries->at(i).buildings[buildings_id].shipyard_heart.carriers.at(i5).empty())
+                                                if (!countries->at(i).buildings[buildings_id].shipyard_heart.cruisers.empty())
+                                                    for (int i5 = 0; i5 < countries->at(i).buildings[buildings_id].shipyard_heart.cruisers.size(); i5++)
                                                     {
+                                                        if (!countries->at(i).buildings[buildings_id].shipyard_heart.cruisers.at(i5).empty())
+                                                        {
 
-                                                        ImGui::Selectable(countries->at(i).buildings[buildings_id].shipyard_heart.carriers.at(i5).c_str());
+                                                            ImGui::Selectable(countries->at(i).buildings[buildings_id].shipyard_heart.cruisers.at(i5).c_str());
 
-                                                        if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
-                                                            ImGui::SetDragDropPayload("DND_ITEM2", &i5, sizeof(int));
-                                                            countries->at(i).what_building_is_dragging = buildings_id;
-                                                            ImGui::Text("%s", countries->at(i).buildings[buildings_id].shipyard_heart.carriers.at(i5).c_str());
-                                                            ImGui::EndDragDropSource();
+                                                            if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
+                                                            {
+                                                                g_map.drag_n_drop = true;
+                                                                ImGui::SetDragDropPayload("DND_ITEM2", &i5, sizeof(int));
+                                                                countries->at(i).what_type_of_boat_are_we_dragging = boats::CRUISERS;
+                                                                countries->at(i).what_building_is_dragging = buildings_id;
+                                                                ImGui::Text("%s", countries->at(i).buildings[buildings_id].shipyard_heart.cruisers.at(i5).c_str());
+                                                                ImGui::EndDragDropSource();
+                                                            }
+
+
                                                         }
-
                                                     }
-                                                }
                                             }
                                             ImGui::EndListBox();
-
+                                            ImGui::PopStyleVar();
 
                                         }
 
@@ -393,6 +493,9 @@ public:
 
                                 }
                                 ImGui::End();
+
+                                if (g_map.drag_n_drop)
+                                    g_map.opened_menu_size = ImRect(ImVec2(0, 0), ImVec2(g_map.screen_x, g_map.screen_y));
                             }
 
                         }

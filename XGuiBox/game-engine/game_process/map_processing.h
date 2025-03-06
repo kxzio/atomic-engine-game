@@ -28,7 +28,7 @@ public:
     //map
     std::vector < country_data > countries;
     float map_scale2 = 0.240010;
-
+    bool drag_n_drop;
 
     //tech vars
     int screen_x, screen_y;

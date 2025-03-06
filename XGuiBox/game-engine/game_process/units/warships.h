@@ -57,8 +57,8 @@ public:
 			if (g_map.units[i].target_pos.x != 0 && g_map.units[i].target_pos.y != 0)
 			{
 				// Вектор направления к цели
-				float dx = final_pos2.x - g_map.units[i].position.x;
-				float dy = final_pos2.y - g_map.units[i].position.y;
+				float dx = (final_pos2.x - g_map.units[i].position.x) / animated_map_scale;
+				float dy = (final_pos2.y - g_map.units[i].position.y) / animated_map_scale;
 
 				// Вычисление длины вектора
 				float length = sqrt(dx * dx + dy * dy);
@@ -70,26 +70,109 @@ public:
 					float ny = dy / length;
 
 					// Задаем скорость движения (0.5 * animated_map_scale)
-					float speed = 0.5f * animated_map_scale;
+					float speed = 0.05f;
+
+					bool blockLeft = false;
+					bool blockRight = false;
+					bool blockUp = false;
+					bool blockDown = false;
+
+					//collision with other boats
+					for (int boat2 = 0; boat2 < g_map.units.size(); boat2++)
+					{
+						if (!g_map.units[i].warship && g_map.units[boat2].warship)
+							continue;
+
+						if (i == boat2)
+							continue;
+
+
+						float left1 = g_map.units[i].position.x - (4.5 * animated_map_scale);
+						float right1 = g_map.units[i].position.x + (4.5 * animated_map_scale);
+						float top1 = g_map.units[i].position.y + (4.5 * animated_map_scale);
+						float bottom1 = g_map.units[i].position.y - (4.5 * animated_map_scale);
+
+						float left2 = g_map.units[boat2].position.x - (4.5 * animated_map_scale);
+						float right2 = g_map.units[boat2].position.x + (4.5 * animated_map_scale);
+						float top2 = g_map.units[boat2].position.y + (4.5 * animated_map_scale);
+						float bottom2 = g_map.units[boat2].position.y - (4.5 * animated_map_scale);
+
+						if (right1 >= left2 && left1 <= right2 && bottom1 <= top2 && top1 >= bottom2)
+						{
+
+							if (right1 > left2 && left1 < left2) 
+								blockRight = true;
+
+							if (left1 < right2 && right1 > right2) 
+								blockLeft = true;
+
+							if (bottom1 < top2 && top1 > top2) 
+								blockUp = true;
+
+							if (top1 > bottom2 && bottom1 < bottom2) 
+								blockDown = true;
+						}
+					}
 
 					if (g_map.units[i].old_tick != g_map.global_tick)
 					{
-						// Перемещение в правильном направлении с учетом скорости
-						g_map.units[i].move_offset.x += nx * speed;
-						g_map.units[i].move_offset.y += ny * speed;
+						if (nx > 0)
+						{
+							if (!blockRight)
+								g_map.units[i].move_offset.x += nx * speed;
+						}
+						else if (nx < 0)
+						{
+							if (!blockLeft)
+								g_map.units[i].move_offset.x += nx * speed;
+						}
+
+						if (ny > 0)
+						{
+							if (!blockDown)
+								g_map.units[i].move_offset.y += ny * speed;
+						}
+						else if (ny < 0)
+						{
+							if (!blockUp)
+								g_map.units[i].move_offset.y += ny * speed;
+						}
+
 
 						g_map.units[i].old_tick = g_map.global_tick;
 					}
 				}
+
 			}
 
 
 			ImGui::GetForegroundDrawList()->AddCircleFilled(g_map.units[i].position, 2 * animated_map_scale, ImColor(150, 200, 180), 15);
 
-			ImGui::GetForegroundDrawList()->AddLine(g_map.units[i].position, final_pos2, ImColor(255, 255, 255));
+			std::string class_name = "";
+			
+			switch (g_map.units[i].class_of_unit)
+			{
+				case boats::SUBMARINES:		class_name = "Submarine";	break;
+				case boats::AIR_CARRIERS:	class_name = "Air Carrier"; break;
+				case boats::DESTROYER:		class_name = "Destroyer";	break;
+				case boats::CRUISERS:		class_name = "Cruiser";		break;
+			}
 
-			g_map.process_unit_selections(&g_map.units[i], animated_map_scale);
+			ImVec2 textsize = ImVec2(0, 0);
 
+			if (!class_name.empty())
+			{
+				textsize = g_xgui.fonts[2].font_addr->CalcTextSizeA(17.f, FLT_MAX, -1.f, class_name.c_str());
+
+				ImGui::GetForegroundDrawList()->AddLine(g_map.units[i].position, final_pos2, g_map.units[i].selected ? ImColor(255, 255, 255) : ImColor(255, 255, 255, 100));
+
+				ImGui::GetForegroundDrawList()->AddRectFilled(ImVec2(g_map.units[i].position.x - 1 * animated_map_scale, g_map.units[i].position.y - 1 * animated_map_scale), ImVec2(g_map.units[i].position.x + textsize.x + 1 * animated_map_scale, g_map.units[i].position.y + textsize.y + 1 * animated_map_scale), ImColor(0, 0, 0, 200));
+				ImGui::GetForegroundDrawList()->AddRect(ImVec2(g_map.units[i].position.x - 1 * animated_map_scale, g_map.units[i].position.y - 1 * animated_map_scale), ImVec2(g_map.units[i].position.x + textsize.x + 1 * animated_map_scale, g_map.units[i].position.y + textsize.y + 1 * animated_map_scale), ImColor(255, 255, 255, 60));
+
+				ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[2].font_addr, 17.f, ImVec2(g_map.units[i].position), ImColor(255, 255, 255), class_name.c_str());
+
+				g_map.process_unit_selections(&g_map.units[i], animated_map_scale);
+			}
 
 		}
 	}
