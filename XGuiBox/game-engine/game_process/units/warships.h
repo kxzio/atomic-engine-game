@@ -5,6 +5,9 @@
 class warships_processing
 {
 public:
+
+	int old_tick_for_update = 0;
+
 	void process_warships(int index, window_profiling window, std::vector <country_data>* countries, float animated_map_scale, int* hovered_id, ImVec2 cursor_pos, ImVec2 map_pos, int player_id, int function_count)
 	{
 		for (int i = 0; i < g_map.units.size(); i++)
@@ -24,16 +27,31 @@ public:
 			{
 				g_map.units[i].converted_spawn_pos = ImVec2((g_map.units[i].spawn_pos.x - pos.x) / animated_map_scale, (g_map.units[i].spawn_pos.y - pos.y) / animated_map_scale);
 				g_map.units[i].spawnpos_converted_to_map = true;
+
+				if (g_socket_control.player_role == g_socket_control.player_role_enum::SERVER)
+				{
+					g_socket_control.server_send_unit(g_map.units[i].unique_id);
+				}
+				else if (g_socket_control.player_role == g_socket_control.player_role_enum::CLIENT)
+				{
+					g_socket_control.client_send_unit(g_map.units[i].unique_id);
+				}
 			}
 			 
-			ImVec2 final_pos = ImVec2(pos.x + g_map.units[i].converted_spawn_pos.x * animated_map_scale + g_map.units[i].move_offset.x * animated_map_scale, pos.y + g_map.units[i].converted_spawn_pos.y * animated_map_scale + g_map.units[i].move_offset.y * animated_map_scale);
+			g_map.units[i].interpolated_move_offset.x = ImGui::LerpAnimate(std::to_string(i).c_str(),"InterpX", true, g_map.units[i].move_offset.x, 100, ImGui::INTERP);
+			g_map.units[i].interpolated_move_offset.y = ImGui::LerpAnimate(std::to_string(i).c_str(), "InterpY", true, g_map.units[i].move_offset.y, 100, ImGui::INTERP);
+
+			ImVec2 final_pos = ImVec2(pos.x + g_map.units[i].converted_spawn_pos.x * animated_map_scale + g_map.units[i].interpolated_move_offset.x * animated_map_scale, pos.y + g_map.units[i].converted_spawn_pos.y * animated_map_scale + g_map.units[i].interpolated_move_offset.y * animated_map_scale);
 
 			g_map.units[i].position = final_pos;
 
 			if (ImGui::IsMouseClicked(1) && g_map.units[i].selected)
 			{
-				g_map.units[i].stored_cursor = cursor_pos;
-				g_map.units[i].pos_converted_to_map = false;
+				if (g_map.units[i].owner_country_id == g_menu.players[player_id].control_region)
+				{
+					g_map.units[i].stored_cursor = cursor_pos;
+					g_map.units[i].pos_converted_to_map = false;
+				}
 			}
 
 			ImVec2 mapped_pos = ImVec2((g_map.units[i].stored_cursor.x - pos.x) / animated_map_scale, (g_map.units[i].stored_cursor.y - pos.y) / animated_map_scale);
@@ -54,7 +72,7 @@ public:
 			else
 				final_pos2 = final_pos;
 
-			if (g_map.units[i].target_pos.x != 0 && g_map.units[i].target_pos.y != 0)
+			if (g_map.units[i].owner_country_id == g_menu.players[player_id].control_region)
 			{
 				// Вектор направления к цели
 				float dx = (final_pos2.x - g_map.units[i].position.x) / animated_map_scale;
@@ -85,7 +103,6 @@ public:
 
 						if (i == boat2)
 							continue;
-
 
 						float left1 = g_map.units[i].position.x - (4.5 * animated_map_scale);
 						float right1 = g_map.units[i].position.x + (4.5 * animated_map_scale);
@@ -146,7 +163,8 @@ public:
 			}
 
 
-			ImGui::GetForegroundDrawList()->AddCircleFilled(g_map.units[i].position, 2 * animated_map_scale, ImColor(150, 200, 180), 15);
+
+			ImGui::GetForegroundDrawList()->AddCircleFilled(g_map.units[i].position, 2 * animated_map_scale, g_menu.players[player_id].control_region == g_map.units[i].owner_country_id ? ImColor(150, 200, 180) : ImColor(255, 40, 10), 15);
 
 			std::string class_name = "";
 			
@@ -171,9 +189,24 @@ public:
 
 				ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[2].font_addr, 17.f, ImVec2(g_map.units[i].position), ImColor(255, 255, 255), class_name.c_str());
 
-				g_map.process_unit_selections(&g_map.units[i], animated_map_scale);
+
+				if (g_map.units[i].owner_country_id == g_menu.players[player_id].control_region)
+					g_map.process_unit_selections(&g_map.units[i], animated_map_scale);
 			}
 
+		}
+
+		if (old_tick_for_update != g_map.global_tick)
+		{
+			if (g_socket_control.player_role == g_socket_control.player_role_enum::SERVER)
+			{
+				g_socket_control.server_send_unit_pos(g_menu.players[player_id].control_region);
+			}
+			else if (g_socket_control.player_role == g_socket_control.player_role_enum::CLIENT)
+			{
+				g_socket_control.client_send_unit_pos(g_menu.players[player_id].control_region);
+			}
+			old_tick_for_update = g_map.global_tick;
 		}
 	}
 };

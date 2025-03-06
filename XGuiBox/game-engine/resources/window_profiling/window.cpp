@@ -469,38 +469,38 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     case WM_ACTIVATE:
         if (LOWORD(wParam) == WA_INACTIVE) {
             // Окно теряет фокус — выйти из полноэкранного режима
-            BOOL isFullscreen;
-            g_window.g_pSwapChain->GetFullscreenState(&isFullscreen, nullptr);
-            if (isFullscreen) {
-                g_window.g_pSwapChain->SetFullscreenState(FALSE, nullptr);
-            }
+            //BOOL isFullscreen;
+            //g_window.g_pSwapChain->GetFullscreenState(&isFullscreen, nullptr);
+            //if (isFullscreen) {
+            //    g_window.g_pSwapChain->SetFullscreenState(FALSE, nullptr);
+            //}
         }
         else {
             // Окно восстанавливает фокус — вернуться в полноэкранный режим
-            BOOL isFullscreen;
-            g_window.g_pSwapChain->GetFullscreenState(&isFullscreen, nullptr);
-            if (!isFullscreen) {
-                g_window.g_pSwapChain->SetFullscreenState(TRUE, nullptr);
-            }
+            //BOOL isFullscreen;
+            //g_window.g_pSwapChain->GetFullscreenState(&isFullscreen, nullptr);
+            //if (!isFullscreen) {
+            //    g_window.g_pSwapChain->SetFullscreenState(TRUE, nullptr);
+            //}
         }
         break;
 
     case WM_SIZE:
         if (wParam == SIZE_MINIMIZED) {
             // Окно сворачивается — выйти из полноэкранного режима
-            BOOL isFullscreen;
-            g_window.g_pSwapChain->GetFullscreenState(&isFullscreen, nullptr);
-            if (isFullscreen) {
-                g_window.g_pSwapChain->SetFullscreenState(FALSE, nullptr);
-            }
+            //BOOL isFullscreen;
+            //g_window.g_pSwapChain->GetFullscreenState(&isFullscreen, nullptr);
+            //if (isFullscreen) {
+            //    g_window.g_pSwapChain->SetFullscreenState(FALSE, nullptr);
+            //}
         }
         else if (wParam == SIZE_RESTORED) {
             // Окно восстанавливается — вернуться в полноэкранный режим
-            BOOL isFullscreen;
-            g_window.g_pSwapChain->GetFullscreenState(&isFullscreen, nullptr);
-            if (!isFullscreen) {
-                g_window.g_pSwapChain->SetFullscreenState(TRUE, nullptr);
-            }
+            //BOOL isFullscreen;
+            //g_window.g_pSwapChain->GetFullscreenState(&isFullscreen, nullptr);
+            //if (!isFullscreen) {
+            //    g_window.g_pSwapChain->SetFullscreenState(TRUE, nullptr);
+            //}
         }
         break;
 
@@ -688,7 +688,7 @@ void window_profiling::create_window()
 
     WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(NULL), NULL, NULL, NULL, NULL, _T("Window"), NULL };
     RegisterClassEx(&wc);
-    HWND hwnd = CreateWindow(_T("Window"), _T("Defcon"), WS_OVERLAPPEDWINDOW, 0, 0, this->window_size.x, this->window_size.y, NULL, NULL, wc.hInstance, NULL);
+    HWND hwnd = CreateWindow(_T("Window"), _T("Defcon"), WS_POPUP, 0, 0, this->window_size.x, this->window_size.y, NULL, NULL, wc.hInstance, NULL);
 
     UINT numerator, denominator;
 
@@ -818,13 +818,21 @@ void window_profiling::create_window()
 
     MSG msg = {};
 
-    BOOL isFullscreen;
-    g_window.g_pSwapChain->GetFullscreenState(&isFullscreen, nullptr);
-    if (!isFullscreen) {
-        g_window.g_pSwapChain->SetFullscreenState(TRUE, nullptr);
-    }
+    //BOOL isFullscreen;
+    //g_window.g_pSwapChain->GetFullscreenState(&isFullscreen, nullptr);
+    //if (!isFullscreen) {
+    //    g_window.g_pSwapChain->SetFullscreenState(TRUE, nullptr);
+    //}
 
     InitFFmpeg("123.mkv");
+
+    BOOL isFullscreen;
+    g_pSwapChain->GetFullscreenState(&isFullscreen, nullptr); // Получаем текущий режим
+
+    if (isFullscreen) {
+        // Переводим в оконный режим
+        g_pSwapChain->SetFullscreenState(FALSE, nullptr);
+    }
 
     while (msg.message != WM_QUIT) 
     {

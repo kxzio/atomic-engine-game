@@ -4,13 +4,15 @@ class units_base
 {
 public:
 
+	//owner informatiom
+	int owner_country_id;
+	int owner_building_id;
+
+	//unit info
 	bool warship  = false;
 	bool airplane = false;
 
 	int  class_of_unit = 0;
-
-	int  owner_country_id;
-	int  owner_building_id;
 
 	int  unique_id;
 
@@ -18,6 +20,7 @@ public:
 	ImVec2 converted_spawn_pos = ImVec2();
 	ImVec2 position      = ImVec2();
 	ImVec2 move_offset   = ImVec2();
+	ImVec2 interpolated_move_offset = ImVec2();
 	ImVec2 target_pos    = ImVec2();
 	ImVec2 stored_cursor = ImVec2();
 

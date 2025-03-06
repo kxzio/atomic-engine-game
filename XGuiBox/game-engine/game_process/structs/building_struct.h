@@ -24,10 +24,10 @@ struct SHIPYARD_SYSTEM_HEART
 
 
     //listbox of boats
-    std::vector< std::string > carriers;
-    std::vector< std::string > cruisers;
-    std::vector< std::string > destroyers;
-    std::vector< std::string > submarines;
+    std::vector< std::string > carriers = {""};
+    std::vector< std::string > cruisers = { "" };
+    std::vector< std::string > destroyers = { "" };
+    std::vector< std::string > submarines = { "" };
 
 };
 struct MISSILE_SILO_HEART

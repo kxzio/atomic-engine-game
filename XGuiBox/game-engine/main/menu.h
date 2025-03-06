@@ -21,13 +21,13 @@ public:
 
 struct war_property
 {
-	int amount_of_jets;
-	int amount_of_bombers;
+	int amount_of_jets = 0;
+	int amount_of_bombers = 0;
 
-	int submarine_count;
-	int carrier_count;
-	int destroyer_count;
-	int cruiser_count;
+	int submarine_count = 0;
+	int carrier_count = 0;
+	int destroyer_count = 0;
+	int cruiser_count = 0;
 
 };
 
@@ -97,6 +97,12 @@ public:
 
 	void server_update_bomb_step(int unique_id);
 	void client_update_bomb_step(int unique_id);
+
+	void server_send_unit(int id);
+	void client_send_unit(int id);
+
+	void server_send_unit_pos(int region);
+	void client_send_unit_pos(int region);
 
 	std::string game_cycle_messages;
 };
