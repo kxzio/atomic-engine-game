@@ -20,6 +20,151 @@
 #define YOUR_HEADER_FILE_H
 #endif  //YOUR_HEADER_FILE_H
 
+
+class NavigableArea {
+public:
+
+    // Сохраняем точки в файл
+    void SaveNavigableAreaToFile(const std::vector<ImVec2>& points, const std::string& filename) {
+        std::ofstream out_file(filename);
+        if (!out_file.is_open()) {
+            std::cerr << "Не удалось открыть файл для записи." << std::endl;
+            return;
+        }
+
+        for (const auto& point : points) {
+            out_file << point.x << " " << point.y << "\n";  // Записываем координаты точки
+        }
+        out_file.close();
+    }
+
+    // Загружаем точки из файла
+    bool LoadNavigableAreaFromFile(std::vector<ImVec2>& points, const std::string& filename) {
+        std::ifstream in_file(filename);
+        if (!in_file.is_open()) {
+            std::cerr << "Не удалось открыть файл для чтения." << std::endl;
+            return false;
+        }
+
+        points.clear();  // Очищаем текущие данные
+
+        float x, y;
+        while (in_file >> x >> y) {
+            points.push_back({ x, y });  // Восстанавливаем точку
+        }
+
+        in_file.close();
+        return true;
+    }
+
+    std::vector<ImVec2> points;  // Точки, которые образуют проходимую область
+
+    // Функция округления до ближайшего кратного 10
+    ImVec2 SnapToGrid(const ImVec2& point) {
+        float snappedX = round(point.x / 10.0f) * 10.0f;
+        float snappedY = round(point.y / 10.0f) * 10.0f;
+        return ImVec2(snappedX, snappedY);
+    }
+
+    // Добавление точки, если она уникальна
+    void AddPoint(ImVec2 pos) {
+        ImVec2 snapped_pos = SnapToGrid(pos);
+        if (!ContainsPoint(snapped_pos)) {
+            points.push_back(snapped_pos);
+        }
+    }
+
+    // Функция для рисования области на экране
+    void Draw(ImVec2 map_pos, float animated_map_scale, ImVec2 cursor) {
+        if (ImGui::IsMouseDown(0)) {
+            ImVec2 cursor_pos = ImVec2(cursor.x, cursor.y - 500);
+            AddPoint(cursor_pos);
+        }
+
+        // Отрисовка сетки
+        for (const auto& p : points) {
+            ImVec2 pos = ImVec2(map_pos.x * animated_map_scale + p.x * animated_map_scale,
+                map_pos.y * animated_map_scale + p.y * animated_map_scale);
+            ImGui::GetForegroundDrawList()->AddRectFilled(
+                ImVec2(pos.x, pos.y),
+                ImVec2(pos.x + 10 * animated_map_scale, pos.y + 10 * animated_map_scale),
+                IM_COL32(255, 0, 0, 255), 2.0f
+            );
+        }
+    }
+
+    // Добавьте этот метод в класс NavigableArea
+    bool IsPathValid(const std::vector<ImVec2>& path, ImVec2 map_pos, float animated_map_scale) {
+        // Если путь пуст или состоит из одной точки, можно считать его невалидным или валидным в зависимости от требований.
+        if (path.size() < 2)
+            return false;
+
+        // Шаг дискретизации вдоль каждого сегмента (в пикселях)
+        const float sampleStep = 1.0f;
+
+        // Проходим по всем сегментам пути
+        for (size_t i = 0; i < path.size() - 1; ++i) {
+            ImVec2 start = path[i];
+            ImVec2 end = path[i + 1];
+            float dx = end.x - start.x;
+            float dy = end.y - start.y;
+            float segmentLength = std::sqrt(dx * dx + dy * dy);
+
+            // Определяем количество шагов вдоль сегмента
+            int steps = (((1) > (static_cast<int>(segmentLength / sampleStep))) ? (1) : (static_cast<int>(segmentLength / sampleStep)));
+
+            // Проходим с дискретизацией по сегменту
+            for (int step = 0; step <= steps; ++step) {
+                float t = static_cast<float>(step) / steps;
+                // Вычисляем промежуточную точку пути (в экранных координатах)
+                ImVec2 sample = ImVec2(start.x + dx * t, start.y + dy * t);
+
+                bool sampleOnNavigable = false;
+
+                // Проверяем, попадает ли данная точка в какой-либо из прямоугольников навигационной области
+                // Каждый прямоугольник соответствует сохранённой точке и имеет размер 10 * animated_map_scale
+                for (const auto& cell : points) {
+                    // Определяем позицию прямоугольника на экране
+                    ImVec2 cellTopLeft = ImVec2((map_pos.x + cell.x) * animated_map_scale,
+                        (map_pos.y + cell.y) * animated_map_scale);
+                    float cellSize = 10 * animated_map_scale;
+                    ImVec2 cellBottomRight = ImVec2(cellTopLeft.x + cellSize, cellTopLeft.y + cellSize);
+
+                    // Если точка sample лежит внутри прямоугольника, то переходим к следующему шагу
+                    if (sample.x >= cellTopLeft.x && sample.x <= cellBottomRight.x &&
+                        sample.y >= cellTopLeft.y && sample.y <= cellBottomRight.y) {
+                        sampleOnNavigable = true;
+                        break;
+                    }
+                }
+
+                // Если хотя бы одна из промежуточных точек не попадает ни в один прямоугольник, путь не валиден
+                if (!sampleOnNavigable)
+                    return false;
+            }
+        }
+        return true;
+    }
+
+
+    // Сохранение и загрузка
+    void SaveToFile(const std::string& filename) {
+        SaveNavigableAreaToFile(points, filename);
+    }
+
+    bool LoadFromFile(const std::string& filename) {
+        return LoadNavigableAreaFromFile(points, filename);
+    }
+
+private:
+    bool ContainsPoint(const ImVec2& p) const {
+        return std::find_if(points.begin(), points.end(), [&](const ImVec2& point) {
+            return fabs(point.x - p.x) < 0.1f && fabs(point.y - p.y) < 0.1f;
+            }) != points.end();
+    }
+
+};
+
 class map_processing
 {
 public:

@@ -8,6 +8,7 @@
 #include "rockets/rockets.h"
 #include "map_helper.h"
 #include "units/warships.h"
+#include <boost/functional/hash.hpp>
 
 void map_processing::process_object_selections(bool city, int current_country, int player_id, std::vector <country_data>* countries, map_objects* object, float animated_map_scale, ImVec2 map_pos)
 {
@@ -197,6 +198,7 @@ void map_processing::process_unit_selections(units_base* unit, float animated_ma
     }
 }
 
+
 void map_processing::render_map_and_process_hitboxes(window_profiling window, std::vector <country_data>* countries, float animated_map_scale, int* hovered_id, ImVec2 cursor_pos, ImVec2 map_pos, int player_id, int function_count)
 {
 
@@ -215,6 +217,18 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
     );
 
     {
+        static NavigableArea navigable_area;
+        static bool navigate_area_init;
+        if (!navigate_area_init)
+        {
+            if (!navigable_area.LoadFromFile("navigable_area.txt")) {
+                std::cout << "Не удалось загрузить данные." << std::endl;
+            }
+            navigate_area_init = true;
+        }
+
+        //navigable_area.Draw(map_pos, animated_map_scale);
+
         g_city_processing.update_hitboxes(countries);
 
         //main cycle
@@ -236,7 +250,7 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
         g_rocket_processing.       process_rockets            (0, window, countries, animated_map_scale, hovered_id, cursor_pos, map_pos, player_id, function_count);
 
         //process warships
-        g_warships.process_warships(0, window, countries, animated_map_scale, hovered_id, cursor_pos, map_pos, player_id, function_count);
+        g_warships.process_warships(navigable_area, countries, animated_map_scale, cursor_pos, map_pos, player_id, function_count);
 
 
     }
