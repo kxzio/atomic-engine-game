@@ -227,7 +227,8 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
             navigate_area_init = true;
         }
 
-        //navigable_area.Draw(map_pos, animated_map_scale);
+
+        //navigable_area.Draw(map_pos, animated_map_scale, ImVec2(g_map.cursor_pos.x, g_map.cursor_pos.y));
 
         g_city_processing.update_hitboxes(countries);
 
@@ -420,29 +421,17 @@ void map_processing::process_and_sync_game_cycle(std::vector <country_data>* cou
         static int old_game_event  = 0;
 
         //sending global game tick to client
-        if (old_global_tick != global_tick)         { g_socket_control.server_send_message("GAME_CYCLE:TICK_UPDATE:"         + std::to_string(global_tick));        old_global_tick = global_tick;        }
+        if (old_global_tick != global_tick)         { g_socket_control.server_send_tick ();        old_global_tick = global_tick;        }
 
         //sending global game event to client
-        if (old_game_event  != g_map.game_events)   { g_socket_control.server_send_message("GAME_CYCLE:GLOBAL_EVENT_UPDATE:" + std::to_string(g_map.game_events));  old_game_event = g_map.game_events;   }
+        if (old_game_event  != g_map.game_events)   { g_socket_control.server_send_event();        old_game_event = g_map.game_events;   }
+
+        g_socket_control.server_process_client_sync();
     }
     else if (g_socket_control.player_role   ==      g_socket_control.player_role_enum::CLIENT)
     {
         //client side
-
-        std::string message = g_socket_control.game_cycle_messages;
-        if (g_socket_control.game_cycle_messages.find("GAME_CYCLE:TICK_UPDATE:") != std::string::npos)
-        {
-            //game tick update from server and making it up in global var
-            message           .erase(0, 23);
-            global_tick = std::stoi(message);
-        }
-        else if (g_socket_control.game_cycle_messages.find("GAME_CYCLE:GLOBAL_EVENT_UPDATE:") != std::string::npos)
-        {
-            //game event update from server and making it up in global var
-            message.erase(0, 31);
-            game_events = std::stoi(message);
-        }
-        
+        g_socket_control.client_process_client_sync();
     }
 
     //ecomics cycle

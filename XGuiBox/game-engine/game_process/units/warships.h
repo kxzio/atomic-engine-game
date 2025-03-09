@@ -162,23 +162,21 @@ public:
 			if (g_map.units[i].owner_country_id == g_menu.players[player_id].control_region)
 			{
 
-				// Вектор направления к цели
 				float dx = (final_pos2.x - g_map.units[i].position.x) / animated_map_scale;
 				float dy = (final_pos2.y - g_map.units[i].position.y) / animated_map_scale;
 
-				// Вычисление длины вектора
 				float length = sqrt(dx * dx + dy * dy);
 
 				if (length > 0.0f)
 				{
 					float nx = dx / length;
 					float ny = dy / length;
-					float speed = 0.025f;
+					float speed = 0.045f;
 
 					bool blockLeft = false, blockRight = false, blockUp = false, blockDown = false;
 					int left_count = 0, right_count = 0, up_count = 0, down_count = 0;
 
-					float sensor_offset = 6.0f * animated_map_scale; // Дистанция сенсоров
+					float sensor_offset = 9.0f * animated_map_scale;
 
 					for (int boat2 = 0; boat2 < g_map.units.size(); boat2++)
 					{
@@ -195,7 +193,6 @@ public:
 						float top2 = g_map.units[boat2].position.y + (6.5 * animated_map_scale);
 						float bottom2 = g_map.units[boat2].position.y - (6.5 * animated_map_scale);
 
-						// Сенсоры: впереди, сзади, слева, справа
 						float sensor_x_forward = g_map.units[i].position.x + nx * sensor_offset;
 						float sensor_y_forward = g_map.units[i].position.y + ny * sensor_offset;
 
@@ -238,46 +235,101 @@ public:
 						float dist = sqrt(dist_x * dist_x + dist_y * dist_y);
 						float min_dist = 12.0f * animated_map_scale;
 
-						if (dist < min_dist)
-						{
-							float repel_force = 0.9f * (1.0f - (dist / min_dist));
+						float distance_5_ticks_before = sqrt(pow(g_map.units[i].move_offset.x - g_map.units[i].old_position.x, 2) + pow(g_map.units[i].move_offset.y - g_map.units[i].old_position.y, 2)) * 150;
 
-							if (fabs(dist_x) > fabs(dist_y))
-								nx += (dist_x > 0) ? -repel_force : repel_force;
-							else
-								ny += (dist_y > 0) ? -repel_force : repel_force;
+						if (distance_5_ticks_before > 5)
+						{
+							if (g_map.global_tick % 7 == 0 && g_map.units[i].stuck_tick_timer < 200)
+								g_map.units[i].stuck_tick_timer++;
+						}
+						else
+						{
+							if (g_map.global_tick % 7 == 0 && g_map.units[i].stuck_tick_timer > 1)
+								g_map.units[i].stuck_tick_timer--;
+						}
+
+						//ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[2].font_addr, 17.f, ImVec2(g_map.units[i].position), ImColor(255, 255, 255), std::to_string(g_map.units[i].stuck_tick_timer).c_str());
+
+						if (i < boat2 && dist < min_dist && g_map.units[i].stuck_tick_timer == 1) 
+						{
+							float repel_force = 0.2f * (1.0f - (dist / min_dist));
+
+							if (g_map.units[i].last_path_update + 100 < g_map.global_tick)
+							{
+								float enemy_move_x = g_map.units[boat2].move_offset.x - g_map.units[boat2].old_position.x;
+								float enemy_move_y = g_map.units[boat2].move_offset.y - g_map.units[boat2].old_position.y;
+
+								bool prefer_left = false;
+								bool prefer_up = false;
+
+								if (fabs(enemy_move_x) > fabs(enemy_move_y)) 
+								{
+									if (enemy_move_x > 0) 
+										prefer_left = true;
+									else 
+										prefer_left = false;
+								}
+								else 
+								{
+									if (enemy_move_y > 0) 
+										prefer_up = true;
+									else 
+										prefer_up = false;
+								}
+
+								ImVec2 detour_point;
+
+								if (fabs(dist_x) > fabs(dist_y))
+								{
+									if (prefer_left)
+										detour_point = ImVec2((g_map.units[i].position.x - pos.x) / animated_map_scale - 7,
+											(g_map.units[i].position.y - pos.y) / animated_map_scale);
+									else
+										detour_point = ImVec2((g_map.units[i].position.x - pos.x) / animated_map_scale + 7,
+											(g_map.units[i].position.y - pos.y) / animated_map_scale);
+								}
+								else 
+								{
+									if (prefer_up)
+										detour_point = ImVec2((g_map.units[i].position.x - pos.x) / animated_map_scale,
+											(g_map.units[i].position.y - pos.y) / animated_map_scale + 7);
+									else
+										detour_point = ImVec2((g_map.units[i].position.x - pos.x) / animated_map_scale,
+											(g_map.units[i].position.y - pos.y) / animated_map_scale - 7);
+								}
+
+								g_map.units[i].path.insert(g_map.units[i].path.begin(), detour_point);
+								g_map.units[i].last_path_update = g_map.global_tick;
+							}
 						}
 					}
 
-					// Улучшенная логика обхода
 					if (blockUp && ny < 0)
 					{
-						ny = 0.7f;
+						ny = 0.1f;
 						nx *= 0.6f;
 					}
 					if (blockDown && ny > 0)
 					{
-						ny = -0.7f;
+						ny = -0.1f;
 						nx *= 0.6f;
 					}
 					if (blockLeft && nx < 0)
 					{
-						nx = 0.7f;
+						nx = 0.1f;
 						ny *= 0.6f;
 					}
 					if (blockRight && nx > 0)
 					{
-						nx = -0.7f;
+						nx = -0.1f;
 						ny *= 0.6f;
 					}
 
-					// Динамическое перераспределение маршрута
 					if (right_count > left_count + 1) ny += 0.7f;
 					if (left_count > right_count + 1) ny -= 0.7f;
 					if (up_count > down_count + 1) nx += 0.7f;
 					if (down_count > up_count + 1) nx -= 0.7f;
 
-					// Добавляем случайность для уникальных траекторий
 					float random_factor = ((rand() % 100) / 4000.0f) - 0.01f;
 					nx += random_factor;
 					ny += random_factor;
@@ -293,6 +345,10 @@ public:
 				if (length < 2.0f && !g_map.units[i].path.empty())
 					g_map.units[i].path.erase(g_map.units[i].path.begin());
 
+				if (g_map.global_tick % 5 == 0)
+				{
+					g_map.units[i].old_position = g_map.units[i].move_offset;
+				}
 
 			}
 

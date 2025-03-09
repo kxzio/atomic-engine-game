@@ -20,6 +20,7 @@ public:
 	ImVec2 spawn_pos				= ImVec2();
 	ImVec2 converted_spawn_pos		= ImVec2();
 	ImVec2 position					= ImVec2();
+	ImVec2 old_position				= ImVec2();
 	ImVec2 move_offset				= ImVec2();
 	ImVec2 interpolated_move_offset = ImVec2();
 	ImVec2 target_pos				= ImVec2();
@@ -28,6 +29,8 @@ public:
 	std::vector<ImVec2> path = {};
 
 	int old_tick;
+	int last_path_update;
+	int stuck_tick_timer;
 
 	bool   pos_converted_to_map = true;
 	bool   spawnpos_converted_to_map = false;

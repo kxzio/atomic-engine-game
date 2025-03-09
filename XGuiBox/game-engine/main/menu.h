@@ -39,13 +39,13 @@ public:
 
 	int id;
 
-    int control_region;
+    int control_region = 0;
 
 	bool ready_to_play = false;
 
-	econimics economics;
+	econimics economics = {};
 
-	war_property war_property; //doesnt sending to update systm
+	war_property war_property = {}; //doesnt sending to update systm
 };
 
 class menu
@@ -69,6 +69,8 @@ inline menu g_menu;
 class socket_control
 {
 public:
+
+	std::string sync_socket;
 
 	enum player_role_enum
 	{
@@ -103,6 +105,12 @@ public:
 
 	void server_send_unit_pos(int region);
 	void client_send_unit_pos(int region);
+
+	void server_send_tick();
+	void server_send_event();
+
+	void server_process_client_sync();
+	void client_process_client_sync();
 
 	std::string game_cycle_messages;
 };

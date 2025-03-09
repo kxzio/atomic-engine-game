@@ -232,7 +232,7 @@ namespace server_client_space
                 oss << p.id << "," << p.name << "," << p.control_region << "," << int(p.ready_to_play) << ",";
 
                 // Сериализация экономических данных
-                oss << p.economics.capital << "," << p.economics.capital_inflow << "," << p.economics.capital_inflow_ratio << ",";
+                oss << p.economics.capital << "," << p.economics.capital_inflow << "," << p.economics.capital_inflow_ratio;
 
                 oss << ";"; // Разделитель между игроками
             }
@@ -639,6 +639,7 @@ namespace server_client_space
 
 }
 
+std::vector<std::string> got;
 class ChatServer
 {
 public:
@@ -647,7 +648,7 @@ public:
         : acceptor_(io_context, tcp::endpoint(boost::asio::ip::make_address(ip), port)), nickname_(nickname)
     {
         g_menu.players.push_back(player{ nickname, int(g_menu.players.size()), 0 });
-        std::string serialized_data = "CLASS.PLAYERS_VECTOR:" + server_client_space::server_client_menu_information::serialize_vector_players(g_menu.players);
+        std::string serialized_data = "#CLASS.PLAYERS_VECTOR:" + server_client_space::server_client_menu_information::serialize_vector_players(g_menu.players);
         send_message(serialized_data);
         do_accept();
     }
@@ -677,7 +678,7 @@ public:
 
     void send_and_update_player_class(int id)
     {
-        std::string serialized_data = "CLASS.PLAYERS:" + server_client_space::server_client_menu_information::serialize_players(g_menu.players, id );
+        std::string serialized_data = "#CLASS.PLAYERS:" + server_client_space::server_client_menu_information::serialize_players(g_menu.players, id );
         send_message(serialized_data);
     }
 
@@ -711,79 +712,111 @@ private:
             if (!ec)
             {
 
-                std::istream    is(buffer.get());
-                std::string     message;
-                std::getline(is, message);
+                std::istream is(buffer.get());
+                std::string buffer_message;
+                std::getline(is, buffer_message);
 
-                if (server_client_space::IsRequest(message, "CLASS.PLAYERS:")) 
-                {
-                    std::string players_data = message.erase(0, 14);
-                    server_client_space::server_client_menu_information::deserialize_players(g_menu.players, players_data);
-                }
-                else if (server_client_space::IsRequest(message, "CLASS.MAP.UPDATE_CITY:"))
-                {
-                    std::string players_data = message.erase(0, 22);
-                    server_client_space::server_client_menu_information::deserialize_city(g_map.countries, players_data);
-                }
-                else if (server_client_space::IsRequest(message, "CLASS.MAP.UPDATE_BUILDING:"))
-                {
-                    std::string players_data = message.erase(0, 26);
-                    server_client_space::server_client_menu_information::deserialize_building(g_map.countries, players_data);
-                }
-                else if (server_client_space::IsRequest(message, "CLASS.MAP.UPDATE_NUCLEAR_TARGETS:"))
-                {
-                    std::string players_data = message.erase(0, 33);
-                    server_client_space::server_client_menu_information::deserialize_targets(g_map.air_strike_targets, players_data);
-                }
-                else if (server_client_space::IsRequest(message, "CLASS.PLAYERS_VECTOR:"))
-                {
-                    std::string players_data = message.erase(0, 21);
-                    g_menu.players = server_client_space::server_client_menu_information::deserialize_vector_players(players_data);
-                }
-                else if (server_client_space::IsRequest(message, "CLASS.MAP.BOMBSTEP:")) //
-                {
-                    std::string players_data = message.erase(0, 19);
-                    server_client_space::server_client_menu_information::deserialize_bomb_step(g_map.air_strike_targets, players_data);
-                }
-                else if (server_client_space::IsRequest(message, "CLASS.UNIT:")) //
-                {
-                    std::string players_data = message.erase(0, 11);
-                    server_client_space::server_client_menu_information::deserialize_unit(players_data);
-                }
-                else if (server_client_space::IsRequest(message, "USER.JOIN:"))
-                {
-                    std::string        nickname = message.erase(0, 10);
-                    add_client(socket, nickname);
-                }
-                else if (server_client_space::IsRequest(message, "U.P:"))
-                {
-                    std::string players_data = message.erase(0, 4);
-                    server_client_space::server_client_menu_information::deserialize_unit_pos(players_data);
-                }
-                else if (server_client_space::IsRequest(message, "PLAYER.READY.LOBBY:"))
-                {
-                    int id = std::stoi(message.erase(0, 19));
-                    g_menu.players[id].ready_to_play = true;
+                std::cout << "Полученные данные: [" << buffer_message << "]" << std::endl;
 
-                    std::string serialized_data = "CLASS.PLAYERS" + server_client_space::server_client_menu_information::serialize_players(g_menu.players, id);
-                    send_message(serialized_data);
+                // Если строка не начинается с #, ищем первый #
+                size_t first_hash = buffer_message.find('#');
+                if (first_hash != std::string::npos) {
+                    buffer_message = buffer_message.substr(first_hash);
                 }
-                else if (server_client_space::IsRequest(message, "PLAYER.NOTREADY.LOBBY:"))
-                {
-                    int id = std::stoi(message.erase(0, 22));
-                    g_menu.players[id].ready_to_play = false;
 
-                    std::string serialized_data = "CLASS.PLAYERS" + server_client_space::server_client_menu_information::serialize_players(g_menu.players, id);
-                    send_message(serialized_data);
+                // Теперь строка точно начинается с #
+                std::cout << "После очистки: [" << buffer_message << "]" << std::endl;
+
+                std::vector<std::string> all_messages;
+                std::istringstream socket_stream(buffer_message);
+                std::string field;
+
+                // Разделение строки по #
+                while (std::getline(socket_stream, field, '#')) {
+                    if (!field.empty()) {
+                        all_messages.push_back(field);
+                    }
                 }
-                else if (server_client_space::IsRequest(message, "GAME_CYCLE:"))
-                {
-                    g_socket_control.game_cycle_messages = message;
+
+                // Если сообщений нет, добавляем всё как есть
+                if (all_messages.empty()) {
+                    all_messages.push_back(buffer_message);
                 }
-                else
+
+
+                for (int i = 0; i < all_messages.size(); i++)
                 {
-                    server_client_space::server_client_menu_information::add_message(message);
-                    send_message(message);
+                    std::string message = all_messages[i];
+                    if (server_client_space::IsRequest(message, "CLASS.PLAYERS:"))
+                    {
+                        std::string players_data = message.erase(0, 14);
+                        server_client_space::server_client_menu_information::deserialize_players(g_menu.players, players_data);
+                    }
+                    else if (server_client_space::IsRequest(message, "CLASS.MAP.UPDATE_CITY:"))
+                    {
+                        std::string players_data = message.erase(0, 22);
+                        server_client_space::server_client_menu_information::deserialize_city(g_map.countries, players_data);
+                    }
+                    else if (server_client_space::IsRequest(message, "CLASS.MAP.UPDATE_BUILDING:"))
+                    {
+                        std::string players_data = message.erase(0, 26);
+                        server_client_space::server_client_menu_information::deserialize_building(g_map.countries, players_data);
+                    }
+                    else if (server_client_space::IsRequest(message, "CLASS.MAP.UPDATE_NUCLEAR_TARGETS:"))
+                    {
+                        std::string players_data = message.erase(0, 33);
+                        server_client_space::server_client_menu_information::deserialize_targets(g_map.air_strike_targets, players_data);
+                    }
+                    else if (server_client_space::IsRequest(message, "CLASS.PLAYERS_VECTOR:"))
+                    {
+                        std::string players_data = message.erase(0, 21);
+                        g_menu.players = server_client_space::server_client_menu_information::deserialize_vector_players(players_data);
+                    }
+                    else if (server_client_space::IsRequest(message, "CLASS.MAP.BOMBSTEP:")) //
+                    {
+                        std::string players_data = message.erase(0, 19);
+                        server_client_space::server_client_menu_information::deserialize_bomb_step(g_map.air_strike_targets, players_data);
+                    }
+                    else if (server_client_space::IsRequest(message, "CLASS.UNIT:")) //
+                    {
+                        std::string players_data = message.erase(0, 11);
+                        server_client_space::server_client_menu_information::deserialize_unit(players_data);
+                    }
+                    else if (server_client_space::IsRequest(message, "USER.JOIN:"))
+                    {
+                        std::string        nickname = message.erase(0, 10);
+                        add_client(socket, nickname);
+                    }
+                    else if (server_client_space::IsRequest(message, "U.P:"))
+                    {
+                        std::string players_data = message.erase(0, 4);
+                        server_client_space::server_client_menu_information::deserialize_unit_pos(players_data);
+                    }
+                    else if (server_client_space::IsRequest(message, "PLAYER.READY.LOBBY:"))
+                    {
+                        int id = std::stoi(message.erase(0, 19));
+                        g_menu.players[id].ready_to_play = true;
+
+                        std::string serialized_data = "#CLASS.PLAYERS" + server_client_space::server_client_menu_information::serialize_players(g_menu.players, id);
+                        send_message(serialized_data);
+                    }
+                    else if (server_client_space::IsRequest(message, "PLAYER.NOTREADY.LOBBY:"))
+                    {
+                        int id = std::stoi(message.erase(0, 22));
+                        g_menu.players[id].ready_to_play = false;
+
+                        std::string serialized_data = "#CLASS.PLAYERS" + server_client_space::server_client_menu_information::serialize_players(g_menu.players, id);
+                        send_message(serialized_data);
+                    }
+                    else if (server_client_space::IsRequest(message, "GAME_CYCLE:"))
+                    {
+                        g_socket_control.game_cycle_messages = message;
+                    }
+                    else
+                    {
+                        server_client_space::server_client_menu_information::add_message(message);
+                        send_message(message);
+                    }
                 }
                 do_read(socket);
             }
@@ -803,7 +836,7 @@ private:
             }
         }
         g_menu.players.push_back(player{ nickname, int(g_menu.players.size()), 0 });
-        std::string serialized_data = "CLASS.PLAYERS_VECTOR:" + server_client_space::server_client_menu_information::serialize_vector_players(g_menu.players);
+        std::string serialized_data = "#CLASS.PLAYERS_VECTOR:" + server_client_space::server_client_menu_information::serialize_vector_players(g_menu.players);
         send_message(serialized_data);
     }
 
@@ -824,7 +857,7 @@ private:
                 g_menu.players.erase(player_it);
             }
 
-            std::string serialized_data = "CLASS.PLAYERS_VECTOR:" + server_client_space::server_client_menu_information::serialize_vector_players(g_menu.players);
+            std::string serialized_data = "#CLASS.PLAYERS_VECTOR:" + server_client_space::server_client_menu_information::serialize_vector_players(g_menu.players);
             send_message(serialized_data);
 
             server_client_space::server_client_menu_information::add_message(nickname + " has left the server /red/");
@@ -854,7 +887,7 @@ public:
                     do_read();
                     server_client_space::server_client_menu_information::add_message("Connected to server /green/");
 
-                    std::string message_for_nick = "USER.JOIN:" + nickname_;
+                    std::string message_for_nick = "#USER.JOIN:" + nickname_;
                     send_message(message_for_nick);
 
                 }
@@ -877,7 +910,7 @@ public:
 
     void send_and_update_player_class(int id)
     {
-        std::string serialized_data = "CLASS.PLAYERS:" + server_client_space::server_client_menu_information::serialize_players(g_menu.players, id);
+        std::string serialized_data = "#CLASS.PLAYERS:" + server_client_space::server_client_menu_information::serialize_players(g_menu.players, id);
         send_message(serialized_data);
     }
 
@@ -889,67 +922,107 @@ private:
         boost::asio::async_read_until(socket_, *buffer, "\n", [this, buffer](boost::system::error_code ec, std::size_t) {
             if (!ec)
             {
+                std::istream is(buffer.get());
+                std::string buffer_message;
+                std::getline(is, buffer_message);
 
-                std::istream     is(buffer.get());
-                std::string      message;
-                std::getline(is, message);
+                std::cout << "Полученные данные: [" << buffer_message << "]" << std::endl;
 
-                if (server_client_space::IsRequest(message, "CLASS.PLAYERS:")) {
-                    std::string players_data = message.erase(0, 14);
-                    server_client_space::server_client_menu_information::deserialize_players(g_menu.players, players_data);
+                // Если строка не начинается с #, ищем первый #
+                size_t first_hash = buffer_message.find('#');
+                if (first_hash != std::string::npos) {
+                    buffer_message = buffer_message.substr(first_hash);
                 }
-                else if (server_client_space::IsRequest(message, "CLASS.MAP.UPDATE_CITY:"))
-                {
-                    std::string players_data = message.erase(0, 22);
-                    server_client_space::server_client_menu_information::deserialize_city(g_map.countries, players_data);
+
+                // Теперь строка точно начинается с #
+                std::cout << "После очистки: [" << buffer_message << "]" << std::endl;
+
+                std::vector<std::string> all_messages;
+                std::istringstream socket_stream(buffer_message);
+                std::string field;
+
+                // Разделение строки по #
+                while (std::getline(socket_stream, field, '#')) {
+                    if (!field.empty()) {
+                        all_messages.push_back(field);
+                    }
                 }
-                else if (server_client_space::IsRequest(message, "CLASS.MAP.UPDATE_BUILDING:"))
-                {
-                    std::string players_data = message.erase(0, 26);
-                    server_client_space::server_client_menu_information::deserialize_building(g_map.countries, players_data);
+
+                // Если сообщений нет, добавляем всё как есть
+                if (all_messages.empty()) {
+                    all_messages.push_back(buffer_message);
                 }
-                else if (server_client_space::IsRequest(message, "CLASS.MAP.BOMBSTEP:")) //
+
+                for (int i = 0; i < all_messages.size(); i++)
                 {
-                    std::string players_data = message.erase(0, 19);
-                    server_client_space::server_client_menu_information::deserialize_bomb_step(g_map.air_strike_targets, players_data);
-                }
-                else if (server_client_space::IsRequest(message, "CLASS.UNIT:")) 
-                {
-                    std::string players_data = message.erase(0, 11);
-                    server_client_space::server_client_menu_information::deserialize_unit(players_data);
-                }
-                else if (server_client_space::IsRequest(message, "U.P:")) 
-                {
-                    std::string players_data = message.erase(0, 4);
-                    server_client_space::server_client_menu_information::deserialize_unit_pos(players_data);
-                }
-                else if (server_client_space::IsRequest(message, "CLASS.MAP.UPDATE_NUCLEAR_TARGETS:"))
-                {
-                    std::string players_data = message.erase(0, 33);
-                    server_client_space::server_client_menu_information::deserialize_targets(g_map.air_strike_targets, players_data);
-                }
-                else if (server_client_space::IsRequest(message, "CLASS.PLAYERS_VECTOR:"))
-                {
-                    std::string players_data = message.erase(0, 21);
-                    g_menu.players = server_client_space::server_client_menu_information::deserialize_vector_players(players_data);
-                }
-                else if (server_client_space::IsRequest(message, "SERVER:CLOSED_CONNECTION"))
-                {
-                    this->disconnect();
-                    game_scenes_params::main_menu_tabs = 5;
-                }
-                else if (server_client_space::IsRequest(message, "SERVER:GAME_START"))
-                {
-                    g_socket_control.player_role = g_socket_control.player_role_enum::CLIENT;
-                    game_scenes_params::global_game_scene_tab = game_scenes_params::global_game_tabs::game_process;
-                }
-                else if (server_client_space::IsRequest(message, "GAME_CYCLE:"))
-                {
-                    g_socket_control.game_cycle_messages = message;
-                }
-                else
-                {
-                    server_client_space::server_client_menu_information::add_message(message);
+                    std::string message = all_messages[i];
+                    if (server_client_space::IsRequest(message, "CLASS.PLAYERS:")) {
+                        std::string players_data = message.erase(0, 14);
+                        server_client_space::server_client_menu_information::deserialize_players(g_menu.players, players_data);
+                    }
+                    else if (server_client_space::IsRequest(message, "CLASS.MAP.UPDATE_CITY:"))
+                    {
+                        std::string players_data = message.erase(0, 22);
+                        server_client_space::server_client_menu_information::deserialize_city(g_map.countries, players_data);
+                    }
+                    else if (server_client_space::IsRequest(message, "CLASS.MAP.UPDATE_BUILDING:"))
+                    {
+                        std::string players_data = message.erase(0, 26);
+                        server_client_space::server_client_menu_information::deserialize_building(g_map.countries, players_data);
+                    }
+                    else if (server_client_space::IsRequest(message, "GAME_CYCLE:TICK_UPDATE:"))
+                    {
+                        message.erase(0, 23);
+                        g_map.global_tick = std::stoi(message);
+                    }
+                    else if (server_client_space::IsRequest(message, "GAME_CYCLE:GLOBAL_EVENT_UPDATE:"))
+                    {
+                        message.erase(0, 31);
+                        g_map.game_events = std::stoi(message);
+                    }
+                    else if (server_client_space::IsRequest(message, "CLASS.MAP.BOMBSTEP:")) //
+                    {
+                        std::string players_data = message.erase(0, 19);
+                        server_client_space::server_client_menu_information::deserialize_bomb_step(g_map.air_strike_targets, players_data);
+                    }
+                    else if (server_client_space::IsRequest(message, "CLASS.UNIT:"))
+                    {
+                        std::string players_data = message.erase(0, 11);
+                        server_client_space::server_client_menu_information::deserialize_unit(players_data);
+                    }
+                    else if (server_client_space::IsRequest(message, "U.P:"))
+                    {
+                        std::string players_data = message.erase(0, 4);
+                        server_client_space::server_client_menu_information::deserialize_unit_pos(players_data);
+                    }
+                    else if (server_client_space::IsRequest(message, "CLASS.MAP.UPDATE_NUCLEAR_TARGETS:"))
+                    {
+                        std::string players_data = message.erase(0, 33);
+                        server_client_space::server_client_menu_information::deserialize_targets(g_map.air_strike_targets, players_data);
+                    }
+                    else if (server_client_space::IsRequest(message, "CLASS.PLAYERS_VECTOR:"))
+                    {
+                        std::string players_data = message.erase(0, 21);
+                        g_menu.players = server_client_space::server_client_menu_information::deserialize_vector_players(players_data);
+                    }
+                    else if (server_client_space::IsRequest(message, "SERVER:CLOSED_CONNECTION"))
+                    {
+                        this->disconnect();
+                        game_scenes_params::main_menu_tabs = 5;
+                    }
+                    else if (server_client_space::IsRequest(message, "SERVER:GAME_START"))
+                    {
+                        g_socket_control.player_role = g_socket_control.player_role_enum::CLIENT;
+                        game_scenes_params::global_game_scene_tab = game_scenes_params::global_game_tabs::game_process;
+                    }
+                    else if (server_client_space::IsRequest(message, "GAME_CYCLE:"))
+                    {
+                        g_socket_control.game_cycle_messages = message;
+                    }
+                    else
+                    {
+                        server_client_space::server_client_menu_information::add_message(message);
+                    }
                 }
                 do_read();
             }
@@ -1003,80 +1076,104 @@ void socket_control::client_send_message(std::string message)
     client->send_message(message);
 }
 
+void socket_control::server_send_tick()
+{
+    sync_socket += ("#GAME_CYCLE:TICK_UPDATE:" + std::to_string(g_map.global_tick));
+}
+
+void socket_control::server_send_event()
+{
+    sync_socket += ("#GAME_CYCLE:GLOBAL_EVENT_UPDATE:" + std::to_string(g_map.game_events));
+}
+
 void socket_control::client_send_player_class(int id)
 {
-    std::string serialized_data = "CLASS.PLAYERS:" + server_client_space::server_client_menu_information::serialize_players(g_menu.players, id);
-    client->send_message(serialized_data);
+    std::string serialized_data = "#CLASS.PLAYERS:" + server_client_space::server_client_menu_information::serialize_players(g_menu.players, id);
+    sync_socket += serialized_data;
 }
 
 void socket_control::server_send_player_class(int id)
 {
-    std::string serialized_data = "CLASS.PLAYERS:" + server_client_space::server_client_menu_information::serialize_players(g_menu.players, id);
-    server->send_message(serialized_data);
+    std::string serialized_data = "#CLASS.PLAYERS:" + server_client_space::server_client_menu_information::serialize_players(g_menu.players, id);
+    sync_socket += serialized_data;
 }
 
 void socket_control::client_send_city(int city_id, int country_id)
 {
-    std::string serialized_data = "CLASS.MAP.UPDATE_CITY:" + server_client_space::server_client_menu_information::serialize_city(city_id, country_id);
-    client->send_message(serialized_data);
+    std::string serialized_data = "#CLASS.MAP.UPDATE_CITY:" + server_client_space::server_client_menu_information::serialize_city(city_id, country_id);
+    sync_socket += serialized_data;
 }
 void socket_control::server_send_city(int city_id, int country_id)
 {
-    std::string serialized_data = "CLASS.MAP.UPDATE_CITY:" + server_client_space::server_client_menu_information::serialize_city(city_id, country_id);
-    server->send_message(serialized_data);
+    std::string serialized_data = "#CLASS.MAP.UPDATE_CITY:" + server_client_space::server_client_menu_information::serialize_city(city_id, country_id);
+    sync_socket += serialized_data;
 }
 
 void socket_control::client_send_building(int building_id, int country_id)
 {
-    std::string serialized_data = "CLASS.MAP.UPDATE_BUILDING:" + server_client_space::server_client_menu_information::serialize_building(building_id, country_id);
-    client->send_message(serialized_data);
+    std::string serialized_data = "#CLASS.MAP.UPDATE_BUILDING:" + server_client_space::server_client_menu_information::serialize_building(building_id, country_id);
+    sync_socket += serialized_data;
 }
 void socket_control::server_send_building(int building_id, int country_id)
 {
-    std::string serialized_data = "CLASS.MAP.UPDATE_BUILDING:" + server_client_space::server_client_menu_information::serialize_building(building_id, country_id);
-    server->send_message(serialized_data);
+    std::string serialized_data = "#CLASS.MAP.UPDATE_BUILDING:" + server_client_space::server_client_menu_information::serialize_building(building_id, country_id);
+    sync_socket += serialized_data;
 }
 
 void socket_control::client_send_nuclear_targets()
 {
-    std::string serialized_data = "CLASS.MAP.UPDATE_NUCLEAR_TARGETS:" + server_client_space::server_client_menu_information::serialize_targets(g_map.air_strike_targets);
-    client->send_message(serialized_data);
+    std::string serialized_data = "#CLASS.MAP.UPDATE_NUCLEAR_TARGETS:" + server_client_space::server_client_menu_information::serialize_targets(g_map.air_strike_targets);
+    sync_socket += serialized_data;
 }
 void socket_control::server_send_nuclear_targets()
 {
-    std::string serialized_data = "CLASS.MAP.UPDATE_NUCLEAR_TARGETS:" + server_client_space::server_client_menu_information::serialize_targets(g_map.air_strike_targets);
-    server->send_message(serialized_data);
+    std::string serialized_data = "#CLASS.MAP.UPDATE_NUCLEAR_TARGETS:" + server_client_space::server_client_menu_information::serialize_targets(g_map.air_strike_targets);
+    sync_socket += serialized_data;
 }
 
 void socket_control::server_update_bomb_step(int unique_id)
 {
-    std::string serialized_data = "CLASS.MAP.BOMBSTEP:" + server_client_space::server_client_menu_information::serialize_bomb_step(g_map.air_strike_targets, unique_id);
-    server->send_message(serialized_data);
+    std::string serialized_data = "#CLASS.MAP.BOMBSTEP:" + server_client_space::server_client_menu_information::serialize_bomb_step(g_map.air_strike_targets, unique_id);
+    sync_socket += serialized_data;
 }
 
 void socket_control::server_send_unit(int id)
 {
-    std::string serialized_data = "CLASS.UNIT:" + server_client_space::server_client_menu_information::serialize_unit(id);
-    server->send_message(serialized_data);
+    std::string serialized_data = "#CLASS.UNIT:" + server_client_space::server_client_menu_information::serialize_unit(id);
+    sync_socket += serialized_data;
 }
 void socket_control::client_send_unit(int id)
 {
-    std::string serialized_data = "CLASS.UNIT:" + server_client_space::server_client_menu_information::serialize_unit(id);
-    client->send_message(serialized_data);
+    std::string serialized_data = "#CLASS.UNIT:" + server_client_space::server_client_menu_information::serialize_unit(id);
+    sync_socket += serialized_data;
 }
 
 void socket_control::server_send_unit_pos(int region)
 {
-    std::string serialized_data = "U.P:" + server_client_space::server_client_menu_information::serialize_unit_pos(region);
-    server->send_message(serialized_data);
+    std::string serialized_data = "#U.P:" + server_client_space::server_client_menu_information::serialize_unit_pos(region);
+    sync_socket += serialized_data;
 }
 void socket_control::client_send_unit_pos(int region)
 {
-    std::string serialized_data = "U.P:" + server_client_space::server_client_menu_information::serialize_unit_pos(region);
-    client->send_message(serialized_data);
+    std::string serialized_data = "#U.P:" + server_client_space::server_client_menu_information::serialize_unit_pos(region);
+    sync_socket += serialized_data;
 }
 
+void socket_control::server_process_client_sync()
+{
+    if (!sync_socket.empty())
+        server->send_message(sync_socket);
 
+    sync_socket = "";
+}
+
+void socket_control::client_process_client_sync()
+{
+    if (!sync_socket.empty())
+        client->send_message(sync_socket);
+
+    sync_socket = "";
+}
 
 void menu::render(window_profiling window) 
 {
@@ -1312,6 +1409,11 @@ void menu::render(window_profiling window)
         case game_scenes_params::global_game_tabs::menu:
         {
 
+            for (int i = 0; i < got.size(); i++)
+            {
+                ImGui::GetForegroundDrawList()->AddText(ImVec2(100, 10 + 15 * i), ImColor(255, 255, 255), got[i].c_str());
+            }
+
             ImGui::GetBackgroundDrawList()->AddImage(
                 (ImTextureID)g_window.g_pTextureView,
                 ImVec2(0, 0),
@@ -1534,13 +1636,13 @@ void menu::render(window_profiling window)
                     ImGui::SetCursorPosX(313);
                     if (ImGui::Button("Disconnect"))
                     {
-                        server->send_message("SERVER:CLOSED_CONNECTION");
+                        server->send_message("#SERVER:CLOSED_CONNECTION");
                         server->stop_connection();
                         io_context->stop();
                         game_scenes_params::main_menu_tabs = 0;
                     }
 
-                    ImGui::SetNextWindowPos(ImVec2((screen_x / 2 - 400 / 2) - 500, screen_y / 2 - 400 / 2));
+                    ImGui::SetNextWindowPos(ImVec2((screen_x / 2 - 400 / 2) - 400, screen_y / 2 - 400 / 2));
                     ImGui::SetNextWindowSize(ImVec2(400, 106));
 
                     ImGui::Begin("Server game settings");
@@ -1559,13 +1661,13 @@ void menu::render(window_profiling window)
                         {
                             g_socket_control.player_role = g_socket_control.player_role_enum::SERVER;
                             game_scenes_params::global_game_scene_tab = game_scenes_params::game_process;
-                            server->send_message("SERVER:GAME_START");
+                            server->send_message("#SERVER:GAME_START");
                         }
                     }
                     ImGui::End();
 
 
-                    ImGui::SetNextWindowPos(ImVec2((screen_x / 2 + 800) - 500, screen_y / 2 - 400 / 2));
+                    ImGui::SetNextWindowPos(ImVec2((screen_x / 2 + 1200) - 500, screen_y / 2 - 400 / 2));
                     ImGui::SetNextWindowSize(ImVec2(400, 150));
 
                     ImGui::Begin("Playerlist");
