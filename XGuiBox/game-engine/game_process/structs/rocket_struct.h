@@ -8,9 +8,11 @@ struct nuclear_strike_target
     int GETTER_city_id;
     int GETTER_building_id;
     int GETTER_rocket;
+    int GETTER_unit;
 
     int SENDER_country_id;
     int SENDER_building_id;
+    int SENDER_unit;
 
     int last_global_tick = 0;
     int step_of_bomb = 0;
@@ -19,4 +21,9 @@ struct nuclear_strike_target
     ImVec2 bomb_pos_map2;
 
     int segments;
+
+
+    //for boats and airboats
+    int damage = 0;
+
 };

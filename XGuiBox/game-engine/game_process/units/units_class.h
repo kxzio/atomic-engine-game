@@ -5,6 +5,8 @@ class units_base
 {
 public:
 
+	int health = 100;
+
 	//owner informatiom
 	int owner_country_id;
 	int owner_building_id;
@@ -29,6 +31,7 @@ public:
 	std::vector<ImVec2> path = {};
 
 	int old_tick;
+	int reload_for_turrets_tick = 0;
 	int last_path_update;
 	int stuck_tick_timer;
 

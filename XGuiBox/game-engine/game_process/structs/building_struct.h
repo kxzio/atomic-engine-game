@@ -42,7 +42,7 @@ struct MISSILE_DEFENSE_HEART
     bool ready_to_shot;
 
     bool rocket_targeted;
-    ImVec2 targeted_tocket_pos;
+    ImVec2 targeted_tocket_pos = ImVec2();
 };
 
 

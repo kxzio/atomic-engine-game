@@ -682,7 +682,20 @@ HRESULT CompileShaderFromFileManual(const wchar_t* fileName, LPCSTR entryPoint, 
     if (errorBlob) errorBlob->Release();
     return hr;
 }
+void CreateBlendState(ID3D11Device* device) 
+{
+    D3D11_BLEND_DESC blendDesc = {};
+    blendDesc.RenderTarget[0].BlendEnable = TRUE;
+    blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;        // Используем альфа-канал источника
+    blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;   // Инвертируем альфа-канал
+    blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;            // Обычное сложение
+    blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;         // Альфа смешивание
+    blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;       // Не используем альфа смешивание
+    blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+    blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
 
+    device->CreateBlendState(&blendDesc, &g_window.pBlendState);
+}
 void window_profiling::create_window()
 {
 
@@ -767,6 +780,8 @@ void window_profiling::create_window()
     ImGui_ImplWin32_Init(hwnd);
     ImGui_ImplDX11_Init(g_pd3dDevice, g_pd3dDeviceContext);
 
+    CreateBlendState(g_pd3dDevice);
+
     ImFontConfig cfg;
     cfg.FontBuilderFlags = ImGuiFreeTypeBuilderFlags_Monochrome | ImGuiFreeTypeBuilderFlags_MonoHinting;
 
@@ -824,7 +839,7 @@ void window_profiling::create_window()
     //    g_window.g_pSwapChain->SetFullscreenState(TRUE, nullptr);
     //}
 
-    InitFFmpeg("123.mkv");
+    //InitFFmpeg("123.mkv");
 
     BOOL isFullscreen;
     g_pSwapChain->GetFullscreenState(&isFullscreen, nullptr); // Получаем текущий режим
@@ -855,7 +870,7 @@ void window_profiling::create_window()
         // Начало нового кадра ImGui
         ImGui_ImplDX11_NewFrame();
         ImGui_ImplWin32_NewFrame();
-        UpdateTexture(g_pd3dDevice, g_pd3dDeviceContext);
+        //UpdateTexture(g_pd3dDevice, g_pd3dDeviceContext);
         ImGui::NewFrame();
 
         // Рендеринг интерфейса

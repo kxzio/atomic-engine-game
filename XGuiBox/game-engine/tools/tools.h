@@ -5,6 +5,18 @@
 #include <sstream>
 #include <random>
 #include "../main/menu.h"
+#include <cmath>
+
+struct Circle {
+
+    Circle()
+    {
+
+    }
+
+    ImVec2 center;
+    float radius;
+};
 
 class tools
 {
@@ -395,6 +407,130 @@ public:
             old_cursor_pos.y = 0;
         }
     }
+
+    // ‘ункци€ дл€ вычислени€ поворота (cross product)
+    float Cross(const Point& O, const Point& A, const Point& B) {
+        return (A.x - O.x) * (B.y - O.y) - (A.y - O.y) * (B.x - O.x);
+    }
+
+    // ‘ункци€ дл€ ограничени€ значени€ в диапазоне [lo, hi]
+    float clamp(float v, float lo, float hi) {
+        if (v < lo)
+            return lo;
+        if (v > hi)
+            return hi;
+        return v;
+    }
+
+
+    // ‘ункци€ дл€ вычислени€ интервалов перекрыти€ на окружности (в радианах) текущего круга от других кругов
+    std::vector<std::pair<float, float>> GetOverlappingIntervals(const Circle& circle, const std::vector<Circle>& others) {
+        std::vector<std::pair<float, float>> intervals;
+        for (const auto& other : others) {
+            // ≈сли центры совпадают и радиусы равны, пропускаем (это тот же круг)
+            if (circle.center.x == other.center.x && circle.center.y == other.center.y &&
+                fabs(circle.radius - other.radius) < 1e-5)
+                continue;
+
+            float dx = other.center.x - circle.center.x;
+            float dy = other.center.y - circle.center.y;
+            float d = sqrtf(dx * dx + dy * dy);
+
+            // ≈сли круги не пересекаютс€, пропускаем
+            if (d > circle.radius + other.radius)
+                continue;
+
+            // ≈сли текущий круг полностью внутри другого, то вс€ граница перекрыта
+            if (d <= fabs(circle.radius - other.radius) && circle.radius <= other.radius) {
+                intervals.push_back({ 0, 2 * 3.14 });
+                continue;
+            }
+
+            // ќпредел€ем угол от центра текущего круга к центру другого круга
+            float alpha = atan2f(dy, dx);
+            // ¬ычисл€ем угол theta по теореме косинусов:
+            float cosArg = (circle.radius * circle.radius + d * d - other.radius * other.radius) / (2 * circle.radius * d);
+            cosArg = clamp(cosArg, -1.0f, 1.0f);
+            float theta = acosf(cosArg);
+
+            float start = alpha - theta;
+            float end = alpha + theta;
+            // Ќормализуем углы в диапазон [0, 2pi]
+            start = fmodf(start + 2 * 3.14, 2 * 3.14);
+            end = fmodf(end + 2 * 3.14, 2 * 3.14);
+
+            // ≈сли интервал Ђпереполн€етї 2pi, разбиваем его на два
+            if (start > end) {
+                intervals.push_back({ start, 2 * 3.14 });
+                intervals.push_back({ 0, end });
+            }
+            else {
+                intervals.push_back({ start, end });
+            }
+        }
+
+        // —ливаем интервалы (если они пересекаютс€ или соприкасаютс€)
+        std::sort(intervals.begin(), intervals.end(), [](const auto& a, const auto& b) {
+            return a.first < b.first;
+            });
+        std::vector<std::pair<float, float>> merged;
+        for (const auto& interval : intervals) {
+            if (merged.empty() || interval.first > merged.back().second) {
+                merged.push_back(interval);
+            }
+            else {
+                merged.back().second = (((merged.back().second) > (interval.second)) ? (merged.back().second) : (interval.second));
+            }
+        }
+        return merged;
+    }
+
+    // ¬ычисл€ем интервалы, в которых граница круга остаЄтс€ видимой (т.е. не перекрыта)
+    std::vector<std::pair<float, float>> GetVisibleIntervals(const std::vector<std::pair<float, float>>& merged) {
+        std::vector<std::pair<float, float>> visible;
+        float current = 0;
+        for (const auto& interval : merged) {
+            if (interval.first > current) {
+                visible.push_back({ current, interval.first });
+            }
+            current = (((current) > (interval.second)) ? (current) : (interval.second));
+        }
+        if (current < 2 * 3.14) {
+            visible.push_back({ current, 2 * 3.14 });
+        }
+        return visible;
+    }
+
+    // ќтрисовка видимых дуг дл€ данного круга
+    void DrawCircleVisibleArcs(const Circle& circle, const std::vector<Circle>& allCircles, ImU32 color, float thickness) {
+        // ‘ормируем список остальных кругов (исключа€ текущий)
+        std::vector<Circle> others;
+        for (const auto& c : allCircles) {
+            if (c.center.x == circle.center.x && c.center.y == circle.center.y &&
+                fabs(c.radius - circle.radius) < 1e-5)
+                continue;
+            others.push_back(c);
+        }
+
+        // ¬ычисл€ем интервалы перекрыти€ и, на их основе, интервалы видимости
+        auto overlapping = GetOverlappingIntervals(circle, others);
+        auto visible = GetVisibleIntervals(overlapping);
+
+        ImDrawList* draw_list = ImGui::GetBackgroundDrawList();
+        // ≈сли видимых интервалов нет, можно вообще не рисовать границу (или рисовать по своему усмотрению)
+        if (visible.empty())
+            return;
+
+        // ƒл€ каждого видимого интервала отрисовываем дугу
+        for (const auto& arc : visible) {
+            float angleDiff = arc.second - arc.first;
+            // ќпредел€ем число сегментов дл€ сглаживани€ дуги
+            int segments = (((2) > ((int)(angleDiff / (3.14 / 30)))) ? (2) : ((int)(angleDiff / (3.14 / 30))));
+            draw_list->PathArcTo(ImVec2(circle.center.x, circle.center.y), circle.radius, arc.first, arc.second, segments);
+            draw_list->PathStroke(color, false, thickness);
+        }
+    }
+
 
 };
 inline tools g_tools;

@@ -103,6 +103,9 @@ public:
 	void server_send_unit(int id);
 	void client_send_unit(int id);
 
+	void server_send_unit_health(int id);
+	void client_send_unit_health(int id);
+
 	void server_send_unit_pos(int region);
 	void client_send_unit_pos(int region);
 

@@ -46,6 +46,7 @@ public:
 
 	void process_warships(NavigableArea nav_area, std::vector <country_data>* countries, float animated_map_scale, ImVec2 cursor_pos, ImVec2 map_pos, int player_id, int function_count)
 	{
+
 		for (int i = 0; i < g_map.units.size(); i++)
 		{
 			if (function_count == 2)
@@ -74,8 +75,8 @@ public:
 				}
 			}
 			 
-			g_map.units[i].interpolated_move_offset.x = ImGui::LerpAnimate(std::to_string(i).c_str(),"InterpX", true, g_map.units[i].move_offset.x, 100, ImGui::INTERP);
-			g_map.units[i].interpolated_move_offset.y = ImGui::LerpAnimate(std::to_string(i).c_str(), "InterpY", true, g_map.units[i].move_offset.y, 100, ImGui::INTERP);
+			g_map.units[i].interpolated_move_offset.x = ImGui::LerpAnimate(std::to_string(g_map.units[i].unique_id).c_str(),"InterpX", true, g_map.units[i].move_offset.x, 100, ImGui::INTERP);
+			g_map.units[i].interpolated_move_offset.y = ImGui::LerpAnimate(std::to_string(g_map.units[i].unique_id).c_str(), "InterpY", true, g_map.units[i].move_offset.y, 100, ImGui::INTERP);
 
 			ImVec2 final_pos = ImVec2(pos.x + g_map.units[i].converted_spawn_pos.x * animated_map_scale + g_map.units[i].interpolated_move_offset.x * animated_map_scale, pos.y + g_map.units[i].converted_spawn_pos.y * animated_map_scale + g_map.units[i].interpolated_move_offset.y * animated_map_scale);
 
@@ -159,6 +160,7 @@ public:
 			else
 				final_pos2 = final_pos;
 
+			//colission
 			if (g_map.units[i].owner_country_id == g_menu.players[player_id].control_region)
 			{
 
@@ -167,180 +169,65 @@ public:
 
 				float length = sqrt(dx * dx + dy * dy);
 
-				if (length > 0.0f)
-				{
-					float nx = dx / length;
+				if (length > 0.0f) {
+					float nx = dx / length; // Нормализованный вектор движения
 					float ny = dy / length;
 					float speed = 0.045f;
 
 					bool blockLeft = false, blockRight = false, blockUp = false, blockDown = false;
-					int left_count = 0, right_count = 0, up_count = 0, down_count = 0;
-
 					float sensor_offset = 9.0f * animated_map_scale;
 
-					for (int boat2 = 0; boat2 < g_map.units.size(); boat2++)
+					for (int boat2 = 0; boat2 < g_map.units.size(); boat2++) 
 					{
 						if (!g_map.units[i].warship && g_map.units[boat2].warship) continue;
 						if (i == boat2) continue;
 
-						float left1 = g_map.units[i].position.x - (6.5 * animated_map_scale);
-						float right1 = g_map.units[i].position.x + (6.5 * animated_map_scale);
-						float top1 = g_map.units[i].position.y + (6.5 * animated_map_scale);
-						float bottom1 = g_map.units[i].position.y - (6.5 * animated_map_scale);
+						// Координаты текущего корабля
+						float left1 = g_map.units[i].position.x - (4.5f * animated_map_scale);
+						float right1 = g_map.units[i].position.x + (4.5f * animated_map_scale);
+						float top1 = g_map.units[i].position.y + (4.5f * animated_map_scale);
+						float bottom1 = g_map.units[i].position.y - (4.5f * animated_map_scale);
 
-						float left2 = g_map.units[boat2].position.x - (6.5 * animated_map_scale);
-						float right2 = g_map.units[boat2].position.x + (6.5 * animated_map_scale);
-						float top2 = g_map.units[boat2].position.y + (6.5 * animated_map_scale);
-						float bottom2 = g_map.units[boat2].position.y - (6.5 * animated_map_scale);
-
-						float sensor_x_forward = g_map.units[i].position.x + nx * sensor_offset;
-						float sensor_y_forward = g_map.units[i].position.y + ny * sensor_offset;
-
-						float sensor_x_back = g_map.units[i].position.x - nx * sensor_offset;
-						float sensor_y_back = g_map.units[i].position.y - ny * sensor_offset;
-
-						float sensor_x_left = g_map.units[i].position.x - ny * sensor_offset;
-						float sensor_y_left = g_map.units[i].position.y + nx * sensor_offset;
-
-						float sensor_x_right = g_map.units[i].position.x + ny * sensor_offset;
-						float sensor_y_right = g_map.units[i].position.y - nx * sensor_offset;
-
-						bool forward_collision = (sensor_x_forward >= left2 && sensor_x_forward <= right2 &&
-							sensor_y_forward <= top2 && sensor_y_forward >= bottom2);
-
-						bool back_collision = (sensor_x_back >= left2 && sensor_x_back <= right2 &&
-							sensor_y_back <= top2 && sensor_y_back >= bottom2);
-
-						bool left_collision = (sensor_x_left >= left2 && sensor_x_left <= right2 &&
-							sensor_y_left <= top2 && sensor_y_left >= bottom2);
-
-						bool right_collision = (sensor_x_right >= left2 && sensor_x_right <= right2 &&
-							sensor_y_right <= top2 && sensor_y_right >= bottom2);
-
-						if (forward_collision)
-						{
-							blockRight |= (sensor_x_forward > left2);
-							blockLeft |= (sensor_x_forward < right2);
-							blockUp |= (sensor_y_forward > bottom2);
-							blockDown |= (sensor_y_forward < top2);
-						}
-
-						if (left_collision) left_count++;
-						if (right_collision) right_count++;
-						if (forward_collision) up_count++;
-						if (back_collision) down_count++;
+						// Координаты другого корабля
+						float left2 = g_map.units[boat2].position.x - (4.5f * animated_map_scale);
+						float right2 = g_map.units[boat2].position.x + (4.5f * animated_map_scale);
+						float top2 = g_map.units[boat2].position.y + (4.5f * animated_map_scale);
+						float bottom2 = g_map.units[boat2].position.y - (4.5f * animated_map_scale);
 
 						float dist_x = g_map.units[boat2].position.x - g_map.units[i].position.x;
 						float dist_y = g_map.units[boat2].position.y - g_map.units[i].position.y;
-						float dist = sqrt(dist_x * dist_x + dist_y * dist_y);
-						float min_dist = 12.0f * animated_map_scale;
 
-						float distance_5_ticks_before = sqrt(pow(g_map.units[i].move_offset.x - g_map.units[i].old_position.x, 2) + pow(g_map.units[i].move_offset.y - g_map.units[i].old_position.y, 2)) * 150;
+						// Пропуск, если другой корабль слишком далеко
+						float max_range = 15.0f * animated_map_scale;
+						if (fabs(dist_x) > max_range || fabs(dist_y) > max_range) continue;
 
-						if (distance_5_ticks_before > 5)
-						{
-							if (g_map.global_tick % 7 == 0 && g_map.units[i].stuck_tick_timer < 200)
-								g_map.units[i].stuck_tick_timer++;
-						}
-						else
-						{
-							if (g_map.global_tick % 7 == 0 && g_map.units[i].stuck_tick_timer > 1)
-								g_map.units[i].stuck_tick_timer--;
-						}
+						// Проверка на пересечение (столкновение)
+						bool collision = (right1 > left2 && left1 < right2 && top1 > bottom2 && bottom1 < top2);
 
-						//ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[2].font_addr, 17.f, ImVec2(g_map.units[i].position), ImColor(255, 255, 255), std::to_string(g_map.units[i].stuck_tick_timer).c_str());
-
-						if (i < boat2 && dist < min_dist && g_map.units[i].stuck_tick_timer == 1) 
-						{
-							float repel_force = 0.2f * (1.0f - (dist / min_dist));
-
-							if (g_map.units[i].last_path_update + 100 < g_map.global_tick)
-							{
-								float enemy_move_x = g_map.units[boat2].move_offset.x - g_map.units[boat2].old_position.x;
-								float enemy_move_y = g_map.units[boat2].move_offset.y - g_map.units[boat2].old_position.y;
-
-								bool prefer_left = false;
-								bool prefer_up = false;
-
-								if (fabs(enemy_move_x) > fabs(enemy_move_y)) 
-								{
-									if (enemy_move_x > 0) 
-										prefer_left = true;
-									else 
-										prefer_left = false;
-								}
-								else 
-								{
-									if (enemy_move_y > 0) 
-										prefer_up = true;
-									else 
-										prefer_up = false;
-								}
-
-								ImVec2 detour_point;
-
-								if (fabs(dist_x) > fabs(dist_y))
-								{
-									if (prefer_left)
-										detour_point = ImVec2((g_map.units[i].position.x - pos.x) / animated_map_scale - 7,
-											(g_map.units[i].position.y - pos.y) / animated_map_scale);
-									else
-										detour_point = ImVec2((g_map.units[i].position.x - pos.x) / animated_map_scale + 7,
-											(g_map.units[i].position.y - pos.y) / animated_map_scale);
-								}
-								else 
-								{
-									if (prefer_up)
-										detour_point = ImVec2((g_map.units[i].position.x - pos.x) / animated_map_scale,
-											(g_map.units[i].position.y - pos.y) / animated_map_scale + 7);
-									else
-										detour_point = ImVec2((g_map.units[i].position.x - pos.x) / animated_map_scale,
-											(g_map.units[i].position.y - pos.y) / animated_map_scale - 7);
-								}
-
-								g_map.units[i].path.insert(g_map.units[i].path.begin(), detour_point);
-								g_map.units[i].last_path_update = g_map.global_tick;
-							}
+						// Отдельная проверка блокировки по каждой оси
+						if (collision) {
+							if (g_map.units[i].position.x < g_map.units[boat2].position.x) blockRight = true; // Блокировка справа
+							if (g_map.units[i].position.x > g_map.units[boat2].position.x) blockLeft = true;  // Блокировка слева
+							if (g_map.units[i].position.y < g_map.units[boat2].position.y) blockDown = true;  // Блокировка снизу
+							if (g_map.units[i].position.y > g_map.units[boat2].position.y) blockUp = true;    // Блокировка сверху
 						}
 					}
 
-					if (blockUp && ny < 0)
-					{
-						ny = 0.1f;
-						nx *= 0.6f;
-					}
-					if (blockDown && ny > 0)
-					{
-						ny = -0.1f;
-						nx *= 0.6f;
-					}
-					if (blockLeft && nx < 0)
-					{
-						nx = 0.1f;
-						ny *= 0.6f;
-					}
-					if (blockRight && nx > 0)
-					{
-						nx = -0.1f;
-						ny *= 0.6f;
-					}
+					// Движение, если нет блокировки в этом направлении
+					if (g_map.units[i].old_tick != g_map.global_tick) {
+						if ((nx > 0 && !blockRight) || (nx < 0 && !blockLeft)) {
+							g_map.units[i].move_offset.x += nx * speed; // Двигаемся по X
+						}
 
-					if (right_count > left_count + 1) ny += 0.7f;
-					if (left_count > right_count + 1) ny -= 0.7f;
-					if (up_count > down_count + 1) nx += 0.7f;
-					if (down_count > up_count + 1) nx -= 0.7f;
+						if ((ny > 0 && !blockDown) || (ny < 0 && !blockUp)) {
+							g_map.units[i].move_offset.y += ny * speed; // Двигаемся по Y
+						}
 
-					float random_factor = ((rand() % 100) / 4000.0f) - 0.01f;
-					nx += random_factor;
-					ny += random_factor;
-
-					if (g_map.units[i].old_tick != g_map.global_tick)
-					{
-						g_map.units[i].move_offset.x += nx * speed;
-						g_map.units[i].move_offset.y += ny * speed;
-						g_map.units[i].old_tick = g_map.global_tick;
+						g_map.units[i].old_tick = g_map.global_tick; // Обновляем тик
 					}
 				}
+
+
 
 				if (length < 2.0f && !g_map.units[i].path.empty())
 					g_map.units[i].path.erase(g_map.units[i].path.begin());
@@ -352,7 +239,69 @@ public:
 
 			}
 
+			//attack
+			for (int boat2 = 0; boat2 < g_map.units.size(); boat2++)
+			{
+				if (g_socket_control.player_role != g_socket_control.player_role_enum::SERVER)
+					continue;
 
+				if (i == boat2) 
+					continue;
+
+				if (g_map.units[boat2].owner_country_id == g_map.units[i].owner_country_id)
+					continue;
+
+				float dist_x = g_map.units[boat2].position.x - g_map.units[i].position.x;
+				float dist_y = g_map.units[boat2].position.y - g_map.units[i].position.y;
+
+				float distance_between_boats = g_tools.calculate_distance(g_map.units[i].position, g_map.units[boat2].position) / animated_map_scale;
+
+				if (distance_between_boats < 60 && g_map.units[i].reload_for_turrets_tick + 160 < g_map.global_tick)
+				{
+					g_map.units[i].reload_for_turrets_tick = g_map.global_tick;
+
+					int dmg = 0;
+					switch (g_map.units[i].class_of_unit)
+					{
+						case boats::AIR_CARRIERS: {
+							continue;
+						}
+						break;
+
+						case boats::SUBMARINES: {
+							continue;
+						}
+						break;
+
+						case boats::CRUISERS: {
+							dmg = 25;
+						}
+						break;
+
+						case boats::DESTROYER: {
+							dmg = 15;
+						}
+						break;
+					}
+
+					//start firing
+					nuclear_strike_target new_target;
+					new_target.unique_id = g_tools.generate_unique_int();
+
+					new_target.GETTER_country_id = -1;
+					new_target.GETTER_city_id = -1;
+					new_target.GETTER_building_id = -1;
+					new_target.GETTER_rocket = -1;
+					new_target.SENDER_country_id = -1;
+					new_target.SENDER_building_id = -1;
+					new_target.damage = dmg;
+					new_target.SENDER_unit = g_map.units[i].	unique_id;
+					new_target.GETTER_unit = g_map.units[boat2].unique_id;
+
+					g_map.air_strike_targets.push_back(new_target);
+				}
+
+			}
 
 			ImGui::GetForegroundDrawList()->AddCircleFilled(g_map.units[i].position, 2 * animated_map_scale, g_menu.players[player_id].control_region == g_map.units[i].owner_country_id ? ImColor(150, 200, 180) : ImColor(255, 40, 10), 15);
 
@@ -377,6 +326,10 @@ public:
 				ImGui::GetForegroundDrawList()->AddRectFilled(ImVec2(g_map.units[i].position.x - 1 * animated_map_scale, g_map.units[i].position.y - 1 * animated_map_scale), ImVec2(g_map.units[i].position.x + textsize.x + 1 * animated_map_scale, g_map.units[i].position.y + textsize.y + 1 * animated_map_scale), ImColor(0, 0, 0, 200));
 				ImGui::GetForegroundDrawList()->AddRect(ImVec2(g_map.units[i].position.x - 1 * animated_map_scale, g_map.units[i].position.y - 1 * animated_map_scale), ImVec2(g_map.units[i].position.x + textsize.x + 1 * animated_map_scale, g_map.units[i].position.y + textsize.y + 1 * animated_map_scale), ImColor(255, 255, 255, 60));
 
+				//healthbar
+				ImGui::GetForegroundDrawList()->AddRectFilled(ImVec2(g_map.units[i].position.x - 5 * animated_map_scale, g_map.units[i].position.y + 5 * animated_map_scale), ImVec2(g_map.units[i].position.x + (((g_map.units[i].health / 100.f) * 10.f)) * animated_map_scale, g_map.units[i].position.y + 6 * animated_map_scale), ImColor(0, 255, 0, 160));
+				ImGui::GetForegroundDrawList()->AddRect(ImVec2(g_map.units[i].position.x - 5 * animated_map_scale, g_map.units[i].position.y + 5 * animated_map_scale), ImVec2(g_map.units[i].position.x + 10 * animated_map_scale, g_map.units[i].position.y + 6 * animated_map_scale), ImColor(255, 255, 255, 160));
+
 				ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[2].font_addr, 17.f, ImVec2(g_map.units[i].position), ImColor(255, 255, 255), class_name.c_str());
 
 
@@ -384,6 +337,35 @@ public:
 					g_map.process_unit_selections(&g_map.units[i], animated_map_scale);
 			}
 
+
+			if (g_map.units[i].health < 1)
+				g_map.units.erase(g_map.units.begin() + i);
+
+		}
+
+
+
+
+		std::vector<Circle> circles;
+
+		for (int i = 0; i < g_map.units.size(); i++) 
+		{
+
+			if (!g_map.units[i].warship)
+				continue;
+
+			if (!g_map.units[i].selected)
+				continue;
+
+			Circle c;
+			c.center = g_map.units[i].position;
+			c.radius = 30 * animated_map_scale;
+			circles.push_back(c);
+		}
+
+		// Для каждого круга отрисовываем его внешнюю границу (без внутренних перекрытий)
+		for (const auto& circle : circles) {
+			g_tools.DrawCircleVisibleArcs(circle, circles, IM_COL32(255, 0, 0, 255), 2.0f);
 		}
 
 		if (old_tick_for_update != g_map.global_tick)
@@ -398,6 +380,7 @@ public:
 			}
 			old_tick_for_update = g_map.global_tick;
 		}
+
 	}
 };
 

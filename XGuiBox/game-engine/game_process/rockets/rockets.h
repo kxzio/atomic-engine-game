@@ -264,6 +264,86 @@ public:
 
                     }
                 }
+
+                //ROCKET TO FROM UNIT TO UNIT 
+                else if (g_map.air_strike_targets[targets].SENDER_unit != -1 && g_map.air_strike_targets[targets].GETTER_unit != -1)
+                {
+                    auto sender_unit = std::find_if(g_map.units.begin(), g_map.units.end(), [&](const units_base& target)
+                        {
+                            return target.unique_id == g_map.air_strike_targets[targets].SENDER_unit;
+                        });
+
+                    auto getter_unit = std::find_if(g_map.units.begin(), g_map.units.end(), [&](const units_base& target)
+                        {
+                            return target.unique_id == g_map.air_strike_targets[targets].GETTER_unit;
+                        });
+
+                    if (sender_unit == g_map.units.end())
+                        continue;
+
+                    if (getter_unit == g_map.units.end())
+                        continue;
+
+                    g_map.air_strike_targets[targets].segments = g_tools.calculate_segments(sender_unit->position, getter_unit->position, animated_map_scale);
+
+                    auto rocket_pos = g_tools.get_trajectory_stright_one_point(sender_unit->position, getter_unit->position, g_map.air_strike_targets[targets].step_of_bomb, g_map.air_strike_targets[targets].segments);
+
+                    g_map.air_strike_targets[targets].bomb_pos_map1 = rocket_pos;
+
+                    g_tools.draw_trajectory_stright_arc(ImGui::GetForegroundDrawList(), sender_unit->position, getter_unit->position,
+                        g_map.air_strike_targets[targets].bomb_pos_map1, ImColor(255, 255, 40, 150), 200);
+
+                    ImGui::GetForegroundDrawList()->AddCircleFilled(g_map.air_strike_targets[targets].bomb_pos_map1, 0.5 * animated_map_scale, ImColor(255, 190, 0));
+
+                    //UPDATING
+                    if (g_socket_control.player_role == g_socket_control.player_role_enum::SERVER && function_count == 1)
+                    {
+                        if (g_map.air_strike_targets[targets].step_of_bomb >= g_map.air_strike_targets[targets].segments) // segments
+                        {
+
+                            if (true)
+                            {
+                                std::srand(static_cast<unsigned int>(std::time(0)));
+                                int random_number = std::rand() % 11;
+
+                                if (random_number % 2 == 0)
+                                {
+                                    getter_unit->health -= g_map.air_strike_targets[targets].damage;
+
+                                    g_socket_control.server_send_unit_health(getter_unit->unique_id);
+
+                                    g_map.air_strike_targets.erase(g_map.air_strike_targets.begin() + targets);
+
+                                    //HIT
+                                    is_going_to_update_targets = true;
+                                    continue;
+                                }
+                                else
+                                {
+                                    auto sender_unit_rocket = std::find_if(g_map.air_strike_targets.begin(), g_map.air_strike_targets.end(), [&](const nuclear_strike_target& target)
+                                        {
+                                            return target.unique_id == g_map.air_strike_targets[targets].unique_id;
+                                        });
+
+                                    g_map.air_strike_targets.erase(sender_unit_rocket);
+
+                                    //NO HIT
+                                    is_going_to_update_targets = true;
+                                    continue;
+                                }
+                            }
+                        }
+
+                        if (g_map.air_strike_targets[targets].last_global_tick < g_map.global_tick)
+                        {
+                            g_map.air_strike_targets[targets].step_of_bomb++;
+                            g_map.air_strike_targets[targets].last_global_tick = (g_map.global_tick - g_map.air_strike_targets[targets].last_global_tick) / 2;
+                            is_going_to_update_targets = true;
+                        }
+
+                    }
+
+                }
             }
         }
 

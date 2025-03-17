@@ -173,9 +173,11 @@ void map_processing::process_unit_selections(units_base* unit, float animated_ma
             unit->hovered = true;
             ImGui::GetForegroundDrawList()->AddRect(ImVec2(unit->position.x - 5 * animated_map_scale, unit->position.y - 5 * animated_map_scale), ImVec2(unit->position.x + 5 * animated_map_scale, unit->position.y + 5 * animated_map_scale), ImColor(255, 255, 255));
         }
+        else
+            unit->hovered = false;
     }
 
-    if (unit->hovered || unit->selected)
+    if ((!ImGui::IsMouseDown(0)) && (unit->hovered || unit->selected))
     {
         unit->hovered = false;
         unit->selected = true;

@@ -24,6 +24,8 @@ public:
 	DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
 	IDXGISwapChain* g_pSwapChain = nullptr; // Глобальная переменная для цепочки обмена
 	ID3D11DeviceContext* g_pd3dDeviceContext = nullptr; // Контекст устройства Direct3D 11
+	ID3D11BlendState* pBlendState = nullptr;
+
 	ID3D11RenderTargetView* g_pRenderTargetView = nullptr; // Рендер-таргет
 	ID3D11ShaderResourceView* g_pTextureView = nullptr;
 

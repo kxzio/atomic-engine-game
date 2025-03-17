@@ -37,10 +37,6 @@ public:
 
                 g_map.process_object_selections(false, i, player_id, countries, &countries->at(i).buildings[buildings_id], animated_map_scale, map_pos);
 
-                if ((countries->at(i).buildings[buildings_id].selected != NOT_SELECTED && countries->at(i).buildings[buildings_id].building_type == MISSILE_DEFENSE && countries->at(i).buildings[buildings_id].progress_of_building == 105))
-                {
-                    ImGui::GetForegroundDrawList()->AddCircle(ImVec2(final_pos), 70.f * animated_map_scale, ImColor(255, 255, 0), 0, 2);
-                }
 
                 if (countries->at(i).buildings[buildings_id].highlighted)
                 {
@@ -159,7 +155,7 @@ public:
 
                                         {
                                             float min = 0; float max = 1;
-                                            float progress = (g_map.global_tick - countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat1) / 200.f;
+                                            float progress = (g_map.global_tick - countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat1) / 1200.f;
                                             ImGui::SliderScalarForProgress("Building progress [1]", ImGuiDataType_Float, &progress, &min, &max);
                                         }
 
@@ -204,7 +200,7 @@ public:
 
                                         {
                                             float min = 0; float max = 1;
-                                            float progress = (g_map.global_tick - countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat2) / 200.f;
+                                            float progress = (g_map.global_tick - countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat2) / 1200.f;
                                             ImGui::SliderScalarForProgress("Building progress [2]", ImGuiDataType_Float, &progress, &min, &max);
                                         }
 
@@ -249,7 +245,7 @@ public:
 
                                         {
                                             float min = 0; float max = 1;
-                                            float progress = (g_map.global_tick - countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat3) / 200.f;
+                                            float progress = (g_map.global_tick - countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat3) / 1200.f;
                                             ImGui::SliderScalarForProgress("Building progress [3]", ImGuiDataType_Float, &progress, &min, &max);
                                         }
 
@@ -294,7 +290,7 @@ public:
 
                                         {
                                             float min = 0; float max = 1;
-                                            float progress = (g_map.global_tick - countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat4) / 200.f;
+                                            float progress = (g_map.global_tick - countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat4) / 1200.f;
                                             ImGui::SliderScalarForProgress("Building progress [4]", ImGuiDataType_Float, &progress, &min, &max);
                                         }
 
@@ -529,7 +525,7 @@ public:
                             {
                                 if (countries->at(i).buildings[buildings_id].shipyard_heart.goal_amount_of_boat1 > g_menu.players[player_id].war_property.submarine_count)
                                 {
-                                    if (g_map.global_tick > countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat1 + 200)
+                                    if (g_map.global_tick > countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat1 + 1200)
                                     {
                                         countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat1 = g_map.global_tick;
                                         g_menu.players[player_id].war_property.submarine_count++;
@@ -538,7 +534,7 @@ public:
 
                                 if (countries->at(i).buildings[buildings_id].shipyard_heart.goal_amount_of_boat2 > g_menu.players[player_id].war_property.carrier_count)
                                 {
-                                    if (g_map.global_tick > countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat2 + 200)
+                                    if (g_map.global_tick > countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat2 + 1200)
                                     {
                                         countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat2 = g_map.global_tick;
                                         g_menu.players[player_id].war_property.carrier_count++;
@@ -547,7 +543,7 @@ public:
 
                                 if (countries->at(i).buildings[buildings_id].shipyard_heart.goal_amount_of_boat3 > g_menu.players[player_id].war_property.destroyer_count)
                                 {
-                                    if (g_map.global_tick > countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat3 + 200)
+                                    if (g_map.global_tick > countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat3 + 1200)
                                     {
                                         countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat3 = g_map.global_tick;
                                         g_menu.players[player_id].war_property.destroyer_count++;
@@ -556,7 +552,7 @@ public:
 
                                 if (countries->at(i).buildings[buildings_id].shipyard_heart.goal_amount_of_boat4 > g_menu.players[player_id].war_property.cruiser_count)
                                 {
-                                    if (g_map.global_tick > countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat4 + 200)
+                                    if (g_map.global_tick > countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat4 + 1200)
                                     {
                                         countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat4 = g_map.global_tick;
                                         g_menu.players[player_id].war_property.cruiser_count++;
@@ -623,6 +619,10 @@ public:
                                         if (g_map.air_strike_targets[rockets_id].GETTER_rocket != -1)
                                             continue;
 
+                                        if (g_map.air_strike_targets[rockets_id].GETTER_unit != -1)
+                                            continue;
+
+
                                         auto pos2 = ImVec2(countries->at(g_map.air_strike_targets[rockets_id].GETTER_country_id).position.x * animated_map_scale - (countries->at(g_map.air_strike_targets[rockets_id].GETTER_country_id).size.x * animated_map_scale * g_map.map_scale2) / 2 + map_pos.x * animated_map_scale,
                                             countries->at(g_map.air_strike_targets[rockets_id].GETTER_country_id).position.y * animated_map_scale - (countries->at(g_map.air_strike_targets[rockets_id].GETTER_country_id).size.y * animated_map_scale * g_map.map_scale2) / 2 + map_pos.y * animated_map_scale);
 
@@ -670,6 +670,46 @@ public:
                 }
             }
 
+        }
+  
+        {
+            std::vector<Circle> circles;
+            std::vector<Circle> circles2;
+
+
+            for (int buildings_id = 0; buildings_id < countries->at(i).buildings.size(); buildings_id++) {
+
+                auto pos = ImVec2(countries->at(i).position.x * animated_map_scale - (countries->at(i).size.x * animated_map_scale * g_map.map_scale2) / 2 + map_pos.x * animated_map_scale,
+                    countries->at(i).position.y * animated_map_scale - (countries->at(i).size.y * animated_map_scale * g_map.map_scale2) / 2 + map_pos.y * animated_map_scale);
+
+                ImVec2 final_pos = ImVec2(pos.x + countries->at(i).buildings[buildings_id].pos.x * animated_map_scale, pos.y + countries->at(i).buildings[buildings_id].pos.y * animated_map_scale);
+
+                if ((countries->at(i).buildings[buildings_id].selected != NOT_SELECTED && (countries->at(i).buildings[buildings_id].building_type == MISSILE_DEFENSE || countries->at(i).buildings[buildings_id].building_type == RADAR) && countries->at(i).buildings[buildings_id].progress_of_building == 105))
+                {
+                    int rad = 0;
+                    if (countries->at(i).buildings[buildings_id].building_type == MISSILE_DEFENSE)
+                        rad = 70;
+                    else
+                        rad = 80;
+
+                    Circle c;
+                    c.center = final_pos;
+                    c.radius = rad * animated_map_scale;
+
+                    if (countries->at(i).buildings[buildings_id].building_type == MISSILE_DEFENSE)
+                        circles.push_back(c);
+                    else
+                        circles2.push_back(c);
+                }
+            }
+
+            for (const auto& circle : circles) {
+                g_tools.DrawCircleVisibleArcs(circle, circles, IM_COL32(255, 0, 0, 255), 2.0f);
+            }
+
+            for (const auto& circle : circles2) {
+                g_tools.DrawCircleVisibleArcs(circle, circles2, IM_COL32(255, 180, 0, 255), 2.0f);
+            }
         }
 	}
 };

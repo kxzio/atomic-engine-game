@@ -111,7 +111,8 @@ namespace server_client_space
             std::ostringstream oss;
             {
                 // Сериализация основных данных игрока
-                oss << units.spawnpos_converted_to_map << "," 
+                oss << units.health << "," 
+                    << units.spawnpos_converted_to_map << ","
                     << units.owner_country_id << "," 
                     << units.owner_building_id << "," 
                     << units.airplane << "," 
@@ -131,6 +132,8 @@ namespace server_client_space
                 units_base u;
                 std::string field;
 
+                if (std::getline(unit_stream, field, ',')) u.health = std::stoi(field);
+                else return false;
                 if (std::getline(unit_stream, field, ',')) u.spawnpos_converted_to_map = std::stoi(field);
                 else return false;
                 if (std::getline(unit_stream, field, ',')) u.owner_country_id = std::stoi(field);
@@ -165,6 +168,51 @@ namespace server_client_space
                 return true;
         }
 
+        std::string serialize_unit_health(int unique_id)
+        {
+            auto bomb_ptr = std::find_if(g_map.units.begin(), g_map.units.end(), [&](units_base target)
+                {
+                    return target.unique_id == unique_id;
+                });
+
+            units_base units = *bomb_ptr;
+            std::ostringstream oss;
+            {
+                // Сериализация основных данных игрока
+                oss << units.unique_id << ",";
+                oss << units.health << ",";
+            }
+            return oss.str();
+        }
+
+        bool deserialize_unit_health(const std::string& data)
+        {
+
+            std::istringstream unit_stream(data);
+            units_base u;
+            std::string field;
+
+                if (std::getline(unit_stream, field, ',')) u.unique_id = std::stoi(field);
+            else return false;
+                if (std::getline(unit_stream, field, ',')) u.health = std::stoi(field);
+            else return false;
+
+            // Поиск игрока с таким ID в существующем векторе
+            for (auto& existing_unit : g_map.units)
+            {
+                if (existing_unit.unique_id == u.unique_id)
+                {
+                    existing_unit.health = u.health; // Обновление игрока
+                    return true;
+                }
+            }
+
+            // Если игрок с таким ID не найден, добавляем нового
+            g_map.units.push_back(u);
+            return true;
+        }
+
+
         std::string serialize_unit_pos(int region)
         {
             std::ostringstream oss;
@@ -175,7 +223,7 @@ namespace server_client_space
                         continue;
 
                     // Сериализация основных данных игрока
-                    oss << units.move_offset.x << "," << units.move_offset.y << "," << units.unique_id;
+                    oss << units.move_offset.x << "," << units.move_offset.y << "," << units.health << "," << units.unique_id;
 
                     oss << ";";
                 }
@@ -203,6 +251,9 @@ namespace server_client_space
                 else return false;
 
                 if (std::getline(segment_stream, field, ',')) unit.move_offset.y = std::stoi(field);
+                else return false;
+
+                if (std::getline(segment_stream, field, ',')) unit.health = std::stoi(field);
                 else return false;
 
                 if (std::getline(segment_stream, field, ',')) unit.unique_id = std::stoi(field);
@@ -476,7 +527,9 @@ namespace server_client_space
                     << target.GETTER_rocket << ","
                     << target.SENDER_country_id << ","
                     << target.step_of_bomb << ","
-                    << target.SENDER_building_id << ";";
+                    << target.SENDER_building_id << ","
+                    << target.SENDER_unit << ","
+                    << target.GETTER_unit << ";";
             }
             return oss.str();
         }
@@ -511,6 +564,10 @@ namespace server_client_space
                 if (std::getline(segment_stream, field, ',')) target.step_of_bomb = std::stoi(field);
                 else return false;
                 if (std::getline(segment_stream, field, ',')) target.SENDER_building_id = std::stoi(field);
+                else return false;
+                if (std::getline(segment_stream, field, ',')) target.SENDER_unit = std::stoi(field);
+                else return false;
+                if (std::getline(segment_stream, field, ',')) target.GETTER_unit = std::stoi(field);
                 else return false;
 
                 new_targets.push_back(target);
@@ -782,6 +839,11 @@ private:
                         std::string players_data = message.erase(0, 11);
                         server_client_space::server_client_menu_information::deserialize_unit(players_data);
                     }
+                    else if (server_client_space::IsRequest(message, "CLASS.UN_HEALTH:")) //
+                    {
+                        std::string players_data = message.erase(0, 16);
+                        server_client_space::server_client_menu_information::deserialize_unit_health(players_data);
+                    }
                     else if (server_client_space::IsRequest(message, "USER.JOIN:"))
                     {
                         std::string        nickname = message.erase(0, 10);
@@ -990,6 +1052,11 @@ private:
                         std::string players_data = message.erase(0, 11);
                         server_client_space::server_client_menu_information::deserialize_unit(players_data);
                     }
+                    else if (server_client_space::IsRequest(message, "CLASS.UN_HEALTH:")) //
+                    {
+                        std::string players_data = message.erase(0, 16);
+                        server_client_space::server_client_menu_information::deserialize_unit_health(players_data);
+                    }
                     else if (server_client_space::IsRequest(message, "U.P:"))
                     {
                         std::string players_data = message.erase(0, 4);
@@ -1145,6 +1212,17 @@ void socket_control::server_send_unit(int id)
 void socket_control::client_send_unit(int id)
 {
     std::string serialized_data = "#CLASS.UNIT:" + server_client_space::server_client_menu_information::serialize_unit(id);
+    sync_socket += serialized_data;
+}
+
+void socket_control::server_send_unit_health(int id)
+{
+    std::string serialized_data = "#CLASS.UN_HEALTH:" + server_client_space::server_client_menu_information::serialize_unit_health(id);
+    sync_socket += serialized_data;
+}
+void socket_control::client_send_unit_health(int id)
+{
+    std::string serialized_data = "#CLASS.UN_HEALTH:" + server_client_space::server_client_menu_information::serialize_unit_health(id);
     sync_socket += serialized_data;
 }
 
