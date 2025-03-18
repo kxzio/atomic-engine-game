@@ -187,6 +187,7 @@ public:
     ImRect opened_menu_size;
     bool selection_for_nuclear_strike;
     int current_striking_building_id; // BUILDING THAT STRIKES
+    int current_striking_boat_id = -1;
     std::vector < nuclear_strike_target > air_strike_targets;
     
     //units

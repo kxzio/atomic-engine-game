@@ -129,6 +129,7 @@ struct country_data
     //boat map dragging;
     int what_type_of_boat_are_we_dragging;
     int what_building_is_dragging;
+    bool cancel_dragging;
 
 
 };

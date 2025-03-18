@@ -65,10 +65,36 @@ void map_processing::process_object_selections(bool city, int current_country, i
                                         new_target.GETTER_city_id     = id;
                                         new_target.GETTER_building_id = -1;
                                         new_target.GETTER_rocket      = -1;
-                                        new_target.SENDER_country_id  = g_menu.players[player_id].control_region;
-                                        new_target.SENDER_building_id = g_map.current_striking_building_id;
+                                        if (g_map.current_striking_boat_id == -1)
+                                        {
+                                            new_target.SENDER_country_id = g_menu.players[player_id].control_region;
+                                            new_target.SENDER_building_id = g_map.current_striking_building_id;
+                                        }
+                                        else
+                                        {
+                                            new_target.SENDER_country_id = g_menu.players[player_id].control_region;
+                                            new_target.SENDER_building_id = -1;
 
-                                        countries->at(g_menu.players[player_id].control_region).buildings[g_map.current_striking_building_id].missile_silo_heart.strike_queue.push_back(new_target);
+                                            new_target.SENDER_unit = g_map.current_striking_boat_id;
+                                        }
+
+                                        if (g_map.current_striking_boat_id == -1)
+                                        {
+                                            countries->at(g_menu.players[player_id].control_region).buildings[g_map.current_striking_building_id].missile_silo_heart.strike_queue.push_back(new_target);
+                                        }
+                                        else
+                                        {
+                                            auto sender_unit = std::find_if(g_map.units.begin(), g_map.units.end(), [&](const units_base& target)
+                                                {
+                                                    return target.unique_id == g_map.current_striking_boat_id;
+                                                });
+
+
+                                            if (sender_unit == g_map.units.end())
+                                                continue;
+
+                                            sender_unit->strike_queue.push_back(new_target);
+                                        }
                                         g_map.selection_for_nuclear_strike = false;
 
                                     }
@@ -88,10 +114,35 @@ void map_processing::process_object_selections(bool city, int current_country, i
                                         new_target.GETTER_city_id = -1;
                                         new_target.GETTER_building_id = id;
                                         new_target.GETTER_rocket = -1;
-                                        new_target.SENDER_country_id = g_menu.players[player_id].control_region;
-                                        new_target.SENDER_building_id = g_map.current_striking_building_id;
+                                        if (g_map.current_striking_boat_id == -1)
+                                        {
+                                            new_target.SENDER_country_id = g_menu.players[player_id].control_region;
+                                            new_target.SENDER_building_id = g_map.current_striking_building_id;
+                                        }
+                                        else
+                                        {
+                                            new_target.SENDER_country_id = g_menu.players[player_id].control_region;
+                                            new_target.SENDER_building_id = -1;
 
-                                        countries->at(g_menu.players[player_id].control_region).buildings[g_map.current_striking_building_id].missile_silo_heart.strike_queue.push_back(new_target);
+                                            new_target.SENDER_unit = g_map.current_striking_boat_id;
+                                        }
+                                        if (g_map.current_striking_boat_id == -1)
+                                        {
+                                            countries->at(g_menu.players[player_id].control_region).buildings[g_map.current_striking_building_id].missile_silo_heart.strike_queue.push_back(new_target);
+                                        }
+                                        else
+                                        {
+                                            auto sender_unit = std::find_if(g_map.units.begin(), g_map.units.end(), [&](const units_base& target)
+                                                {
+                                                    return target.unique_id == g_map.current_striking_boat_id;
+                                                });
+
+
+                                            if (sender_unit == g_map.units.end())
+                                                continue;
+
+                                            sender_unit->strike_queue.push_back(new_target);
+                                        }
                                         g_map.selection_for_nuclear_strike = false;
 
                                     }
@@ -161,7 +212,7 @@ void map_processing::process_unit_selections(units_base* unit, float animated_ma
             if (ImGui::IsMouseReleased(0))
             {
                 single_select = true;
-                unit->selected = true;
+                unit->selected = SOLO_SELECTED;
             }
         }
         else unit->hovered = false;
@@ -177,16 +228,19 @@ void map_processing::process_unit_selections(units_base* unit, float animated_ma
             unit->hovered = false;
     }
 
-    if ((!ImGui::IsMouseDown(0)) && (unit->hovered || unit->selected))
+    if ((!ImGui::IsMouseDown(0)) && (unit->hovered || unit->selected == MULTIPLE_SELECTED))
     {
-        unit->hovered = false;
-        unit->selected = true;
+        if (!single_select)
+        {
+            unit->hovered = false;
+            unit->selected = MULTIPLE_SELECTED;
+        }
     }
 
     if (ImGui::IsMouseClicked(0) && !single_select)
     {
         unit->hovered = false;
-        unit->selected = false;
+        unit->selected = NOT_SELECTED;
     }
 
     if (ImGui::IsMouseClicked(0))
@@ -247,7 +301,7 @@ void map_processing::render_map_and_process_hitboxes(window_profiling window, st
             g_city_processing.     process_country_and_cities (i, window, countries, animated_map_scale, hovered_id, cursor_pos, map_pos, player_id, function_count);
 
             //processing buildings
-            g_building_processing. process_buildings          (i, window, countries, animated_map_scale, hovered_id, cursor_pos, map_pos, player_id, function_count);
+            g_building_processing. process_buildings          (navigable_area, i, window, countries, animated_map_scale, hovered_id, cursor_pos, map_pos, player_id, function_count);
             
         }
         g_rocket_processing.       process_rockets            (0, window, countries, animated_map_scale, hovered_id, cursor_pos, map_pos, player_id, function_count);
@@ -472,62 +526,66 @@ void map_processing::process_and_sync_game_cycle(std::vector <country_data>* cou
             ImGui::Button("DNDSS", g_window.window_size);
             if (ImGui::BeginDragDropTarget())
             {
-                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("DND_ITEM2"))
-                {
-                    int payload_idx = *(const int*)payload->Data;
+                    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("DND_ITEM2"))
                     {
-                        int player_region = g_menu.players[player_id].control_region;
-                        int buildings_id = countries->at(player_region).what_building_is_dragging;
-
-                        switch (countries->at(player_region).what_type_of_boat_are_we_dragging)
+                        int payload_idx = *(const int*)payload->Data;
                         {
-                            case boats::SUBMARINES: 
+                            if (!countries->at(g_menu.players[player_id].control_region).cancel_dragging)
                             {
-                                countries->at(player_region).buildings[buildings_id].shipyard_heart.submarines.erase(countries->at(player_region).buildings[buildings_id].shipyard_heart.submarines.begin() + payload_idx);
-                                g_menu.players[player_id].war_property.submarine_count--;
-                            }		    
-                            break;
+                                int player_region = g_menu.players[player_id].control_region;
+                                int buildings_id = countries->at(player_region).what_building_is_dragging;
 
-                            case boats::AIR_CARRIERS:
-                            {
-                                countries->at(player_region).buildings[buildings_id].shipyard_heart.carriers.erase(countries->at(player_region).buildings[buildings_id].shipyard_heart.carriers.begin() + payload_idx);
-                                g_menu.players[player_id].war_property.carrier_count--;
+                                switch (countries->at(player_region).what_type_of_boat_are_we_dragging)
+                                {
+                                case boats::SUBMARINES:
+                                {
+                                    countries->at(player_region).buildings[buildings_id].shipyard_heart.submarines.erase(countries->at(player_region).buildings[buildings_id].shipyard_heart.submarines.begin() + payload_idx);
+                                    g_menu.players[player_id].war_property.submarine_count--;
+                                }
+                                break;
+
+                                case boats::AIR_CARRIERS:
+                                {
+                                    countries->at(player_region).buildings[buildings_id].shipyard_heart.carriers.erase(countries->at(player_region).buildings[buildings_id].shipyard_heart.carriers.begin() + payload_idx);
+                                    g_menu.players[player_id].war_property.carrier_count--;
+                                }
+                                break;
+
+                                case boats::DESTROYER:
+                                {
+                                    countries->at(player_region).buildings[buildings_id].shipyard_heart.destroyers.erase(countries->at(player_region).buildings[buildings_id].shipyard_heart.destroyers.begin() + payload_idx);
+                                    g_menu.players[player_id].war_property.destroyer_count--;
+                                }
+                                break;
+
+                                case boats::CRUISERS:
+                                {
+                                    countries->at(player_region).buildings[buildings_id].shipyard_heart.cruisers.erase(countries->at(player_region).buildings[buildings_id].shipyard_heart.cruisers.begin() + payload_idx);
+                                    g_menu.players[player_id].war_property.cruiser_count--;
+                                }
+                                break;
+
+                                }
+
+                                countries->at(player_region).what_building_is_dragging = 0;
+
+                                //spawn boat
+                                units_base new_unit;
+
+                                new_unit.class_of_unit = countries->at(player_region).what_type_of_boat_are_we_dragging;
+                                new_unit.unique_id = g_tools.generate_unique_int();
+                                new_unit.warship = true;
+                                new_unit.airplane = false;
+                                new_unit.owner_country_id = player_region;
+                                new_unit.owner_building_id = buildings_id;
+                                new_unit.spawn_pos = ImVec2(cursor_pos.x, cursor_pos.y);
+
+                                g_map.units.push_back(new_unit);
                             }
-                            break;
-
-                            case boats::DESTROYER:
-                            {
-                                countries->at(player_region).buildings[buildings_id].shipyard_heart.destroyers.erase(countries->at(player_region).buildings[buildings_id].shipyard_heart.destroyers.begin() + payload_idx);
-                                g_menu.players[player_id].war_property.destroyer_count--;
-                            }
-                            break;
-
-                            case boats::CRUISERS:
-                            {
-                                countries->at(player_region).buildings[buildings_id].shipyard_heart.cruisers.erase(countries->at(player_region).buildings[buildings_id].shipyard_heart.cruisers.begin() + payload_idx);
-                                g_menu.players[player_id].war_property.cruiser_count--;
-                            }
-                            break;
-
+                            g_map.drag_n_drop = false;
                         }
-
-                        countries->at(player_region).what_building_is_dragging = 0;
-
-                        //spawn boat
-                        units_base new_unit;
-
-                        new_unit.class_of_unit = countries->at(player_region).what_type_of_boat_are_we_dragging;
-                        new_unit.unique_id = g_tools.generate_unique_int();
-                        new_unit.warship = true;
-                        new_unit.airplane = false;
-                        new_unit.owner_country_id = player_region;
-                        new_unit.owner_building_id = buildings_id;
-                        new_unit.spawn_pos = ImVec2(cursor_pos.x, cursor_pos.y);
-
-                        g_map.units.push_back(new_unit);
-                        g_map.drag_n_drop = false;
                     }
-                }
+                
                 ImGui::EndDragDropTarget();
             }
 

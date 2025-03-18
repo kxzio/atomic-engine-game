@@ -27,7 +27,7 @@ extern "C"
 }
 
 #include <ctime>
-#include <random>
+#include <random> 
 
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "d3dcompiler.lib")
@@ -634,68 +634,8 @@ void ApplyVHSLinesEffect2(ImDrawList* drawList, const ImVec2& screenSize) {
         );
     }
 }
-HRESULT CompileShaderFromFileManual(const wchar_t* fileName, LPCSTR entryPoint, LPCSTR shaderModel, ID3DBlob** blobOut)
-{
-    // Çàãðóçêà ôàéëà øåéäåðà
-    std::ifstream shaderFile(fileName, std::ios::binary);
-    if (!shaderFile.is_open()) {
-        std::wstring errorMessage = L"Failed to open shader file: ";
-        errorMessage += fileName;
-        MessageBox(NULL, errorMessage.c_str(), L"Shader Error", MB_ICONERROR);
-        return HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND);
-    }
 
-    // ×òåíèå ôàéëà â áóôåð
-    std::vector<char> shaderData((std::istreambuf_iterator<char>(shaderFile)), std::istreambuf_iterator<char>());
-    shaderFile.close();
 
-    // Êîìïèëÿöèÿ øåéäåðà
-    ID3DBlob* errorBlob = nullptr;
-    HRESULT hr = D3DCompile(
-        shaderData.data(),
-        shaderData.size(),
-        nullptr,        // Èìÿ ôàéëà (îïöèîíàëüíî)
-        nullptr,        // Ìàêðîñû
-        nullptr,        // Âêëþ÷åíèÿ
-        entryPoint,     // Òî÷êà âõîäà
-        shaderModel,    // Ìîäåëü øåéäåðà
-        0,              // Ôëàãè êîìïèëÿöèè
-        0,              // Ôëàãè ýôôåêòîâ
-        blobOut,        // Âûõîäíîé blob
-        &errorBlob      // Blob ñ îøèáêàìè
-    );
-
-    if (FAILED(hr)) {
-        std::wstring errorMessage = L"Shader compile failed. Error: ";
-        if (errorBlob) {
-            std::string errorStr((char*)errorBlob->GetBufferPointer(), errorBlob->GetBufferSize());
-            errorMessage += std::wstring(errorStr.begin(), errorStr.end());  // Ïðåîáðàçóåì std::string â std::wstring
-            errorBlob->Release();
-        }
-        else {
-            errorMessage += L"Unknown error";
-        }
-        MessageBox(NULL, errorMessage.c_str(), L"Shader Error", MB_ICONERROR);
-        return hr;
-    }
-
-    if (errorBlob) errorBlob->Release();
-    return hr;
-}
-void CreateBlendState(ID3D11Device* device) 
-{
-    D3D11_BLEND_DESC blendDesc = {};
-    blendDesc.RenderTarget[0].BlendEnable = TRUE;
-    blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;        // Используем альфа-канал источника
-    blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;   // Инвертируем альфа-канал
-    blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;            // Обычное сложение
-    blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;         // Альфа смешивание
-    blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;       // Не используем альфа смешивание
-    blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
-    blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
-
-    device->CreateBlendState(&blendDesc, &g_window.pBlendState);
-}
 void window_profiling::create_window()
 {
 
@@ -780,7 +720,6 @@ void window_profiling::create_window()
     ImGui_ImplWin32_Init(hwnd);
     ImGui_ImplDX11_Init(g_pd3dDevice, g_pd3dDeviceContext);
 
-    CreateBlendState(g_pd3dDevice);
 
     ImFontConfig cfg;
     cfg.FontBuilderFlags = ImGuiFreeTypeBuilderFlags_Monochrome | ImGuiFreeTypeBuilderFlags_MonoHinting;
@@ -882,11 +821,13 @@ void window_profiling::create_window()
 
         ImGui::GetForegroundDrawList()->AddRectFilled(ImVec2(0, 0), ImVec2(window_size.x, window_size.y), ImColor(30, 30, 255, 16));
 
+        // Рисуем текстуру с красным оттенком
         ImGui::GetForegroundDrawList()->AddImage(
             (ImTextureID)g_window.Tv,
             ImVec2(0, 0),
-            ImVec2(this->window_size.x, this->window_size.y),
-            ImVec2(0, 0), ImVec2(1, 1), ImColor(100, 0, 150, 12)
+            ImVec2(window_size.x, window_size.y),
+            ImVec2(0, 0), ImVec2(1, 1),
+            ImColor(150, 0, 200, 16) // Красный цвет, полупрозрачность
         );
 
         ImGui::GetForegroundDrawList()->AddImage(
@@ -910,12 +851,12 @@ void window_profiling::create_window()
             ImVec2(0, 0), ImVec2(1, 1), ImColor(255, 0, 255, 5)
         );
 
+
         ImGui::EndFrame();
-        ImGui::Render();
+        ImGui::Render();    
 
         // Рендеринг ImGui
         ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-
 
         // Обновление экрана
         g_pSwapChain->Present(1, 0);

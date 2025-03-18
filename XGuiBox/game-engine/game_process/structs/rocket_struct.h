@@ -5,14 +5,14 @@ struct nuclear_strike_target
 {
     int unique_id = 0;
     int GETTER_country_id;
-    int GETTER_city_id;
-    int GETTER_building_id;
-    int GETTER_rocket;
-    int GETTER_unit;
+    int GETTER_city_id = -1;
+    int GETTER_building_id = -1;
+    int GETTER_rocket = -1;
+    int GETTER_unit = -1;
 
-    int SENDER_country_id;
-    int SENDER_building_id;
-    int SENDER_unit;
+    int SENDER_country_id = -1;
+    int SENDER_building_id = -1;
+    int SENDER_unit = -1;
 
     int last_global_tick = 0;
     int step_of_bomb = 0;

@@ -9,7 +9,7 @@ class building_processing
 {
 public:
 
-	void process_buildings(int index, window_profiling window, std::vector <country_data>* countries, float animated_map_scale, int* hovered_id, ImVec2 cursor_pos, ImVec2 map_pos, int player_id, int function_count)
+	void process_buildings(NavigableArea nav_area, int index, window_profiling window, std::vector <country_data>* countries, float animated_map_scale, int* hovered_id, ImVec2 cursor_pos, ImVec2 map_pos, int player_id, int function_count)
 	{
         int i = index;
 
@@ -41,6 +41,12 @@ public:
                 if (countries->at(i).buildings[buildings_id].highlighted)
                 {
                     ImGui::GetForegroundDrawList()->AddCircle(ImVec2(final_pos), 15.f * animated_map_scale, ImColor(255, 255, 0), 0, 2);
+                }
+
+                if (countries->at(i).buildings[buildings_id].selected != NOT_SELECTED && countries->at(i).buildings[buildings_id].building_type == SHIPYARD)
+                {
+                    if (countries->at(i).buildings[buildings_id].progress_of_building == 105)
+                        ImGui::GetForegroundDrawList()->AddCircle(ImVec2(final_pos), 45.f * animated_map_scale, ImColor(255, 255, 0), 0, 2);
                 }
 
                 if (i != g_menu.players[player_id].control_region)
@@ -130,21 +136,32 @@ public:
 
                                     case SHIPYARD:
                                     {
+
                                         for (int q = 0; q < g_menu.players[player_id].war_property.carrier_count; q++)
                                             if (countries->at(i).buildings[buildings_id].shipyard_heart.carriers.size() != g_menu.players[player_id].war_property.carrier_count)
-                                                countries->at(i).buildings[buildings_id].shipyard_heart.carriers.push_back(std::string("Carrier-" + std::to_string(g_tools.generate_unique_int())));
+                                                countries->at(i).buildings[buildings_id].shipyard_heart.carriers.push_back(std::string("Carrier##" + std::to_string(g_tools.generate_unique_int())));
 
                                         for (int q = 0; q < g_menu.players[player_id].war_property.cruiser_count; q++)
                                             if (countries->at(i).buildings[buildings_id].shipyard_heart.cruisers.size() != g_menu.players[player_id].war_property.cruiser_count)
-                                                countries->at(i).buildings[buildings_id].shipyard_heart.cruisers.push_back(std::string("Cruiser-" + std::to_string(g_tools.generate_unique_int())));
+                                                countries->at(i).buildings[buildings_id].shipyard_heart.cruisers.push_back(std::string("Cruiser##" + std::to_string(g_tools.generate_unique_int())));
 
                                         for (int q = 0; q < g_menu.players[player_id].war_property.destroyer_count; q++)
                                             if (countries->at(i).buildings[buildings_id].shipyard_heart.destroyers.size() != g_menu.players[player_id].war_property.destroyer_count)
-                                                countries->at(i).buildings[buildings_id].shipyard_heart.destroyers.push_back(std::string("Destroyer-" + std::to_string(g_tools.generate_unique_int())));
+                                                countries->at(i).buildings[buildings_id].shipyard_heart.destroyers.push_back(std::string("Destroyer##" + std::to_string(g_tools.generate_unique_int())));
 
                                         for (int q = 0; q < g_menu.players[player_id].war_property.submarine_count; q++)
                                             if (countries->at(i).buildings[buildings_id].shipyard_heart.submarines.size() != g_menu.players[player_id].war_property.submarine_count)
-                                                countries->at(i).buildings[buildings_id].shipyard_heart.submarines.push_back(std::string("Submarine-" + std::to_string(g_tools.generate_unique_int())));
+                                                countries->at(i).buildings[buildings_id].shipyard_heart.submarines.push_back(std::string("Submarine##" + std::to_string(g_tools.generate_unique_int())));
+
+                                        std::vector<ImVec2> ground_check_path;
+
+                                        ImVec2 ground_check_mapped_pos = ImVec2((cursor_pos.x - pos.x) / animated_map_scale, (cursor_pos.y - pos.y) / animated_map_scale);
+
+                                        ImVec2 ground_check_mapped_path_pos = ImVec2(pos.x + ground_check_mapped_pos.x * animated_map_scale, pos.y + ground_check_mapped_pos.y * animated_map_scale);
+
+                                        ground_check_path.push_back(ground_check_mapped_path_pos);
+                                        ground_check_path.push_back(ground_check_mapped_path_pos);
+
 
                                         if (buildings_id == 0)
                                             g_map.drag_n_drop = false;
@@ -176,10 +193,27 @@ public:
                                                             if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
                                                             {
                                                                 g_map.drag_n_drop = true;
-                                                                ImGui::SetDragDropPayload("DND_ITEM2", &i5, sizeof(int));
-                                                                countries->at(i).what_building_is_dragging = buildings_id;
-                                                                countries->at(i).what_type_of_boat_are_we_dragging = boats::SUBMARINES;
+
+                                                                if (g_tools.calculate_distance(cursor_pos, final_pos) > 45 * animated_map_scale || !nav_area.IsPathValid(ground_check_path, map_pos, animated_map_scale))
+                                                                {
+                                                                    countries->at(i).cancel_dragging = true;
+                                                                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(ImColor(255, 0, 0)));
+                                                                }
                                                                 ImGui::Text("%s", countries->at(i).buildings[buildings_id].shipyard_heart.submarines.at(i5).c_str());
+                                                                if (g_tools.calculate_distance(cursor_pos, final_pos) > 45 * animated_map_scale || !nav_area.IsPathValid(ground_check_path, map_pos, animated_map_scale))
+                                                                {
+                                                                    ImGui::PopStyleColor();
+                                                                }
+                                                                else
+                                                                    countries->at(i).cancel_dragging = false;
+
+
+                                                                if (!countries->at(i).cancel_dragging)
+                                                                {
+                                                                    ImGui::SetDragDropPayload("DND_ITEM2", &i5, sizeof(int));
+                                                                    countries->at(i).what_building_is_dragging = buildings_id;
+                                                                    countries->at(i).what_type_of_boat_are_we_dragging = boats::SUBMARINES;
+                                                                }
                                                                 ImGui::EndDragDropSource();
                                                             }
 
@@ -221,10 +255,27 @@ public:
                                                             if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
                                                             {
                                                                 g_map.drag_n_drop = true;
-                                                                ImGui::SetDragDropPayload("DND_ITEM2", &i5, sizeof(int));
-                                                                countries->at(i).what_type_of_boat_are_we_dragging = boats::AIR_CARRIERS;
-                                                                countries->at(i).what_building_is_dragging = buildings_id;
+
+
+                                                                if (g_tools.calculate_distance(cursor_pos, final_pos) > 45 * animated_map_scale || !nav_area.IsPathValid(ground_check_path, map_pos, animated_map_scale))
+                                                                {
+                                                                    countries->at(i).cancel_dragging = true;
+                                                                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(ImColor(255, 0, 0)));
+                                                                }
                                                                 ImGui::Text("%s", countries->at(i).buildings[buildings_id].shipyard_heart.carriers.at(i5).c_str());
+                                                                if (g_tools.calculate_distance(cursor_pos, final_pos) > 45 * animated_map_scale || !nav_area.IsPathValid(ground_check_path, map_pos, animated_map_scale))
+                                                                {
+                                                                    ImGui::PopStyleColor();
+                                                                }
+                                                                else
+                                                                    countries->at(i).cancel_dragging = false;
+
+                                                                if (!countries->at(i).cancel_dragging)
+                                                                {
+                                                                    ImGui::SetDragDropPayload("DND_ITEM2", &i5, sizeof(int));
+                                                                    countries->at(i).what_type_of_boat_are_we_dragging = boats::AIR_CARRIERS;
+                                                                    countries->at(i).what_building_is_dragging = buildings_id;
+                                                                }
                                                                 ImGui::EndDragDropSource();
                                                             }
 
@@ -266,10 +317,25 @@ public:
                                                             if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
                                                             {
                                                                 g_map.drag_n_drop = true;
-                                                                ImGui::SetDragDropPayload("DND_ITEM2", &i5, sizeof(int));
-                                                                countries->at(i).what_type_of_boat_are_we_dragging = boats::DESTROYER;
-                                                                countries->at(i).what_building_is_dragging = buildings_id;
+                                                                if (g_tools.calculate_distance(cursor_pos, final_pos) > 45 * animated_map_scale || !nav_area.IsPathValid(ground_check_path, map_pos, animated_map_scale))
+                                                                {
+                                                                    countries->at(i).cancel_dragging = true;
+                                                                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(ImColor(255, 0, 0)));
+                                                                }
                                                                 ImGui::Text("%s", countries->at(i).buildings[buildings_id].shipyard_heart.destroyers.at(i5).c_str());
+                                                                if (g_tools.calculate_distance(cursor_pos, final_pos) > 45 * animated_map_scale || !nav_area.IsPathValid(ground_check_path, map_pos, animated_map_scale))
+                                                                {
+                                                                    ImGui::PopStyleColor();
+                                                                }
+                                                                else
+                                                                    countries->at(i).cancel_dragging = false;
+
+                                                                if (!countries->at(i).cancel_dragging)
+                                                                {
+                                                                    ImGui::SetDragDropPayload("DND_ITEM2", &i5, sizeof(int));
+                                                                    countries->at(i).what_type_of_boat_are_we_dragging = boats::DESTROYER;
+                                                                    countries->at(i).what_building_is_dragging = buildings_id;
+                                                                }
                                                                 ImGui::EndDragDropSource();
                                                             }
 
@@ -313,11 +379,28 @@ public:
                                                             if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
                                                             {
                                                                 g_map.drag_n_drop = true;
-                                                                ImGui::SetDragDropPayload("DND_ITEM2", &i5, sizeof(int));
-                                                                countries->at(i).what_type_of_boat_are_we_dragging = boats::CRUISERS;
-                                                                countries->at(i).what_building_is_dragging = buildings_id;
+                                                                if (g_tools.calculate_distance(cursor_pos, final_pos) > 45 * animated_map_scale || !nav_area.IsPathValid(ground_check_path, map_pos, animated_map_scale))
+                                                                {
+                                                                    countries->at(i).cancel_dragging = true;
+                                                                    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(ImColor(255, 0, 0)));
+                                                                }
                                                                 ImGui::Text("%s", countries->at(i).buildings[buildings_id].shipyard_heart.cruisers.at(i5).c_str());
+                                                                if (g_tools.calculate_distance(cursor_pos, final_pos) > 45 * animated_map_scale || !nav_area.IsPathValid(ground_check_path, map_pos, animated_map_scale))
+                                                                {
+                                                                    ImGui::PopStyleColor();
+                                                                }
+                                                                else
+                                                                    countries->at(i).cancel_dragging = false;
+
+                                                                if (!countries->at(i).cancel_dragging)
+                                                                {
+                                                                    ImGui::SetDragDropPayload("DND_ITEM2", &i5, sizeof(int));
+                                                                    countries->at(i).what_type_of_boat_are_we_dragging = boats::CRUISERS;
+                                                                    countries->at(i).what_building_is_dragging = buildings_id;
+                                                                }
+
                                                                 ImGui::EndDragDropSource();
+
                                                             }
 
 
@@ -397,34 +480,12 @@ public:
 
                                                         ImGui::Selectable(ss.str().c_str());
 
-                                                        if (vector->at(i).GETTER_city_id != -1)
-                                                        {
-                                                            if (ImGui::IsItemHovered())
-                                                            {
-                                                                countries->at(vector->at(i).GETTER_country_id).cities[vector->at(i).GETTER_city_id].highlighted = true;
-                                                            }
-                                                            else
-                                                                countries->at(vector->at(i).GETTER_country_id).cities[vector->at(i).GETTER_city_id].highlighted = false;
-
-                                                        }
-                                                        else
-                                                        {
-                                                            if (ImGui::IsItemHovered())
-                                                            {
-                                                                countries->at(vector->at(i).GETTER_country_id).buildings[vector->at(i).GETTER_building_id].highlighted = true;
-                                                            }
-                                                            else
-                                                                countries->at(vector->at(i).GETTER_country_id).buildings[vector->at(i).GETTER_building_id].highlighted = false;
-                                                        }
-
                                                         ImGui::PopStyleColor();
                                                         if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None)) {
                                                             ImGui::SetDragDropPayload("DND_ITEM", &i, sizeof(int));
                                                             ImGui::Text("%s", ss.str().c_str());
                                                             ImGui::EndDragDropSource();
                                                         }
-
-
 
 
                                                         if (ImGui::BeginDragDropTarget())

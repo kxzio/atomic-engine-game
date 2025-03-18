@@ -13,10 +13,11 @@ public:
         bool is_going_to_update_targets = false;
         if (!g_map.air_strike_targets.empty())
         {
+            //BIG TODO : REMAKE ALL IDs TO UNIQUE ID INSTEAD OF Static. because building can be destroyed for example.
             for (int targets = 0; targets < g_map.air_strike_targets.size(); targets++)
             {
                 //ROCKET TO CITY
-                if (g_map.air_strike_targets[targets].GETTER_city_id != -1)
+                if (g_map.air_strike_targets[targets].SENDER_unit == -1 && g_map.air_strike_targets[targets].GETTER_city_id != -1)
                 {
                     if (true)
                     {
@@ -85,7 +86,7 @@ public:
                 }
 
                 //ROCKET TO BUILDING
-                else if (g_map.air_strike_targets[targets].GETTER_building_id != -1)
+                else if (g_map.air_strike_targets[targets].SENDER_unit == -1 && g_map.air_strike_targets[targets].GETTER_building_id != -1)
                 {
                     if (true)
                     {
@@ -284,7 +285,8 @@ public:
                     if (getter_unit == g_map.units.end())
                         continue;
 
-                    g_map.air_strike_targets[targets].segments = g_tools.calculate_segments(sender_unit->position, getter_unit->position, animated_map_scale);
+                    if (function_count == 1)
+                        g_map.air_strike_targets[targets].segments = g_tools.calculate_segments(sender_unit->position, getter_unit->position, animated_map_scale);
 
                     auto rocket_pos = g_tools.get_trajectory_stright_one_point(sender_unit->position, getter_unit->position, g_map.air_strike_targets[targets].step_of_bomb, g_map.air_strike_targets[targets].segments);
 
@@ -343,6 +345,77 @@ public:
 
                     }
 
+                }
+
+                //ROCKET FROM SUBMARINE TO CITY
+                else if (g_map.air_strike_targets[targets].SENDER_unit != -1 && g_map.air_strike_targets[targets].GETTER_city_id != -1)
+                {
+                    if (true)
+                    {
+                        auto sender_unit = std::find_if(g_map.units.begin(), g_map.units.end(), [&](const units_base& target)
+                            {
+                                return target.unique_id == g_map.air_strike_targets[targets].SENDER_unit;
+                            });
+
+
+                        if (sender_unit == g_map.units.end())
+                            continue;
+
+
+                        //targets
+                        auto posx = countries->at(g_map.air_strike_targets[targets].GETTER_country_id).position.x * animated_map_scale - (countries->at(g_map.air_strike_targets[targets].GETTER_country_id).size.x * animated_map_scale * g_map.map_scale2) / 2 + map_pos.x * animated_map_scale;
+                        auto posy = countries->at(g_map.air_strike_targets[targets].GETTER_country_id).position.y * animated_map_scale - (countries->at(g_map.air_strike_targets[targets].GETTER_country_id).size.y * animated_map_scale * g_map.map_scale2) / 2 + map_pos.y * animated_map_scale;
+
+                        auto target = ImVec2(posx + countries->at(g_map.air_strike_targets[targets].GETTER_country_id).cities[g_map.air_strike_targets[targets].GETTER_city_id].pos.x * animated_map_scale, posy + countries->at(g_map.air_strike_targets[targets].GETTER_country_id).cities[g_map.air_strike_targets[targets].GETTER_city_id].pos.y * animated_map_scale);
+                        auto target = ImVec2(posx + countries->at(g_map.air_strike_targets[targets].GETTER_country_id).cities[g_map.air_strike_targets[targets].GETTER_city_id].pos.x * animated_map_scale, posy + countries->at(g_map.air_strike_targets[targets].GETTER_country_id).cities[g_map.air_strike_targets[targets].GETTER_city_id].pos.y * animated_map_scale);
+
+                        if (function_count == 1)
+                            g_map.air_strike_targets[targets].segments = g_tools.calculate_segments(sender_unit->position, target, animated_map_scale);
+
+                        auto rocket_pos = g_tools.get_trajectory_one_point(sender_unit->position, target, g_map.air_strike_targets[targets].step_of_bomb, 140.f * animated_map_scale, g_map.air_strike_targets[targets].segments);
+                        auto rocket_pos2 = g_tools.get_trajectory_one_point(sender_unit->position_second_map, target, g_map.air_strike_targets[targets].step_of_bomb, 140.f * animated_map_scale, g_map.air_strike_targets[targets].segments);
+
+                        if (function_count == 1) g_map.air_strike_targets[targets].bomb_pos_map1 = rocket_pos; else g_map.air_strike_targets[targets].bomb_pos_map2 = rocket_pos2;
+
+                        //DRAWING
+                        if (function_count == 1)
+                        {
+                            g_tools.draw_trajectory_arc(ImGui::GetForegroundDrawList(), sender_unit->position, target,
+                                g_map.air_strike_targets[targets].bomb_pos_map1, 140.f * animated_map_scale, ImColor(255, 255, 255, 210), 200);
+                            ImGui::GetForegroundDrawList()->AddCircleFilled(g_map.air_strike_targets[targets].bomb_pos_map1, 3 * animated_map_scale, ImColor(255, 0, 0));
+                        }
+                        else {
+                            g_tools.draw_trajectory_arc(ImGui::GetForegroundDrawList(), sender_unit->position_second_map, target,
+                                g_map.air_strike_targets[targets].bomb_pos_map2, 140.f * animated_map_scale, ImColor(255, 255, 255, 210), 200);
+                            ImGui::GetForegroundDrawList()->AddCircleFilled(g_map.air_strike_targets[targets].bomb_pos_map2, 3 * animated_map_scale, ImColor(255, 0, 0));
+
+                        }
+
+
+                        //UPDATING
+                        if (g_socket_control.player_role == g_socket_control.player_role_enum::SERVER && function_count == 1)
+                        {
+                            if (g_map.air_strike_targets[targets].step_of_bomb >= g_map.air_strike_targets[targets].segments) // segments
+                            {
+
+                                auto sender_unit_rocket = std::find_if(g_map.air_strike_targets.begin(), g_map.air_strike_targets.end(), [&](const nuclear_strike_target& target)
+                                    {
+                                        return target.unique_id == g_map.air_strike_targets[targets].unique_id;
+                                    });
+
+                                g_map.air_strike_targets.erase(sender_unit_rocket);
+                                continue;
+                            }
+
+                            if (g_map.air_strike_targets[targets].last_global_tick < g_map.global_tick)
+                            {
+                                g_map.air_strike_targets[targets].step_of_bomb++;
+                                g_map.air_strike_targets[targets].last_global_tick = g_map.global_tick;
+                                is_going_to_update_targets = true;
+                            }
+
+                        }
+                    }
                 }
             }
         }
