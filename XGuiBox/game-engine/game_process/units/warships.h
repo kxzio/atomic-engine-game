@@ -82,27 +82,32 @@ public:
 			}
 			ImVec2 final_pos = ImVec2(pos.x + g_map.units[i].converted_spawn_pos.x * animated_map_scale + g_map.units[i].interpolated_move_offset.x * animated_map_scale, pos.y + g_map.units[i].converted_spawn_pos.y * animated_map_scale + g_map.units[i].interpolated_move_offset.y * animated_map_scale);
 
+			if (function_count == 1)
+				g_map.units[i].position		= final_pos;
+			else
+				g_map.units[i].position_map2 = final_pos;
 
-			g_map.units[i].position = final_pos;
-			g_map.units[i].position_second_map = final_pos;
-
-
-			if (ImGui::IsMouseClicked(1) && g_map.units[i].selected != NOT_SELECTED)
+			if (true)
 			{
-				if (!ImGui::IsKeyDown(ImGuiKey_LeftCtrl))
+				//THRERS SOMETHING HAPPENING IN THERE DUE TO FUNCTION COUNTS I FUCKEN HATE THIS CODE BRO :skull_emoji:
+				if (ImGui::IsMouseClicked(1) && g_map.units[i].selected != NOT_SELECTED && function_count == 1)
 				{
-					g_map.units[i].path.clear();
-				}
+					if (!ImGui::IsKeyDown(ImGuiKey_LeftCtrl))
+					{
+						g_map.units[i].path.clear();
+					}
 
-				if (g_map.units[i].owner_country_id == g_menu.players[player_id].control_region)
-				{
-					g_map.units[i].stored_cursor = cursor_pos;
-					g_map.units[i].pos_converted_to_map = false;
+					if (g_map.units[i].owner_country_id == g_menu.players[player_id].control_region)
+					{
+						g_map.units[i].stored_cursor = cursor_pos;
+						g_map.units[i].pos_converted_to_map = false;
+					}
 				}
 			}
 
 			ImVec2 mapped_pos = ImVec2((g_map.units[i].stored_cursor.x - pos.x) / animated_map_scale, (g_map.units[i].stored_cursor.y - pos.y) / animated_map_scale);
 
+			
 			if (!g_map.units[i].pos_converted_to_map)
 			{
 				if (g_map.units[i].stored_cursor.x != 0 && g_map.units[i].stored_cursor.y != 0)
@@ -352,8 +357,6 @@ public:
 				}
 			}
 
-			ImGui::GetForegroundDrawList()->AddCircleFilled(g_map.units[i].position, 2 * animated_map_scale, g_menu.players[player_id].control_region == g_map.units[i].owner_country_id ? ImColor(150, 200, 180) : ImColor(255, 40, 10), 15);
-
 			std::string class_name = "";
 			
 			switch (g_map.units[i].class_of_unit)
@@ -366,24 +369,38 @@ public:
 
 			ImVec2 textsize = ImVec2(0, 0);
 
+			ImVec2 drawing_pos;
+
+			if (function_count == 1)
+				drawing_pos = g_map.units[i].position;
+			else
+				drawing_pos = g_map.units[i].position_map2;
+
 			if (!class_name.empty())
 			{
+				ImGui::GetForegroundDrawList()->AddCircleFilled(drawing_pos, 2 * animated_map_scale, g_menu.players[player_id].control_region == g_map.units[i].owner_country_id ? ImColor(150, 200, 180) : ImColor(255, 40, 10), 15);
+
 				textsize = g_xgui.fonts[2].font_addr->CalcTextSizeA(17.f, FLT_MAX, -1.f, class_name.c_str());
 
 				ImGui::GetForegroundDrawList()->AddPolyline(mapped_path.data(), mapped_path.size(), g_map.units[i].selected ? ImColor(255, 255, 255) : ImColor(255, 255, 255, 100), 0, 1.f);
 
-				ImGui::GetForegroundDrawList()->AddRectFilled(ImVec2(g_map.units[i].position.x - 1 * animated_map_scale, g_map.units[i].position.y - 1 * animated_map_scale), ImVec2(g_map.units[i].position.x + textsize.x + 1 * animated_map_scale, g_map.units[i].position.y + textsize.y + 1 * animated_map_scale), ImColor(0, 0, 0, 200));
-				ImGui::GetForegroundDrawList()->AddRect(ImVec2(g_map.units[i].position.x - 1 * animated_map_scale, g_map.units[i].position.y - 1 * animated_map_scale), ImVec2(g_map.units[i].position.x + textsize.x + 1 * animated_map_scale, g_map.units[i].position.y + textsize.y + 1 * animated_map_scale), ImColor(255, 255, 255, 60));
+				ImGui::GetForegroundDrawList()->AddRectFilled(ImVec2(drawing_pos.x - 1 * animated_map_scale, drawing_pos.y - 1 * animated_map_scale), ImVec2(drawing_pos.x + textsize.x + 1 * animated_map_scale, drawing_pos.y + textsize.y + 1 * animated_map_scale), ImColor(0, 0, 0, 200));
+				ImGui::GetForegroundDrawList()->AddRect(ImVec2(drawing_pos.x - 1 * animated_map_scale, drawing_pos.y - 1 * animated_map_scale), ImVec2(drawing_pos.x + textsize.x + 1 * animated_map_scale, drawing_pos.y + textsize.y + 1 * animated_map_scale), ImColor(255, 255, 255, 60));
 
 				//healthbar
-				ImGui::GetForegroundDrawList()->AddRectFilled(ImVec2(g_map.units[i].position.x - 5 * animated_map_scale, g_map.units[i].position.y + 5 * animated_map_scale), ImVec2(g_map.units[i].position.x + (((g_map.units[i].health / 100.f) * 10.f)) * animated_map_scale, g_map.units[i].position.y + 6 * animated_map_scale), ImColor(0, 255, 0, 160));
-				ImGui::GetForegroundDrawList()->AddRect(ImVec2(g_map.units[i].position.x - 5 * animated_map_scale, g_map.units[i].position.y + 5 * animated_map_scale), ImVec2(g_map.units[i].position.x + 10 * animated_map_scale, g_map.units[i].position.y + 6 * animated_map_scale), ImColor(255, 255, 255, 160));
+				ImGui::GetForegroundDrawList()->AddRectFilled(ImVec2(drawing_pos.x - 5 * animated_map_scale, drawing_pos.y + 5 * animated_map_scale), ImVec2(drawing_pos.x + (((g_map.units[i].health / 100.f) * 10.f)) * animated_map_scale, drawing_pos.y + 6 * animated_map_scale), ImColor(0, 255, 0, 160));
+				ImGui::GetForegroundDrawList()->AddRect(ImVec2(drawing_pos.x - 5 * animated_map_scale, drawing_pos.y + 5 * animated_map_scale), ImVec2(drawing_pos.x + 10 * animated_map_scale, drawing_pos.y + 6 * animated_map_scale), ImColor(255, 255, 255, 160));
 
-				ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[2].font_addr, 17.f, ImVec2(g_map.units[i].position), ImColor(255, 255, 255), class_name.c_str());
+				ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[2].font_addr, 17.f, ImVec2(drawing_pos), ImColor(255, 255, 255), class_name.c_str());
 
 
 				if (g_map.units[i].owner_country_id == g_menu.players[player_id].control_region)
-					g_map.process_unit_selections(&g_map.units[i], animated_map_scale);
+				{
+					if (function_count == 1)
+						g_map.process_unit_selections(&g_map.units[i], g_map.units[i].position, animated_map_scale);
+					else
+						g_map.process_unit_selections(&g_map.units[i], g_map.units[i].position_map2, animated_map_scale);
+				}
 			}
 
 			if (function_count == 1)
@@ -529,12 +546,19 @@ public:
 			c.center = g_map.units[i].position;
 			c.radius = 30 * animated_map_scale;
 			circles.push_back(c);
+
+			Circle c2;
+			c2.center = g_map.units[i].position_map2;
+			c2.radius = 30 * animated_map_scale;
+			circles.push_back(c2);
 		}
 
 		// Для каждого круга отрисовываем его внешнюю границу (без внутренних перекрытий)
 		for (const auto& circle : circles) {
 			g_tools.DrawCircleVisibleArcs(circle, circles, IM_COL32(255, 0, 0, 255), 2.0f);
 		}
+
+
 
 		if (old_tick_for_update != g_map.global_tick)
 		{

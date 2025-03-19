@@ -291,7 +291,7 @@ public:
                 ImGui::GetForegroundDrawList()->AddCircle(ImVec2(posx + data.cities[city_id].pos.x * animated_map_scale, posy + data.cities[city_id].pos.y * animated_map_scale), 15.f * animated_map_scale, ImColor(255, 255, 0), 0, 2);
             }
 
-            g_map.process_object_selections(true, index, player_id, countries, &countries->at(index).cities[city_id], animated_map_scale, map_pos);
+            g_map.process_object_selections(function_count, true, index, player_id, countries, &countries->at(index).cities[city_id], animated_map_scale, map_pos);
 
             if (countries->at(index).cities[city_id].selected != NOT_SELECTED)
             {

@@ -10,7 +10,7 @@
 #include "units/warships.h"
 #include <boost/functional/hash.hpp>
 
-void map_processing::process_object_selections(bool city, int current_country, int player_id, std::vector <country_data>* countries, map_objects* object, float animated_map_scale, ImVec2 map_pos)
+void map_processing::process_object_selections(int function_count, bool city, int current_country, int player_id, std::vector <country_data>* countries, map_objects* object, float animated_map_scale, ImVec2 map_pos)
 {
     auto data = countries->at(current_country);
 
@@ -43,6 +43,7 @@ void map_processing::process_object_selections(bool city, int current_country, i
                 {
                     single_select = true;
                     object->selected = SOLO_SELECTED;
+                    g_map.last_iteration_was_with_function_number = function_count;
                     ImGui::GetForegroundDrawList()->AddRect(point_pos, point_size, g_map.selection_for_nuclear_strike ? ImColor(255, 0, 0) : ImColor(255, 255, 255));
 
                     //nuclear target selection
@@ -170,6 +171,7 @@ void map_processing::process_object_selections(bool city, int current_country, i
             {
                 object->hovered = false;
                 object->selected = MULTIPLE_SELECTED;
+                g_map.last_iteration_was_with_function_number = function_count;
             }
         }
     }
@@ -191,8 +193,11 @@ void map_processing::process_object_selections(bool city, int current_country, i
     }
 }
 
-void map_processing::process_unit_selections(units_base* unit, float animated_map_scale)
+void map_processing::process_unit_selections(units_base* unit, ImVec2 pos, float animated_map_scale)
 {
+
+    ImVec2 unit_pos;
+
     bool single_select = false;
 
     if (g_map.cursor_pos.x > g_map.opened_menu_size.Min.x && g_map.cursor_pos.x < g_map.opened_menu_size.Max.x)
@@ -205,9 +210,9 @@ void map_processing::process_unit_selections(units_base* unit, float animated_ma
 
     if (g_map.selector_zone.GetSize().x == 0)
     {
-        if (g_tools.is_point_in_rect(unit->position, ImRect(ImVec2(g_map.cursor_pos.x - 5 * animated_map_scale, g_map.cursor_pos.y - 5 * animated_map_scale), ImVec2(g_map.cursor_pos.x + 5 * animated_map_scale, g_map.cursor_pos.y + 5 * animated_map_scale))))
+        if (g_tools.is_point_in_rect(pos, ImRect(ImVec2(g_map.cursor_pos.x - 5 * animated_map_scale, g_map.cursor_pos.y - 5 * animated_map_scale), ImVec2(g_map.cursor_pos.x + 5 * animated_map_scale, g_map.cursor_pos.y + 5 * animated_map_scale))))
         {
-            ImGui::GetForegroundDrawList()->AddRect(ImVec2(unit->position.x - 5 * animated_map_scale, unit->position.y - 5 * animated_map_scale), ImVec2(unit->position.x + 5 * animated_map_scale, unit->position.y + 5 * animated_map_scale), ImColor(255, 255, 255));
+            ImGui::GetForegroundDrawList()->AddRect(ImVec2(pos.x - 5 * animated_map_scale, pos.y - 5 * animated_map_scale), ImVec2(pos.x + 5 * animated_map_scale, pos.y + 5 * animated_map_scale), ImColor(255, 255, 255));
 
             if (ImGui::IsMouseReleased(0))
             {
@@ -219,10 +224,10 @@ void map_processing::process_unit_selections(units_base* unit, float animated_ma
     }
     else
     {
-        if (g_tools.is_point_in_rect(unit->position, g_map.selector_zone))
+        if (g_tools.is_point_in_rect(pos, g_map.selector_zone))
         {
             unit->hovered = true;
-            ImGui::GetForegroundDrawList()->AddRect(ImVec2(unit->position.x - 5 * animated_map_scale, unit->position.y - 5 * animated_map_scale), ImVec2(unit->position.x + 5 * animated_map_scale, unit->position.y + 5 * animated_map_scale), ImColor(255, 255, 255));
+            ImGui::GetForegroundDrawList()->AddRect(ImVec2(pos.x - 5 * animated_map_scale, pos.y - 5 * animated_map_scale), ImVec2(pos.x + 5 * animated_map_scale, pos.y + 5 * animated_map_scale), ImColor(255, 255, 255));
         }
         else
             unit->hovered = false;
@@ -250,7 +255,7 @@ void map_processing::process_unit_selections(units_base* unit, float animated_ma
 
     if (unit->selected)
     {
-        ImGui::GetForegroundDrawList()->AddRect(ImVec2(unit->position.x - 5 * animated_map_scale, unit->position.y - 5 * animated_map_scale), ImVec2(unit->position.x + 5 * animated_map_scale, unit->position.y + 5 * animated_map_scale), ImColor(255, 255, 255));
+        ImGui::GetForegroundDrawList()->AddRect(ImVec2(pos.x - 5 * animated_map_scale, pos.y - 5 * animated_map_scale), ImVec2(pos.x + 5 * animated_map_scale, pos.y + 5 * animated_map_scale), ImColor(255, 255, 255));
     }
 }
 
@@ -517,6 +522,8 @@ void map_processing::process_and_sync_game_cycle(std::vector <country_data>* cou
         ImGui::SetNextWindowSize(g_window.window_size);
         ImGui::Begin("Drag n Drop For Ships And Air Ships", (bool*)1, flags);
         {
+
+
             ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(ImColor(0, 0, 0, 0)));
             ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(ImColor(0, 0, 0, 0)));
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(ImColor(0, 0, 0, 0)));
@@ -530,6 +537,7 @@ void map_processing::process_and_sync_game_cycle(std::vector <country_data>* cou
                     {
                         int payload_idx = *(const int*)payload->Data;
                         {
+
                             if (!countries->at(g_menu.players[player_id].control_region).cancel_dragging)
                             {
                                 int player_region = g_menu.players[player_id].control_region;

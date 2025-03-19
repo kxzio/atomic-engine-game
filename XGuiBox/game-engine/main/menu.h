@@ -24,10 +24,10 @@ struct war_property
 	int amount_of_jets = 0;
 	int amount_of_bombers = 0;
 
-	int submarine_count = 0;
-	int carrier_count = 0;
-	int destroyer_count = 0;
-	int cruiser_count = 0;
+	int submarine_count = 5;
+	int carrier_count = 5;
+	int destroyer_count = 5;
+	int cruiser_count = 5;
 
 };
 

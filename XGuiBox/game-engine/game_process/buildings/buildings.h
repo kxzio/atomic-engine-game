@@ -35,7 +35,7 @@ public:
                 auto textsize = g_xgui.fonts[2].font_addr->CalcTextSizeA(17, FLT_MAX, -1.f, countries->at(i).buildings[buildings_id].name.c_str());
                 ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[2].font_addr, 17.f, ImVec2(final_pos.x - textsize.x / 2, final_pos.y - 8 * animated_map_scale), ImColor(255, 255, 255), countries->at(i).buildings[buildings_id].name.c_str());
 
-                g_map.process_object_selections(false, i, player_id, countries, &countries->at(i).buildings[buildings_id], animated_map_scale, map_pos);
+                g_map.process_object_selections(function_count, false, i, player_id, countries, &countries->at(i).buildings[buildings_id], animated_map_scale, map_pos);
 
 
                 if (countries->at(i).buildings[buildings_id].highlighted)
@@ -54,11 +54,25 @@ public:
 
                 //NEXT PART OF CODE SHOULD BE PROCESSED ONLY BY ONE FUNCTION "render_map_and_process. secondary function for double map should ignore this code"
 
+                std::vector<ImVec2> ground_check_path;
+
+                ImVec2 ground_check_mapped_pos = ImVec2((cursor_pos.x - pos.x) / animated_map_scale, (cursor_pos.y - pos.y) / animated_map_scale);
+
+                ImVec2 ground_check_mapped_path_pos = ImVec2(pos.x + ground_check_mapped_pos.x * animated_map_scale, pos.y + ground_check_mapped_pos.y * animated_map_scale);
+
+                bool pos_is_not_valid;
+
+                if (g_map.drag_n_drop)
+                {
+                    ground_check_path.push_back(ground_check_mapped_path_pos);
+                    ground_check_path.push_back(ground_check_mapped_path_pos);
+
+                    pos_is_not_valid = !nav_area.IsPathValid(ground_check_path, map_pos, animated_map_scale);
+                }
 
                 //first function called
                 if (function_count == 1)
                 {
-
                     //building process
                     if (countries->at(i).buildings[buildings_id].progress_of_building != 105)
                     {
@@ -87,11 +101,11 @@ public:
                         else
                             g_socket_control.client_send_building(buildings_id, i);
                     }
-
+                }
                     //BUILDING FINISHED - the main cycle of building
                     if (countries->at(i).buildings[buildings_id].progress_of_building == 105)
                     {
-                        if (countries->at(i).buildings[buildings_id].selected == SOLO_SELECTED)
+                        if (countries->at(i).buildings[buildings_id].selected == SOLO_SELECTED && function_count == g_map.last_iteration_was_with_function_number)
                         {
                             g_map.opened_menu_size = ImRect(ImVec2(0, 0), ImVec2(350, g_map.screen_y));
                             ImGui::SetNextWindowPos(ImVec2(0, 0));
@@ -153,18 +167,10 @@ public:
                                             if (countries->at(i).buildings[buildings_id].shipyard_heart.submarines.size() != g_menu.players[player_id].war_property.submarine_count)
                                                 countries->at(i).buildings[buildings_id].shipyard_heart.submarines.push_back(std::string("Submarine##" + std::to_string(g_tools.generate_unique_int())));
 
-                                        std::vector<ImVec2> ground_check_path;
-
-                                        ImVec2 ground_check_mapped_pos = ImVec2((cursor_pos.x - pos.x) / animated_map_scale, (cursor_pos.y - pos.y) / animated_map_scale);
-
-                                        ImVec2 ground_check_mapped_path_pos = ImVec2(pos.x + ground_check_mapped_pos.x * animated_map_scale, pos.y + ground_check_mapped_pos.y * animated_map_scale);
-
-                                        ground_check_path.push_back(ground_check_mapped_path_pos);
-                                        ground_check_path.push_back(ground_check_mapped_path_pos);
-
 
                                         if (buildings_id == 0)
                                             g_map.drag_n_drop = false;
+
 
                                         ImGui::Text(std::string(std::string("Current amount of Submarines : ") + std::to_string(g_menu.players[player_id].war_property.submarine_count)).c_str());
 
@@ -194,13 +200,13 @@ public:
                                                             {
                                                                 g_map.drag_n_drop = true;
 
-                                                                if (g_tools.calculate_distance(cursor_pos, final_pos) > 45 * animated_map_scale || !nav_area.IsPathValid(ground_check_path, map_pos, animated_map_scale))
+                                                                if (g_tools.calculate_distance(cursor_pos, final_pos) > 45 * animated_map_scale || pos_is_not_valid)
                                                                 {
                                                                     countries->at(i).cancel_dragging = true;
                                                                     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(ImColor(255, 0, 0)));
                                                                 }
                                                                 ImGui::Text("%s", countries->at(i).buildings[buildings_id].shipyard_heart.submarines.at(i5).c_str());
-                                                                if (g_tools.calculate_distance(cursor_pos, final_pos) > 45 * animated_map_scale || !nav_area.IsPathValid(ground_check_path, map_pos, animated_map_scale))
+                                                                if (g_tools.calculate_distance(cursor_pos, final_pos) > 45 * animated_map_scale || pos_is_not_valid)
                                                                 {
                                                                     ImGui::PopStyleColor();
                                                                 }
@@ -257,13 +263,13 @@ public:
                                                                 g_map.drag_n_drop = true;
 
 
-                                                                if (g_tools.calculate_distance(cursor_pos, final_pos) > 45 * animated_map_scale || !nav_area.IsPathValid(ground_check_path, map_pos, animated_map_scale))
+                                                                if (g_tools.calculate_distance(cursor_pos, final_pos) > 45 * animated_map_scale || pos_is_not_valid)
                                                                 {
                                                                     countries->at(i).cancel_dragging = true;
                                                                     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(ImColor(255, 0, 0)));
                                                                 }
                                                                 ImGui::Text("%s", countries->at(i).buildings[buildings_id].shipyard_heart.carriers.at(i5).c_str());
-                                                                if (g_tools.calculate_distance(cursor_pos, final_pos) > 45 * animated_map_scale || !nav_area.IsPathValid(ground_check_path, map_pos, animated_map_scale))
+                                                                if (g_tools.calculate_distance(cursor_pos, final_pos) > 45 * animated_map_scale || pos_is_not_valid)
                                                                 {
                                                                     ImGui::PopStyleColor();
                                                                 }
@@ -317,13 +323,13 @@ public:
                                                             if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
                                                             {
                                                                 g_map.drag_n_drop = true;
-                                                                if (g_tools.calculate_distance(cursor_pos, final_pos) > 45 * animated_map_scale || !nav_area.IsPathValid(ground_check_path, map_pos, animated_map_scale))
+                                                                if (g_tools.calculate_distance(cursor_pos, final_pos) > 45 * animated_map_scale || pos_is_not_valid)
                                                                 {
                                                                     countries->at(i).cancel_dragging = true;
                                                                     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(ImColor(255, 0, 0)));
                                                                 }
                                                                 ImGui::Text("%s", countries->at(i).buildings[buildings_id].shipyard_heart.destroyers.at(i5).c_str());
-                                                                if (g_tools.calculate_distance(cursor_pos, final_pos) > 45 * animated_map_scale || !nav_area.IsPathValid(ground_check_path, map_pos, animated_map_scale))
+                                                                if (g_tools.calculate_distance(cursor_pos, final_pos) > 45 * animated_map_scale || pos_is_not_valid)
                                                                 {
                                                                     ImGui::PopStyleColor();
                                                                 }
@@ -379,13 +385,13 @@ public:
                                                             if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_None))
                                                             {
                                                                 g_map.drag_n_drop = true;
-                                                                if (g_tools.calculate_distance(cursor_pos, final_pos) > 45 * animated_map_scale || !nav_area.IsPathValid(ground_check_path, map_pos, animated_map_scale))
+                                                                if (g_tools.calculate_distance(cursor_pos, final_pos) > 45 * animated_map_scale || pos_is_not_valid)
                                                                 {
                                                                     countries->at(i).cancel_dragging = true;
                                                                     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(ImColor(255, 0, 0)));
                                                                 }
                                                                 ImGui::Text("%s", countries->at(i).buildings[buildings_id].shipyard_heart.cruisers.at(i5).c_str());
-                                                                if (g_tools.calculate_distance(cursor_pos, final_pos) > 45 * animated_map_scale || !nav_area.IsPathValid(ground_check_path, map_pos, animated_map_scale))
+                                                                if (g_tools.calculate_distance(cursor_pos, final_pos) > 45 * animated_map_scale || pos_is_not_valid)
                                                                 {
                                                                     ImGui::PopStyleColor();
                                                                 }
@@ -557,178 +563,181 @@ public:
 
                         }
 
-                        switch (countries->at(i).buildings[buildings_id].building_type)
+                        if (function_count == 1)
                         {
-                            case AIRCRAFT_FACTORY:
+                            switch (countries->at(i).buildings[buildings_id].building_type)
                             {
-                                if (countries->at(i).buildings[buildings_id].air_factory_heart.goal_amount_of_jets > g_menu.players[player_id].war_property.amount_of_jets)
-                                {
-                                    if (g_map.global_tick > countries->at(i).buildings[buildings_id].air_factory_heart.old_tick_for_jets + 100)
+                                case AIRCRAFT_FACTORY:
                                     {
-                                        countries->at(i).buildings[buildings_id].air_factory_heart.old_tick_for_jets = g_map.global_tick;
-                                        g_menu.players[player_id].war_property.amount_of_jets++;
+                                    if (countries->at(i).buildings[buildings_id].air_factory_heart.goal_amount_of_jets > g_menu.players[player_id].war_property.amount_of_jets)
+                                    {
+                                        if (g_map.global_tick > countries->at(i).buildings[buildings_id].air_factory_heart.old_tick_for_jets + 100)
+                                        {
+                                            countries->at(i).buildings[buildings_id].air_factory_heart.old_tick_for_jets = g_map.global_tick;
+                                            g_menu.players[player_id].war_property.amount_of_jets++;
+                                        }
                                     }
-                                }
 
-                                if (countries->at(i).buildings[buildings_id].air_factory_heart.goal_amount_of_bombers > g_menu.players[player_id].war_property.amount_of_bombers)
-                                {
-                                    if (g_map.global_tick > countries->at(i).buildings[buildings_id].air_factory_heart.old_tick_for_bombers + 200)
+                                    if (countries->at(i).buildings[buildings_id].air_factory_heart.goal_amount_of_bombers > g_menu.players[player_id].war_property.amount_of_bombers)
                                     {
-                                        countries->at(i).buildings[buildings_id].air_factory_heart.old_tick_for_bombers = g_map.global_tick;
-                                        g_menu.players[player_id].war_property.amount_of_bombers++;
+                                        if (g_map.global_tick > countries->at(i).buildings[buildings_id].air_factory_heart.old_tick_for_bombers + 200)
+                                        {
+                                            countries->at(i).buildings[buildings_id].air_factory_heart.old_tick_for_bombers = g_map.global_tick;
+                                            g_menu.players[player_id].war_property.amount_of_bombers++;
+                                        }
                                     }
+
                                 }
+                                break;
 
-                            }
-                            break;
-
-                            case SHIPYARD:
-                            {
-                                if (countries->at(i).buildings[buildings_id].shipyard_heart.goal_amount_of_boat1 > g_menu.players[player_id].war_property.submarine_count)
-                                {
-                                    if (g_map.global_tick > countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat1 + 1200)
+                                case SHIPYARD:
                                     {
-                                        countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat1 = g_map.global_tick;
-                                        g_menu.players[player_id].war_property.submarine_count++;
+                                    if (countries->at(i).buildings[buildings_id].shipyard_heart.goal_amount_of_boat1 > g_menu.players[player_id].war_property.submarine_count)
+                                    {
+                                        if (g_map.global_tick > countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat1 + 1200)
+                                        {
+                                            countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat1 = g_map.global_tick;
+                                            g_menu.players[player_id].war_property.submarine_count++;
+                                        }
                                     }
-                                }
 
-                                if (countries->at(i).buildings[buildings_id].shipyard_heart.goal_amount_of_boat2 > g_menu.players[player_id].war_property.carrier_count)
-                                {
-                                    if (g_map.global_tick > countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat2 + 1200)
+                                    if (countries->at(i).buildings[buildings_id].shipyard_heart.goal_amount_of_boat2 > g_menu.players[player_id].war_property.carrier_count)
                                     {
-                                        countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat2 = g_map.global_tick;
-                                        g_menu.players[player_id].war_property.carrier_count++;
+                                        if (g_map.global_tick > countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat2 + 1200)
+                                        {
+                                            countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat2 = g_map.global_tick;
+                                            g_menu.players[player_id].war_property.carrier_count++;
+                                        }
                                     }
-                                }
 
-                                if (countries->at(i).buildings[buildings_id].shipyard_heart.goal_amount_of_boat3 > g_menu.players[player_id].war_property.destroyer_count)
-                                {
-                                    if (g_map.global_tick > countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat3 + 1200)
+                                    if (countries->at(i).buildings[buildings_id].shipyard_heart.goal_amount_of_boat3 > g_menu.players[player_id].war_property.destroyer_count)
                                     {
-                                        countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat3 = g_map.global_tick;
-                                        g_menu.players[player_id].war_property.destroyer_count++;
+                                        if (g_map.global_tick > countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat3 + 1200)
+                                        {
+                                            countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat3 = g_map.global_tick;
+                                            g_menu.players[player_id].war_property.destroyer_count++;
+                                        }
                                     }
-                                }
 
-                                if (countries->at(i).buildings[buildings_id].shipyard_heart.goal_amount_of_boat4 > g_menu.players[player_id].war_property.cruiser_count)
-                                {
-                                    if (g_map.global_tick > countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat4 + 1200)
+                                    if (countries->at(i).buildings[buildings_id].shipyard_heart.goal_amount_of_boat4 > g_menu.players[player_id].war_property.cruiser_count)
                                     {
-                                        countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat4 = g_map.global_tick;
-                                        g_menu.players[player_id].war_property.cruiser_count++;
+                                        if (g_map.global_tick > countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat4 + 1200)
+                                        {
+                                            countries->at(i).buildings[buildings_id].shipyard_heart.old_tick_for_boat4 = g_map.global_tick;
+                                            g_menu.players[player_id].war_property.cruiser_count++;
+                                        }
                                     }
+
+
+
                                 }
+                                break;
 
-
-
-                            }
-                            break;
-
-                            case MISSILE_SILO:
-                            {
-
-                                if (countries->at(i).buildings[buildings_id].missile_silo_heart.ready_to_shot && !countries->at(i).buildings[buildings_id].missile_silo_heart.strike_queue.empty())
-                                {
-                                    if (countries->at(i).buildings[buildings_id].missile_silo_heart.ready_to_shot)
+                                case MISSILE_SILO:
                                     {
-                                        g_map.air_strike_targets.push_back(countries->at(i).buildings[buildings_id].missile_silo_heart.strike_queue[0]);
-                                        countries->at(i).buildings[buildings_id].missile_silo_heart.old_tick_for_reload = g_map.global_tick;
-                                        countries->at(i).buildings[buildings_id].missile_silo_heart.strike_queue.erase(countries->at(i).buildings[buildings_id].missile_silo_heart.strike_queue.begin());
+
+                                    if (countries->at(i).buildings[buildings_id].missile_silo_heart.ready_to_shot && !countries->at(i).buildings[buildings_id].missile_silo_heart.strike_queue.empty())
+                                    {
+                                        if (countries->at(i).buildings[buildings_id].missile_silo_heart.ready_to_shot)
+                                        {
+                                            g_map.air_strike_targets.push_back(countries->at(i).buildings[buildings_id].missile_silo_heart.strike_queue[0]);
+                                            countries->at(i).buildings[buildings_id].missile_silo_heart.old_tick_for_reload = g_map.global_tick;
+                                            countries->at(i).buildings[buildings_id].missile_silo_heart.strike_queue.erase(countries->at(i).buildings[buildings_id].missile_silo_heart.strike_queue.begin());
+                                            countries->at(i).buildings[buildings_id].missile_silo_heart.ready_to_shot = false;
+
+                                            if (g_socket_control.player_role == g_socket_control.player_role_enum::SERVER)
+                                            {
+                                                g_socket_control.server_send_nuclear_targets();
+                                            }
+                                            else
+                                                g_socket_control.client_send_nuclear_targets();
+                                        }
+
+                                    }
+
+                                    if (g_map.global_tick > countries->at(i).buildings[buildings_id].missile_silo_heart.old_tick_for_reload + 350)
+                                    {
+                                        countries->at(i).buildings[buildings_id].missile_silo_heart.ready_to_shot = true;
+                                    }
+                                    else
                                         countries->at(i).buildings[buildings_id].missile_silo_heart.ready_to_shot = false;
 
-                                        if (g_socket_control.player_role == g_socket_control.player_role_enum::SERVER)
-                                        {
-                                            g_socket_control.server_send_nuclear_targets();
-                                        }
-                                        else
-                                            g_socket_control.client_send_nuclear_targets();
-                                    }
-
-                                }
-
-                                if (g_map.global_tick > countries->at(i).buildings[buildings_id].missile_silo_heart.old_tick_for_reload + 350)
-                                {
-                                    countries->at(i).buildings[buildings_id].missile_silo_heart.ready_to_shot = true;
-                                }
-                                else
-                                    countries->at(i).buildings[buildings_id].missile_silo_heart.ready_to_shot = false;
-
-                                if (g_map.selection_for_nuclear_strike)
-                                {
-                                    ImGui::GetBackgroundDrawList()->AddText(g_xgui.fonts[2].font_addr, 25, ImVec2(g_map.screen_x / 2, 150), ImColor(255, 255, 255), "Choose Target!");
-
-                                }
-                            }
-                            break;
-
-                            case MISSILE_DEFENSE:
-                            {
-
-                                if (g_map.global_tick > countries->at(i).buildings[buildings_id].missile_defense_heart.old_tick_for_reload + 50)
-                                {
-                                    countries->at(i).buildings[buildings_id].missile_defense_heart.ready_to_shot = true;
-                                }
-                                else
-                                    countries->at(i).buildings[buildings_id].missile_defense_heart.ready_to_shot = false;
-
-
-                                if (countries->at(i).buildings[buildings_id].missile_defense_heart.ready_to_shot)
-                                {
-                                    for (int rockets_id = 0; rockets_id < g_map.air_strike_targets.size(); rockets_id++)
+                                    if (g_map.selection_for_nuclear_strike)
                                     {
-                                        if (g_map.air_strike_targets[rockets_id].GETTER_rocket != -1)
-                                            continue;
+                                        ImGui::GetBackgroundDrawList()->AddText(g_xgui.fonts[2].font_addr, 25, ImVec2(g_map.screen_x / 2, 150), ImColor(255, 255, 255), "Choose Target!");
 
-                                        if (g_map.air_strike_targets[rockets_id].GETTER_unit != -1)
-                                            continue;
+                                    }
+                                }
+                                break;
 
+                                case MISSILE_DEFENSE:
+                                    {
 
-                                        auto pos2 = ImVec2(countries->at(g_map.air_strike_targets[rockets_id].GETTER_country_id).position.x * animated_map_scale - (countries->at(g_map.air_strike_targets[rockets_id].GETTER_country_id).size.x * animated_map_scale * g_map.map_scale2) / 2 + map_pos.x * animated_map_scale,
-                                            countries->at(g_map.air_strike_targets[rockets_id].GETTER_country_id).position.y * animated_map_scale - (countries->at(g_map.air_strike_targets[rockets_id].GETTER_country_id).size.y * animated_map_scale * g_map.map_scale2) / 2 + map_pos.y * animated_map_scale);
-
-                                        ImVec2 bombpos = ImVec2(g_map.air_strike_targets[rockets_id].bomb_pos_map1.x, g_map.air_strike_targets[rockets_id].bomb_pos_map1.y);
-
-                                        auto buildpos = ImVec2(final_pos.x, final_pos.y);
-
-                                        float distance = g_tools.calculate_distance(bombpos, buildpos) / animated_map_scale;
-
-                                        ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[2].font_addr, 17.f, ImVec2(15, 40), ImColor(255, 255, 255), std::to_string(distance).c_str());
+                                    if (g_map.global_tick > countries->at(i).buildings[buildings_id].missile_defense_heart.old_tick_for_reload + 50)
+                                    {
+                                        countries->at(i).buildings[buildings_id].missile_defense_heart.ready_to_shot = true;
+                                    }
+                                    else
+                                        countries->at(i).buildings[buildings_id].missile_defense_heart.ready_to_shot = false;
 
 
-                                        if (distance < 70 && g_map.air_strike_targets[rockets_id].SENDER_country_id != g_menu.players[player_id].control_region)
+                                    if (countries->at(i).buildings[buildings_id].missile_defense_heart.ready_to_shot)
+                                    {
+                                        for (int rockets_id = 0; rockets_id < g_map.air_strike_targets.size(); rockets_id++)
                                         {
-                                            if (countries->at(i).buildings[buildings_id].missile_defense_heart.ready_to_shot)
+                                            if (g_map.air_strike_targets[rockets_id].GETTER_rocket != -1)
+                                                continue;
+
+                                            if (g_map.air_strike_targets[rockets_id].GETTER_unit != -1)
+                                                continue;
+
+
+                                            auto pos2 = ImVec2(countries->at(g_map.air_strike_targets[rockets_id].GETTER_country_id).position.x * animated_map_scale - (countries->at(g_map.air_strike_targets[rockets_id].GETTER_country_id).size.x * animated_map_scale * g_map.map_scale2) / 2 + map_pos.x * animated_map_scale,
+                                                countries->at(g_map.air_strike_targets[rockets_id].GETTER_country_id).position.y * animated_map_scale - (countries->at(g_map.air_strike_targets[rockets_id].GETTER_country_id).size.y * animated_map_scale * g_map.map_scale2) / 2 + map_pos.y * animated_map_scale);
+
+                                            ImVec2 bombpos = ImVec2(g_map.air_strike_targets[rockets_id].bomb_pos_map1.x, g_map.air_strike_targets[rockets_id].bomb_pos_map1.y);
+
+                                            auto buildpos = ImVec2(final_pos.x, final_pos.y);
+
+                                            float distance = g_tools.calculate_distance(bombpos, buildpos) / animated_map_scale;
+
+                                            ImGui::GetForegroundDrawList()->AddText(g_xgui.fonts[2].font_addr, 17.f, ImVec2(15, 40), ImColor(255, 255, 255), std::to_string(distance).c_str());
+
+
+                                            if (distance < 70 && g_map.air_strike_targets[rockets_id].SENDER_country_id != g_menu.players[player_id].control_region)
                                             {
-                                                nuclear_strike_target new_target;
-                                                new_target.unique_id = g_tools.generate_unique_int();
-                                                new_target.GETTER_country_id = g_map.air_strike_targets[rockets_id].SENDER_country_id;
-                                                new_target.GETTER_city_id = -1;
-                                                new_target.GETTER_building_id = -1;
-                                                new_target.GETTER_rocket = g_map.air_strike_targets[rockets_id].unique_id;
-                                                new_target.SENDER_country_id = g_menu.players[player_id].control_region;
-                                                new_target.SENDER_building_id = buildings_id;
-
-                                                g_map.air_strike_targets.push_back(new_target);
-                                                countries->at(i).buildings[buildings_id].missile_defense_heart.ready_to_shot = false;
-                                                countries->at(i).buildings[buildings_id].missile_defense_heart.old_tick_for_reload = g_map.global_tick;
-
-                                                if (g_socket_control.player_role == g_socket_control.player_role_enum::SERVER)
+                                                if (countries->at(i).buildings[buildings_id].missile_defense_heart.ready_to_shot)
                                                 {
-                                                    g_socket_control.server_send_nuclear_targets();
+                                                    nuclear_strike_target new_target;
+                                                    new_target.unique_id = g_tools.generate_unique_int();
+                                                    new_target.GETTER_country_id = g_map.air_strike_targets[rockets_id].SENDER_country_id;
+                                                    new_target.GETTER_city_id = -1;
+                                                    new_target.GETTER_building_id = -1;
+                                                    new_target.GETTER_rocket = g_map.air_strike_targets[rockets_id].unique_id;
+                                                    new_target.SENDER_country_id = g_menu.players[player_id].control_region;
+                                                    new_target.SENDER_building_id = buildings_id;
+
+                                                    g_map.air_strike_targets.push_back(new_target);
+                                                    countries->at(i).buildings[buildings_id].missile_defense_heart.ready_to_shot = false;
+                                                    countries->at(i).buildings[buildings_id].missile_defense_heart.old_tick_for_reload = g_map.global_tick;
+
+                                                    if (g_socket_control.player_role == g_socket_control.player_role_enum::SERVER)
+                                                    {
+                                                        g_socket_control.server_send_nuclear_targets();
+                                                    }
+                                                    else
+                                                        g_socket_control.client_send_nuclear_targets();
                                                 }
-                                                else
-                                                    g_socket_control.client_send_nuclear_targets();
                                             }
                                         }
                                     }
                                 }
-                            }
-                            break;
+                                break;
 
+                            }
                         }
                     }
-                }
+                
             }
 
         }

@@ -185,6 +185,8 @@ public:
 
     //menus
     ImRect opened_menu_size;
+    int last_iteration_was_with_function_number = 0;
+
     bool selection_for_nuclear_strike;
     int current_striking_building_id; // BUILDING THAT STRIKES
     int current_striking_boat_id = -1;
@@ -196,9 +198,9 @@ public:
     //cycles
     void process_and_sync_game_cycle(std::vector <country_data>* countries, int player_id, float animated_map_scale, int hovered_country_id);
 
-    void process_object_selections(bool city, int current_country, int player_id, std::vector <country_data>* countries, map_objects* object, float animated_map_scale, ImVec2 map_pos);
+    void process_object_selections(int function_count, bool city, int current_country, int player_id, std::vector <country_data>* countries, map_objects* object, float animated_map_scale, ImVec2 map_pos);
 
-    void process_unit_selections(units_base* unit, float animated_map_scale);
+    void process_unit_selections(units_base* unit, ImVec2 pos, float animated_map_scale);
 
     void process_map(window_profiling window, int screen_size_x, int screen_size_y, int player_id);
 

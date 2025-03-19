@@ -24,7 +24,7 @@ public:
 	ImVec2 spawn_pos				= ImVec2();
 	ImVec2 converted_spawn_pos		= ImVec2();
 	ImVec2 position					= ImVec2();
-	ImVec2 position_second_map	    = ImVec2();
+	ImVec2 position_map2		    = ImVec2();
 	ImVec2 old_position				= ImVec2();
 	ImVec2 move_offset				= ImVec2();
 	ImVec2 interpolated_move_offset = ImVec2();

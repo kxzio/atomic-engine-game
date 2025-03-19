@@ -367,15 +367,16 @@ public:
                         auto posy = countries->at(g_map.air_strike_targets[targets].GETTER_country_id).position.y * animated_map_scale - (countries->at(g_map.air_strike_targets[targets].GETTER_country_id).size.y * animated_map_scale * g_map.map_scale2) / 2 + map_pos.y * animated_map_scale;
 
                         auto target = ImVec2(posx + countries->at(g_map.air_strike_targets[targets].GETTER_country_id).cities[g_map.air_strike_targets[targets].GETTER_city_id].pos.x * animated_map_scale, posy + countries->at(g_map.air_strike_targets[targets].GETTER_country_id).cities[g_map.air_strike_targets[targets].GETTER_city_id].pos.y * animated_map_scale);
-                        auto target = ImVec2(posx + countries->at(g_map.air_strike_targets[targets].GETTER_country_id).cities[g_map.air_strike_targets[targets].GETTER_city_id].pos.x * animated_map_scale, posy + countries->at(g_map.air_strike_targets[targets].GETTER_country_id).cities[g_map.air_strike_targets[targets].GETTER_city_id].pos.y * animated_map_scale);
 
-                        if (function_count == 1)
+                        if (function_count == 1 && !g_map.air_strike_targets[targets].segments)
                             g_map.air_strike_targets[targets].segments = g_tools.calculate_segments(sender_unit->position, target, animated_map_scale);
 
-                        auto rocket_pos = g_tools.get_trajectory_one_point(sender_unit->position, target, g_map.air_strike_targets[targets].step_of_bomb, 140.f * animated_map_scale, g_map.air_strike_targets[targets].segments);
-                        auto rocket_pos2 = g_tools.get_trajectory_one_point(sender_unit->position_second_map, target, g_map.air_strike_targets[targets].step_of_bomb, 140.f * animated_map_scale, g_map.air_strike_targets[targets].segments);
+                        ImVec2 rocket_pos = g_tools.get_trajectory_one_point(sender_unit->position, target, g_map.air_strike_targets[targets].step_of_bomb, 140.f * animated_map_scale, g_map.air_strike_targets[targets].segments);
+                        ImVec2 rocket_pos_map2 = g_tools.get_trajectory_one_point(sender_unit->position_map2, target, g_map.air_strike_targets[targets].step_of_bomb, 140.f * animated_map_scale, g_map.air_strike_targets[targets].segments);
 
-                        if (function_count == 1) g_map.air_strike_targets[targets].bomb_pos_map1 = rocket_pos; else g_map.air_strike_targets[targets].bomb_pos_map2 = rocket_pos2;
+                        if (function_count == 1) g_map.air_strike_targets[targets].bomb_pos_map1 = rocket_pos; else g_map.air_strike_targets[targets].bomb_pos_map2 = rocket_pos_map2;
+
+                        ImGui::GetForegroundDrawList()->AddText(ImVec2(100, 100), ImColor(255, 255, 255), std::to_string(g_map.air_strike_targets[targets].segments).c_str());
 
                         //DRAWING
                         if (function_count == 1)
@@ -385,7 +386,7 @@ public:
                             ImGui::GetForegroundDrawList()->AddCircleFilled(g_map.air_strike_targets[targets].bomb_pos_map1, 3 * animated_map_scale, ImColor(255, 0, 0));
                         }
                         else {
-                            g_tools.draw_trajectory_arc(ImGui::GetForegroundDrawList(), sender_unit->position_second_map, target,
+                            g_tools.draw_trajectory_arc(ImGui::GetForegroundDrawList(), sender_unit->position_map2, target,
                                 g_map.air_strike_targets[targets].bomb_pos_map2, 140.f * animated_map_scale, ImColor(255, 255, 255, 210), 200);
                             ImGui::GetForegroundDrawList()->AddCircleFilled(g_map.air_strike_targets[targets].bomb_pos_map2, 3 * animated_map_scale, ImColor(255, 0, 0));
 
