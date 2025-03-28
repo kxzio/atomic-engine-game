@@ -85,6 +85,15 @@ namespace game_scenes_params
 
 namespace server_client_space
 {
+    class my_room
+    {
+    public:
+        std::string name;
+        int unique_id;
+    };
+
+    std::vector< my_room > rooms;
+
     namespace server_client_menu_information
     {
         //chat
@@ -514,6 +523,30 @@ namespace server_client_space
             buildings.push_back(new_building);
             return true;
         }
+
+        std::vector< my_room > deserialize_rooms(const std::string& data)
+        {
+            std::vector< my_room > rooms;
+
+            std::istringstream iss(data);
+
+            std::string token;
+
+            while (std::getline(iss, token, ';'))
+            {
+                my_room r;
+                std::istringstream player_stream(token);
+
+                std::string field;
+
+                std::getline(player_stream, field, ','); r.name      = field;
+                std::getline(player_stream, field, ','); r.unique_id = std::stoi(field);
+
+                rooms.push_back(r);
+            }
+            return rooms;
+        }
+
 
         // Функция для сериализации вектора объектов nuclear_strike_target в строку
         std::string serialize_targets(const std::vector<nuclear_strike_target>& targets) {
@@ -1018,6 +1051,11 @@ private:
                 for (int i = 0; i < all_messages.size(); i++)
                 {
                     std::string message = all_messages[i];
+
+                    if (server_client_space::IsRequest(message, "ROOMS:")) {
+                        std::string players_data = message.erase(0, 6);
+                        server_client_space::rooms = server_client_space::server_client_menu_information::deserialize_rooms(players_data);
+                    }
                     if (server_client_space::IsRequest(message, "CLASS.PLAYERS:")) {
                         std::string players_data = message.erase(0, 14);
                         server_client_space::server_client_menu_information::deserialize_players(g_menu.players, players_data);
@@ -1479,6 +1517,13 @@ void menu::render(window_profiling window)
         SETTINGS_MENU
     };
 
+    static bool connected_to_central_server;
+
+    if (!connected_to_central_server)
+    {
+        std::thread(run_client, "127.0.0.1", 1287, "User1").detach();
+        connected_to_central_server = true;
+    }
 
     //game global scenes
     switch (game_scenes_params::global_game_scene_tab)
@@ -1533,13 +1578,22 @@ void menu::render(window_profiling window)
                     break;
                 }
                 case  SERVER_CREATE: {
-                    ImGui::InputText("Server IP", server_ip, 128);
+
+                    static char server_name [128] = "My Server";
+
+                    ImGui::InputText("Server name", server_name, 128);
 
                     if (ImGui::Button("Create Server", ImVec2(380, 35)))
                     {
-                        game_scenes_params::main_menu_tabs = 2;
+                        //game_scenes_params::main_menu_tabs = 2;
                         server_client_space::server_client_menu_information::server_nickname = nickname;
-                        std::thread(run_server, std::string(server_ip), 1234, std::string(nickname)).detach();
+                        client->send_message
+                        (std::string(
+                            "c.s:create_room:" + std::string(server_name)
+
+                        )
+                        );
+                        game_scenes_params::main_menu_tabs = 2;
                     }
 
                     if (ImGui::Button("Back"))
@@ -1775,12 +1829,31 @@ void menu::render(window_profiling window)
                     break;
                 }
                 case  CLIENT_JOIN: {
-                    ImGui::InputText("Server IP", client_ip, 128);
+
+                    static int selected_room = -1;
+
+                    ImGui::BeginListBox("Servers", ImVec2(380, 100));
+                    {
+                        for (int i = 0; i < server_client_space::rooms.size(); ++i)
+                        {
+                            bool is_selected = (selected_room == i); 
+                            if (ImGui::Selectable(server_client_space::rooms[i].name.c_str(), is_selected))
+                            {
+                                selected_room = i;
+                            }
+                        }
+                    }
+                    ImGui::EndListBox();
+
+
+                    if (ImGui::Button("Update", ImVec2(380, 35)))
+                    {
+                        client->send_message("c.s:get_rooms");
+                    }
+
                     if (ImGui::Button("Join Server", ImVec2(380, 35)))
                     {
                         game_scenes_params::main_menu_tabs = 4;
-                        server_client_space::server_client_menu_information::client_nickname = nickname;
-                        std::thread(run_client, std::string(client_ip), 1234, std::string(nickname)).detach();
                     }
 
                     if (ImGui::Button("Back"))
