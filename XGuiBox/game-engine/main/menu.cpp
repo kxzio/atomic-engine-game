@@ -980,11 +980,6 @@ public:
                 if (!ec)
                 {
                     do_read();
-                    server_client_space::server_client_menu_information::add_message("Connected to server /green/");
-
-                    std::string message_for_nick = "#USER.JOIN:" + nickname_;
-                    //send_message(message_for_nick);
-
                 }
             });
     }
@@ -1588,12 +1583,20 @@ void menu::render(window_profiling window)
                     {
                         //game_scenes_params::main_menu_tabs = 2;
                         server_client_space::server_client_menu_information::server_nickname = nickname;
+
                         client->send_message
                         (std::string(
                             "c.s:create_room:" + std::string(server_name)
 
                         )
                         );
+
+                        client->send_message
+                        (std::string(
+                            "c.s:updating_nickname:" + std::string(nickname)
+                        )
+                        );
+
                         game_scenes_params::main_menu_tabs = 2;
                     }
 
@@ -1831,7 +1834,7 @@ void menu::render(window_profiling window)
                 case  CLIENT_JOIN: {
 
                     static int selected_room = -1;
-
+                    
                     ImGui::BeginListBox("Servers", ImVec2(380, 100));
                     {
                         for (int i = 0; i < server_client_space::rooms.size(); ++i)
@@ -1851,9 +1854,24 @@ void menu::render(window_profiling window)
                         client->send_message("c.s:get_rooms");
                     }
 
-                    if (ImGui::Button("Join Server", ImVec2(380, 35)))
+                    if (selected_room != 1)
                     {
-                        game_scenes_params::main_menu_tabs = 4;
+                        if (ImGui::Button("Join Server", ImVec2(380, 35)))
+                        {
+                            game_scenes_params::main_menu_tabs = 4;
+                            client->send_message
+                            (std::string(
+                                "c.s:join_room:" + std::to_string(server_client_space::rooms[selected_room].unique_id)
+
+                            )
+                            );
+
+                            client->send_message
+                            (std::string(
+                                "c.s:updating_nickname:" + std::string(nickname)
+                            )
+                            );
+                        }
                     }
 
                     if (ImGui::Button("Back"))
