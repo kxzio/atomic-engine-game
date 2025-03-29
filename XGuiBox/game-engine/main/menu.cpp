@@ -983,7 +983,7 @@ public:
                     server_client_space::server_client_menu_information::add_message("Connected to server /green/");
 
                     std::string message_for_nick = "#USER.JOIN:" + nickname_;
-                    send_message(message_for_nick);
+                    //send_message(message_for_nick);
 
                 }
             });
@@ -1124,9 +1124,10 @@ private:
                     {
                         g_socket_control.game_cycle_messages = message;
                     }
-                    else
+                    else if (server_client_space::IsRequest(message, "CHAT:"))
                     {
-                        server_client_space::server_client_menu_information::add_message(message);
+                        std::string players_data = message.erase(0, 5);
+                        server_client_space::server_client_menu_information::add_message(players_data);
                     }
                 }
                 do_read();
@@ -1604,7 +1605,7 @@ void menu::render(window_profiling window)
                 }
                 case  SERVER_MENU:
                 {
-                    ImGui::Text((std::string("Server is running on IP ") + server_ip).c_str());
+                    //ImGui::Text((std::string("Server is running on IP ") + server_ip).c_str());
 
                     ImGui::BeginListBox("Players", ImVec2(380, 64));
 
@@ -1702,7 +1703,7 @@ void menu::render(window_profiling window)
                     ImGui::InputText("Message", message, 128);
 
                     if (ImGui::Button("Send", ImVec2(380, 35)) || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
-                        server->send_message(server_client_space::server_client_menu_information::server_nickname + ": " + std::string(message));
+                        client->send_message("CHAT:" + server_client_space::server_client_menu_information::server_nickname + ": " + std::string(message));
                         server_client_space::server_client_menu_information::add_message(server_client_space::server_client_menu_information::server_nickname + ": " + std::string(message));
                         memset(message, 0, sizeof(message));
                         ImGui::SetItemDefaultFocus();
@@ -1729,7 +1730,7 @@ void menu::render(window_profiling window)
                                 find_player_by_nickname
                                 (server_client_space::server_client_menu_information::server_nickname).id].control_region = selected_region;
 
-                        server->send_and_update_player_class(server_client_space::server_client_menu_information::find_player_by_nickname(server_client_space::server_client_menu_information::server_nickname).id);
+                        client->send_and_update_player_class(server_client_space::server_client_menu_information::find_player_by_nickname(server_client_space::server_client_menu_information::server_nickname).id);
 
                     }
 
@@ -1748,7 +1749,7 @@ void menu::render(window_profiling window)
                                 find_player_by_nickname
                                 (server_client_space::server_client_menu_information::server_nickname).id].ready_to_play = true;
 
-                            server->send_and_update_player_class(server_client_space::server_client_menu_information::find_player_by_nickname(server_client_space::server_client_menu_information::server_nickname).id);
+                            client->send_and_update_player_class(server_client_space::server_client_menu_information::find_player_by_nickname(server_client_space::server_client_menu_information::server_nickname).id);
 
                         }
 
@@ -1758,7 +1759,7 @@ void menu::render(window_profiling window)
                                 find_player_by_nickname
                                 (server_client_space::server_client_menu_information::server_nickname).id].ready_to_play = false;
 
-                            server->send_and_update_player_class(server_client_space::server_client_menu_information::find_player_by_nickname(server_client_space::server_client_menu_information::server_nickname).id);
+                            client->send_and_update_player_class(server_client_space::server_client_menu_information::find_player_by_nickname(server_client_space::server_client_menu_information::server_nickname).id);
 
                         }
 
@@ -1768,8 +1769,7 @@ void menu::render(window_profiling window)
                     ImGui::SetCursorPosX(313);
                     if (ImGui::Button("Disconnect"))
                     {
-                        server->send_message("#SERVER:CLOSED_CONNECTION");
-                        server->stop_connection();
+                        client->send_message("c.s:close_room");
                         io_context->stop();
                         game_scenes_params::main_menu_tabs = 0;
                     }
@@ -1783,7 +1783,7 @@ void menu::render(window_profiling window)
                         const char* game_modes_selection[] = { "Default (30 mins)", "Long (45 mins)" };
                         ImGui::Combo("Game mode", &selected_game_mode, game_modes_selection, IM_ARRAYSIZE(game_modes_selection));
                         if (last_selected_game_mode != selected_game_mode) {
-                            server->send_message("Server : game mode changed to " + std::string(game_modes_selection[selected_game_mode]) + "/blue/");
+                            client->send_message("Server : game mode changed to " + std::string(game_modes_selection[selected_game_mode]) + "/blue/");
                             server_client_space::server_client_menu_information::add_message("Server : game mode changed to " + std::string(game_modes_selection[selected_game_mode]) + "/blue/");
                             last_selected_game_mode = selected_game_mode;
                         }
@@ -1793,7 +1793,7 @@ void menu::render(window_profiling window)
                         {
                             g_socket_control.player_role = g_socket_control.player_role_enum::SERVER;
                             game_scenes_params::global_game_scene_tab = game_scenes_params::game_process;
-                            server->send_message("#SERVER:GAME_START");
+                            client->send_message("#SERVER:GAME_START");
                         }
                     }
                     ImGui::End();
