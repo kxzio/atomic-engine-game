@@ -863,7 +863,8 @@ void window_profiling::create_window()
 
 
     }
-
+    
+    g_socket_control.client_send_message("c.s:leave_room");
     // Освобождение ресурсов
     this->unload_textures();
     ImGui_ImplDX11_Shutdown();

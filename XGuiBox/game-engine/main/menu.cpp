@@ -85,6 +85,7 @@ namespace game_scenes_params
 
 namespace server_client_space
 {
+
     class my_room
     {
     public:
@@ -96,6 +97,9 @@ namespace server_client_space
 
     namespace server_client_menu_information
     {
+
+        bool connected;
+
         //chat
         std::mutex                 chat_mutex;
         std::deque < std::string > chat_messages;
@@ -289,10 +293,7 @@ namespace server_client_space
             for (const auto& p : players)
             {
                 // Сериализация основных данных игрока
-                oss << p.id << "," << p.name << "," << p.control_region << "," << int(p.ready_to_play) << ",";
-
-                // Сериализация экономических данных
-                oss << p.economics.capital << "," << p.economics.capital_inflow << "," << p.economics.capital_inflow_ratio;
+                oss << p.id << "," << p.name << "," << p.control_region << "," << int(p.ready_to_play);
 
                 oss << ";"; // Разделитель между игроками
             }
@@ -322,13 +323,6 @@ namespace server_client_space
                 p.ready_to_play = std::stoi(ready_to_play_str);
 
                 // Десериализация экономических данных
-                std::string capital_str, capital_inflow_str, capital_inflow_ratio_str;
-                std::getline(player_stream, capital_str, ',');
-                std::getline(player_stream, capital_inflow_str, ',');
-                std::getline(player_stream, capital_inflow_ratio_str, ',');
-                p.economics.capital = std::stof(capital_str);
-                p.economics.capital_inflow = std::stof(capital_inflow_str);
-                p.economics.capital_inflow_ratio = std::stof(capital_inflow_ratio_str);
 
                 players.push_back(p);
             }
@@ -527,6 +521,9 @@ namespace server_client_space
         std::vector< my_room > deserialize_rooms(const std::string& data)
         {
             std::vector< my_room > rooms;
+
+            if (data.length() < 1)
+                return rooms;
 
             std::istringstream iss(data);
 
@@ -993,9 +990,7 @@ public:
 
     void disconnect()
     {
-        socket_.close();
-        server_client_space::server_client_menu_information::chat_messages.clear();
-        g_menu.players.clear();
+
     }
 
     void send_and_update_player_class(int id)
@@ -1049,7 +1044,19 @@ private:
 
                     if (server_client_space::IsRequest(message, "ROOMS:")) {
                         std::string players_data = message.erase(0, 6);
-                        server_client_space::rooms = server_client_space::server_client_menu_information::deserialize_rooms(players_data);
+                        if (players_data != " ")
+                        {
+                            auto rooms = server_client_space::server_client_menu_information::deserialize_rooms(players_data);
+                            server_client_space::rooms = rooms;
+                        }
+                        else
+                        {
+                            server_client_space::rooms.clear();
+                        }
+                    }
+                    else if (server_client_space::IsRequest(message, "CONNECTED"))
+                    {
+                        server_client_space::server_client_menu_information::connected = true;
                     }
                     if (server_client_space::IsRequest(message, "CLASS.PLAYERS:")) {
                         std::string players_data = message.erase(0, 14);
@@ -1107,8 +1114,8 @@ private:
                     }
                     else if (server_client_space::IsRequest(message, "SERVER:CLOSED_CONNECTION"))
                     {
-                        this->disconnect();
                         game_scenes_params::main_menu_tabs = 5;
+                        server_client_space::server_client_menu_information::connected = false;
                     }
                     else if (server_client_space::IsRequest(message, "SERVER:GAME_START"))
                     {
@@ -1169,7 +1176,7 @@ void run_client(const std::string& host, short port, const std::string& nickname
 
 void socket_control::server_send_message(std::string message)
 {
-    server->send_message(message);
+    client->send_message(message);
 }
 
 void socket_control::client_send_message(std::string message)
@@ -1274,7 +1281,7 @@ void socket_control::client_send_unit_pos(int region)
 void socket_control::server_process_client_sync()
 {
     if (!sync_socket.empty())
-        server->send_message(sync_socket);
+        client->send_message(sync_socket);
 
     sync_socket = "";
 }
@@ -1591,12 +1598,6 @@ void menu::render(window_profiling window)
                         )
                         );
 
-                        client->send_message
-                        (std::string(
-                            "c.s:updating_nickname:" + std::string(nickname)
-                        )
-                        );
-
                         game_scenes_params::main_menu_tabs = 2;
                     }
 
@@ -1608,6 +1609,18 @@ void menu::render(window_profiling window)
                 }
                 case  SERVER_MENU:
                 {
+                    if (server_client_space::server_client_menu_information::connected)
+                    {
+                        if (true)
+                        {
+                            client->send_message
+                            (std::string(
+                                "c.s:updating_nickname:" + std::string(nickname)
+                            )
+                            );
+                            server_client_space::server_client_menu_information::connected = false;
+                        }
+                    }
                     //ImGui::Text((std::string("Server is running on IP ") + server_ip).c_str());
 
                     ImGui::BeginListBox("Players", ImVec2(380, 64));
@@ -1773,8 +1786,12 @@ void menu::render(window_profiling window)
                     if (ImGui::Button("Disconnect"))
                     {
                         client->send_message("c.s:close_room");
-                        io_context->stop();
                         game_scenes_params::main_menu_tabs = 0;
+
+                        server_client_space::server_client_menu_information::chat_messages.clear();
+                        g_menu.players.clear();
+                        server_client_space::server_client_menu_information::connected = false;
+
                     }
 
                     ImGui::SetNextWindowPos(ImVec2((screen_x / 2 - 400 / 2) - 400, screen_y / 2 - 400 / 2));
@@ -1786,7 +1803,7 @@ void menu::render(window_profiling window)
                         const char* game_modes_selection[] = { "Default (30 mins)", "Long (45 mins)" };
                         ImGui::Combo("Game mode", &selected_game_mode, game_modes_selection, IM_ARRAYSIZE(game_modes_selection));
                         if (last_selected_game_mode != selected_game_mode) {
-                            client->send_message("Server : game mode changed to " + std::string(game_modes_selection[selected_game_mode]) + "/blue/");
+                            client->send_message("CHAT:Server : game mode changed to " + std::string(game_modes_selection[selected_game_mode]) + "/blue/");
                             server_client_space::server_client_menu_information::add_message("Server : game mode changed to " + std::string(game_modes_selection[selected_game_mode]) + "/blue/");
                             last_selected_game_mode = selected_game_mode;
                         }
@@ -1854,21 +1871,17 @@ void menu::render(window_profiling window)
                         client->send_message("c.s:get_rooms");
                     }
 
-                    if (selected_room != 1)
+                    if (selected_room != -1)
                     {
                         if (ImGui::Button("Join Server", ImVec2(380, 35)))
                         {
+                            server_client_space::server_client_menu_information::client_nickname = nickname;
+
                             game_scenes_params::main_menu_tabs = 4;
                             client->send_message
                             (std::string(
                                 "c.s:join_room:" + std::to_string(server_client_space::rooms[selected_room].unique_id)
 
-                            )
-                            );
-
-                            client->send_message
-                            (std::string(
-                                "c.s:updating_nickname:" + std::string(nickname)
                             )
                             );
                         }
@@ -1882,6 +1895,19 @@ void menu::render(window_profiling window)
                 }
                 case  CLIENT_MENU: 
                 {
+                    if (server_client_space::server_client_menu_information::connected)
+                    {
+                        if (true)
+                        {
+                            client->send_message
+                            (std::string(
+                                "c.s:updating_nickname:" + std::string(nickname)
+                            )
+                            );
+                            server_client_space::server_client_menu_information::connected = false;
+                        }
+                    }
+
                     ImGui::Text("Connected to the server!");
 
                     ImGui::BeginListBox("Players", ImVec2(380, 64));
@@ -1969,7 +1995,8 @@ void menu::render(window_profiling window)
 
                     ImGui::InputText("Message", message, 128);
                     if (ImGui::Button("Send", ImVec2(380, 35)) || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
-                        client->send_message(server_client_space::server_client_menu_information::client_nickname + ": " + std::string(message));
+                        client->send_message("CHAT:" + server_client_space::server_client_menu_information::client_nickname + ": " + std::string(message));
+                        server_client_space::server_client_menu_information::add_message(server_client_space::server_client_menu_information::server_nickname + ": " + std::string(message));
                         memset(message, 0, sizeof(message));
                     }
 
@@ -2034,14 +2061,12 @@ void menu::render(window_profiling window)
                     ImGui::SetCursorPosX(313);
                     if (ImGui::Button("Disconnect"))
                     {
-                        if (client != nullptr)
-                        {
-                            client->disconnect();
-                            client.reset();
-                        }
+                        client->send_message("c.s:leave_room");
 
-                        io_context->stop();
-                        io_context->reset();
+                        server_client_space::server_client_menu_information::chat_messages.clear();
+                        g_menu.players.clear();
+                        server_client_space::server_client_menu_information::connected = false;
+
                         game_scenes_params::main_menu_tabs = 0;
 
                     }
