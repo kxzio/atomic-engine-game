@@ -1058,6 +1058,10 @@ private:
                     {
                         server_client_space::server_client_menu_information::connected = true;
                     }
+                    else if (server_client_space::IsRequest(message, "PING"))
+                    {
+                        send_message("PONG");
+                    }
                     if (server_client_space::IsRequest(message, "CLASS.PLAYERS:")) {
                         std::string players_data = message.erase(0, 14);
                         server_client_space::server_client_menu_information::deserialize_players(g_menu.players, players_data);
@@ -1619,6 +1623,8 @@ void menu::render(window_profiling window)
                             )
                             );
                             server_client_space::server_client_menu_information::connected = false;
+
+                            client->send_message("c.s:go_ping_me");
                         }
                     }
                     //ImGui::Text((std::string("Server is running on IP ") + server_ip).c_str());
@@ -1905,6 +1911,7 @@ void menu::render(window_profiling window)
                             )
                             );
                             server_client_space::server_client_menu_information::connected = false;
+                            client->send_message("c.s:go_ping_me");
                         }
                     }
 
